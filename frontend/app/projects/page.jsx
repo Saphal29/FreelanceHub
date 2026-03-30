@@ -1,8 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
 import Navbar from "@/components/layout/Navbar";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { useAuth } from "@/contexts/AuthContext";
+import { getProjects } from "@/lib/api";
 import {
   Briefcase,
   Clock,
@@ -11,310 +17,396 @@ import {
   AlertCircle,
   XCircle,
   MoreHorizontal,
-  Calendar,
-  User,
   MessageSquare,
   FileText,
+  Search,
+  Filter,
 } from "lucide-react";
 
-// Dummy projects data
-const projectsData = {
-  active: [
-    {
-      id: 1,
-      title: "E-commerce Website Development",
-      client: "TechStart Inc.",
-      clientAvatar: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop",
-      deadline: "Dec 28, 2024",
-      progress: 75,
-      amount: "$2,500",
-      status: "in_progress",
-      description: "Building a modern e-commerce platform with React and Node.js",
-      startDate: "Nov 15, 2024",
-    },
-    {
-      id: 2,
-      title: "Mobile App UI/UX Design",
-      client: "HealthApp Co.",
-      clientAvatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&h=100&fit=crop",
-      deadline: "Jan 5, 2025",
-      progress: 45,
-      amount: "$1,800",
-      status: "in_progress",
-      description: "Designing user interfaces for a health and fitness mobile application",
-      startDate: "Dec 1, 2024",
-    },
-    {
-      id: 3,
-      title: "Brand Identity Package",
-      client: "GreenLeaf Organic",
-      clientAvatar: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100&h=100&fit=crop",
-      deadline: "Jan 2, 2025",
-      progress: 90,
-      amount: "$800",
-      status: "review",
-      description: "Complete brand identity including logo, colors, and guidelines",
-      startDate: "Nov 20, 2024",
-    },
-  ],
-  completed: [
-    {
-      id: 4,
-      title: "WordPress Blog Setup",
-      client: "Digital Marketing Pro",
-      clientAvatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop",
-      completedDate: "Dec 10, 2024",
-      amount: "$600",
-      rating: 5,
-      review: "Excellent work! Very professional and delivered on time.",
-    },
-    {
-      id: 5,
-      title: "Logo Design for Startup",
-      client: "InnovateTech",
-      clientAvatar: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=100&h=100&fit=crop",
-      completedDate: "Nov 28, 2024",
-      amount: "$450",
-      rating: 5,
-      review: "Amazing designer! Captured our vision perfectly.",
-    },
-  ],
-  cancelled: [
-    {
-      id: 6,
-      title: "Social Media Management",
-      client: "Fashion Boutique",
-      clientAvatar: "https://images.unsplash.com/photo-1580489944761-15a19d654956?w=100&h=100&fit=crop",
-      cancelledDate: "Nov 15, 2024",
-      amount: "$300",
-      reason: "Client changed requirements",
-    },
-  ],
-};
-
 export default function MyProjectsPage() {
+  const router = useRouter();
+  const { user, loading: authLoading } = useAuth();
   const [activeTab, setActiveTab] = useState("active");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [projects, setProjects] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  // Redirect if not authenticated or not a freelancer
+  useEffect(() => {
+    if (!authLoading && (!user || user.role !== "FREELANCER")) {
+      router.push("/login");
+    }
+  }, [user, authLoading, router]);
+
+  // Fetch projects
+  useEffect(() => {
+    fetchProjects();
+  }, [user, authLoading, activeTab]);
+
+  const fetchProjects = async () => {
+    if (!user || user.role !== "FREELANCER") return;
+
+    try {
+      setLoading(true);
+      setError("");
+
+      const params = {
+        status: activeTab === "active" ? "in_progress" : activeTab,
+        sortBy: "created_at",
+        sortOrder: "DESC",
+        limit: 50
+      };
+
+      // Add search query
+      if (searchQuery.trim()) {
+        params.search = searchQuery.trim();
+      }
+
+      const response = await getProjects(params);
+
+      if (response.success) {
+        setProjects(response.projects || []);
+      } else {
+        setError(response.error || "Failed to load projects");
+      }
+    } catch (err) {
+      console.error("Error fetching projects:", err);
+      setError(err.message || "Failed to load projects");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSearch = (e) => {
+    e.preventDefault();
+    fetchProjects();
+  };
+
+  // Filter projects by search query
+  const filteredProjects = projects.filter((project) => {
+    if (!searchQuery) return true;
+    const query = searchQuery.toLowerCase();
+    return (
+      project.title.toLowerCase().includes(query) ||
+      project.description.toLowerCase().includes(query) ||
+      (project.skills && project.skills.some((skill) => skill.toLowerCase().includes(query)))
+    );
+  });
 
   const tabs = [
-    { id: "active", label: "Active", count: projectsData.active.length },
-    { id: "completed", label: "Completed", count: projectsData.completed.length },
-    { id: "cancelled", label: "Cancelled", count: projectsData.cancelled.length },
+    { id: "active", label: "Active", count: activeTab === "active" ? filteredProjects.length : 0 },
+    { id: "completed", label: "Completed", count: activeTab === "completed" ? filteredProjects.length : 0 },
+    { id: "cancelled", label: "Cancelled", count: activeTab === "cancelled" ? filteredProjects.length : 0 },
   ];
 
-  const renderActiveProjects = () => (
-    <div className="space-y-6">
-      {projectsData.active.map((project) => (
-        <div
-          key={project.id}
-          className="rounded-2xl border border-border bg-card p-6 transition-all hover:shadow-lg"
-        >
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex-1">
-              <div className="flex items-center gap-3">
-                <h3 className="font-display text-lg font-semibold text-foreground">
-                  {project.title}
-                </h3>
-                {project.status === "review" && (
-                  <span className="flex items-center gap-1 rounded-full bg-amber-500/10 px-3 py-1 text-xs font-medium text-amber-600">
-                    <AlertCircle className="h-3 w-3" />
-                    In Review
-                  </span>
-                )}
-                {project.status === "in_progress" && (
-                  <span className="flex items-center gap-1 rounded-full bg-accent/10 px-3 py-1 text-xs font-medium text-accent">
-                    <Clock className="h-3 w-3" />
-                    In Progress
-                  </span>
-                )}
-              </div>
-              <p className="mt-2 text-sm text-muted-foreground">{project.description}</p>
-            </div>
-            <Button variant="ghost" size="icon">
-              <MoreHorizontal className="h-5 w-5" />
-            </Button>
-          </div>
+  const renderActiveProjects = () => {
+    if (loading) {
+      return (
+        <div className="flex items-center justify-center py-12">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-accent"></div>
+        </div>
+      );
+    }
 
-          <div className="mt-4 flex items-center gap-3">
-            <img
-              src={project.clientAvatar}
-              alt={project.client}
-              className="h-10 w-10 rounded-full object-cover"
-            />
-            <div>
-              <p className="text-sm font-medium text-foreground">{project.client}</p>
-              <p className="text-xs text-muted-foreground">Client</p>
-            </div>
-          </div>
-
-          <div className="mt-4 grid grid-cols-2 gap-4 rounded-xl bg-secondary p-4 sm:grid-cols-4">
-            <div>
-              <p className="text-xs text-muted-foreground">Start Date</p>
-              <p className="mt-1 text-sm font-medium text-foreground">{project.startDate}</p>
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Deadline</p>
-              <p className="mt-1 text-sm font-medium text-foreground">{project.deadline}</p>
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Budget</p>
-              <p className="mt-1 text-sm font-medium text-accent">{project.amount}</p>
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Progress</p>
-              <p className="mt-1 text-sm font-medium text-foreground">{project.progress}%</p>
-            </div>
-          </div>
-
-          {/* Progress Bar */}
-          <div className="mt-4">
-            <div className="h-2 w-full overflow-hidden rounded-full bg-secondary">
-              <div
-                className="h-full rounded-full bg-accent transition-all duration-500"
-                style={{ width: `${project.progress}%` }}
-              />
-            </div>
-          </div>
-
-          <div className="mt-4 flex flex-wrap gap-3">
-            <Button variant="outline" size="sm" className="flex-1">
-              <MessageSquare className="mr-2 h-4 w-4" />
-              Message Client
-            </Button>
-            <Button variant="outline" size="sm" className="flex-1">
-              <FileText className="mr-2 h-4 w-4" />
-              View Details
-            </Button>
-            {project.status === "review" && (
-              <Button variant="accent" size="sm" className="flex-1">
-                <CheckCircle className="mr-2 h-4 w-4" />
-                Deliver Work
+    if (filteredProjects.length === 0) {
+      return (
+        <div className="rounded-2xl border border-border bg-card p-12 text-center">
+          <Briefcase className="mx-auto h-12 w-12 text-muted-foreground" />
+          <h3 className="mt-4 font-display text-xl font-semibold text-foreground">
+            No active projects
+          </h3>
+          <p className="mt-2 text-muted-foreground">
+            {searchQuery
+              ? "Try adjusting your search query"
+              : "You don't have any active projects yet"}
+          </p>
+          {!searchQuery && (
+            <Link href="/freelancer/jobs">
+              <Button variant="accent" className="mt-6">
+                Find Work
               </Button>
-            )}
-          </div>
+            </Link>
+          )}
         </div>
-      ))}
-    </div>
-  );
+      );
+    }
 
-  const renderCompletedProjects = () => (
-    <div className="space-y-6">
-      {projectsData.completed.map((project) => (
-        <div
-          key={project.id}
-          className="rounded-2xl border border-border bg-card p-6 transition-all hover:shadow-lg"
-        >
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex-1">
-              <div className="flex items-center gap-3">
-                <h3 className="font-display text-lg font-semibold text-foreground">
-                  {project.title}
-                </h3>
-                <span className="flex items-center gap-1 rounded-full bg-green-500/10 px-3 py-1 text-xs font-medium text-green-600">
-                  <CheckCircle className="h-3 w-3" />
-                  Completed
-                </span>
+    return (
+      <div className="space-y-6">
+        {filteredProjects.map((project) => (
+          <div
+            key={project.id}
+            className="rounded-2xl border border-border bg-card p-6 transition-all hover:shadow-lg"
+          >
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex-1">
+                <div className="flex items-center gap-3">
+                  <h3 className="font-display text-lg font-semibold text-foreground">
+                    {project.title}
+                  </h3>
+                  {project.status === "review" && (
+                    <span className="flex items-center gap-1 rounded-full bg-amber-500/10 px-3 py-1 text-xs font-medium text-amber-600">
+                      <AlertCircle className="h-3 w-3" />
+                      In Review
+                    </span>
+                  )}
+                  {project.status === "in_progress" && (
+                    <span className="flex items-center gap-1 rounded-full bg-accent/10 px-3 py-1 text-xs font-medium text-accent">
+                      <Clock className="h-3 w-3" />
+                      In Progress
+                    </span>
+                  )}
+                </div>
+                <p className="mt-2 text-sm text-muted-foreground">{project.description}</p>
+              </div>
+              <Button variant="ghost" size="icon">
+                <MoreHorizontal className="h-5 w-5" />
+              </Button>
+            </div>
+
+            <div className="mt-4 flex items-center gap-3">
+              <img
+                src={project.client?.avatar || "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop"}
+                alt={project.client?.name || "Client"}
+                className="h-10 w-10 rounded-full object-cover"
+              />
+              <div>
+                <p className="text-sm font-medium text-foreground">{project.client?.name || "Client"}</p>
+                <p className="text-xs text-muted-foreground">Client</p>
               </div>
             </div>
-            <Button variant="ghost" size="icon">
-              <MoreHorizontal className="h-5 w-5" />
-            </Button>
-          </div>
 
-          <div className="mt-4 flex items-center gap-3">
-            <img
-              src={project.clientAvatar}
-              alt={project.client}
-              className="h-10 w-10 rounded-full object-cover"
-            />
-            <div>
-              <p className="text-sm font-medium text-foreground">{project.client}</p>
-              <p className="text-xs text-muted-foreground">Client</p>
-            </div>
-          </div>
-
-          <div className="mt-4 grid grid-cols-2 gap-4 rounded-xl bg-secondary p-4">
-            <div>
-              <p className="text-xs text-muted-foreground">Completed</p>
-              <p className="mt-1 text-sm font-medium text-foreground">{project.completedDate}</p>
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Earned</p>
-              <p className="mt-1 text-sm font-medium text-accent">{project.amount}</p>
-            </div>
-          </div>
-
-          {/* Rating */}
-          <div className="mt-4 rounded-xl border border-border bg-secondary/50 p-4">
-            <div className="flex items-center gap-2">
-              <div className="flex">
-                {[...Array(project.rating)].map((_, i) => (
-                  <CheckCircle key={i} className="h-5 w-5 fill-accent text-accent" />
-                ))}
+            <div className="mt-4 grid grid-cols-2 gap-4 rounded-xl bg-secondary p-4 sm:grid-cols-4">
+              <div>
+                <p className="text-xs text-muted-foreground">Start Date</p>
+                <p className="mt-1 text-sm font-medium text-foreground">
+                  {new Date(project.createdAt).toLocaleDateString()}
+                </p>
               </div>
-              <span className="font-semibold text-foreground">{project.rating}.0</span>
-            </div>
-            <p className="mt-2 text-sm italic text-muted-foreground">"{project.review}"</p>
-          </div>
-
-          <div className="mt-4 flex gap-3">
-            <Button variant="outline" size="sm" className="flex-1">
-              <FileText className="mr-2 h-4 w-4" />
-              View Details
-            </Button>
-            <Button variant="outline" size="sm" className="flex-1">
-              <MessageSquare className="mr-2 h-4 w-4" />
-              Contact Client
-            </Button>
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-
-  const renderCancelledProjects = () => (
-    <div className="space-y-6">
-      {projectsData.cancelled.map((project) => (
-        <div
-          key={project.id}
-          className="rounded-2xl border border-border bg-card p-6 opacity-75 transition-all hover:shadow-lg"
-        >
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex-1">
-              <div className="flex items-center gap-3">
-                <h3 className="font-display text-lg font-semibold text-foreground">
-                  {project.title}
-                </h3>
-                <span className="flex items-center gap-1 rounded-full bg-red-500/10 px-3 py-1 text-xs font-medium text-red-600">
-                  <XCircle className="h-3 w-3" />
-                  Cancelled
-                </span>
+              <div>
+                <p className="text-xs text-muted-foreground">Deadline</p>
+                <p className="mt-1 text-sm font-medium text-foreground">
+                  {project.deadline ? new Date(project.deadline).toLocaleDateString() : "Not set"}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Budget</p>
+                <p className="mt-1 text-sm font-medium text-accent">
+                  ${project.budget.min.toLocaleString()} - ${project.budget.max.toLocaleString()}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Progress</p>
+                <p className="mt-1 text-sm font-medium text-foreground">0%</p>
               </div>
             </div>
-          </div>
 
-          <div className="mt-4 flex items-center gap-3">
-            <img
-              src={project.clientAvatar}
-              alt={project.client}
-              className="h-10 w-10 rounded-full object-cover"
-            />
-            <div>
-              <p className="text-sm font-medium text-foreground">{project.client}</p>
-              <p className="text-xs text-muted-foreground">Client</p>
+            {/* Progress Bar */}
+            <div className="mt-4">
+              <div className="h-2 w-full overflow-hidden rounded-full bg-secondary">
+                <div
+                  className="h-full rounded-full bg-accent transition-all duration-500"
+                  style={{ width: `0%` }}
+                />
+              </div>
+            </div>
+
+            <div className="mt-4 flex flex-wrap gap-3">
+              <Button variant="outline" size="sm" className="flex-1">
+                <MessageSquare className="mr-2 h-4 w-4" />
+                Message Client
+              </Button>
+              <Button variant="outline" size="sm" className="flex-1">
+                <FileText className="mr-2 h-4 w-4" />
+                View Details
+              </Button>
+              {project.status === "review" && (
+                <Button variant="accent" size="sm" className="flex-1">
+                  <CheckCircle className="mr-2 h-4 w-4" />
+                  Deliver Work
+                </Button>
+              )}
             </div>
           </div>
+        ))}
+      </div>
+    );
+  };
 
-          <div className="mt-4 rounded-xl bg-secondary p-4">
-            <p className="text-xs text-muted-foreground">Cancellation Reason</p>
-            <p className="mt-1 text-sm text-foreground">{project.reason}</p>
-            <p className="mt-2 text-xs text-muted-foreground">
-              Cancelled on {project.cancelledDate}
-            </p>
-          </div>
+  const renderCompletedProjects = () => {
+    if (loading) {
+      return (
+        <div className="flex items-center justify-center py-12">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-accent"></div>
         </div>
-      ))}
-    </div>
-  );
+      );
+    }
+
+    if (filteredProjects.length === 0) {
+      return (
+        <div className="rounded-2xl border border-border bg-card p-12 text-center">
+          <CheckCircle className="mx-auto h-12 w-12 text-muted-foreground" />
+          <h3 className="mt-4 font-display text-xl font-semibold text-foreground">
+            No completed projects
+          </h3>
+          <p className="mt-2 text-muted-foreground">
+            {searchQuery
+              ? "Try adjusting your search query"
+              : "You haven't completed any projects yet"}
+          </p>
+        </div>
+      );
+    }
+
+    return (
+      <div className="space-y-6">
+        {filteredProjects.map((project) => (
+          <div
+            key={project.id}
+            className="rounded-2xl border border-border bg-card p-6 transition-all hover:shadow-lg"
+          >
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex-1">
+                <div className="flex items-center gap-3">
+                  <h3 className="font-display text-lg font-semibold text-foreground">
+                    {project.title}
+                  </h3>
+                  <span className="flex items-center gap-1 rounded-full bg-green-500/10 px-3 py-1 text-xs font-medium text-green-600">
+                    <CheckCircle className="h-3 w-3" />
+                    Completed
+                  </span>
+                </div>
+              </div>
+              <Button variant="ghost" size="icon">
+                <MoreHorizontal className="h-5 w-5" />
+              </Button>
+            </div>
+
+            <div className="mt-4 flex items-center gap-3">
+              <img
+                src={project.client?.avatar || "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop"}
+                alt={project.client?.name || "Client"}
+                className="h-10 w-10 rounded-full object-cover"
+              />
+              <div>
+                <p className="text-sm font-medium text-foreground">{project.client?.name || "Client"}</p>
+                <p className="text-xs text-muted-foreground">Client</p>
+              </div>
+            </div>
+
+            <div className="mt-4 grid grid-cols-2 gap-4 rounded-xl bg-secondary p-4">
+              <div>
+                <p className="text-xs text-muted-foreground">Completed</p>
+                <p className="mt-1 text-sm font-medium text-foreground">
+                  {project.completedAt ? new Date(project.completedAt).toLocaleDateString() : "N/A"}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Earned</p>
+                <p className="mt-1 text-sm font-medium text-accent">
+                  ${project.budget.min.toLocaleString()} - ${project.budget.max.toLocaleString()}
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-4 flex gap-3">
+              <Button variant="outline" size="sm" className="flex-1">
+                <FileText className="mr-2 h-4 w-4" />
+                View Details
+              </Button>
+              <Button variant="outline" size="sm" className="flex-1">
+                <MessageSquare className="mr-2 h-4 w-4" />
+                Contact Client
+              </Button>
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  };
+
+  const renderCancelledProjects = () => {
+    if (loading) {
+      return (
+        <div className="flex items-center justify-center py-12">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-accent"></div>
+        </div>
+      );
+    }
+
+    if (filteredProjects.length === 0) {
+      return (
+        <div className="rounded-2xl border border-border bg-card p-12 text-center">
+          <XCircle className="mx-auto h-12 w-12 text-muted-foreground" />
+          <h3 className="mt-4 font-display text-xl font-semibold text-foreground">
+            No cancelled projects
+          </h3>
+          <p className="mt-2 text-muted-foreground">
+            {searchQuery
+              ? "Try adjusting your search query"
+              : "You don't have any cancelled projects"}
+          </p>
+        </div>
+      );
+    }
+
+    return (
+      <div className="space-y-6">
+        {filteredProjects.map((project) => (
+          <div
+            key={project.id}
+            className="rounded-2xl border border-border bg-card p-6 opacity-75 transition-all hover:shadow-lg"
+          >
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex-1">
+                <div className="flex items-center gap-3">
+                  <h3 className="font-display text-lg font-semibold text-foreground">
+                    {project.title}
+                  </h3>
+                  <span className="flex items-center gap-1 rounded-full bg-red-500/10 px-3 py-1 text-xs font-medium text-red-600">
+                    <XCircle className="h-3 w-3" />
+                    Cancelled
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-4 flex items-center gap-3">
+              <img
+                src={project.client?.avatar || "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop"}
+                alt={project.client?.name || "Client"}
+                className="h-10 w-10 rounded-full object-cover"
+              />
+              <div>
+                <p className="text-sm font-medium text-foreground">{project.client?.name || "Client"}</p>
+                <p className="text-xs text-muted-foreground">Client</p>
+              </div>
+            </div>
+
+            <div className="mt-4 rounded-xl bg-secondary p-4">
+              <p className="text-xs text-muted-foreground">Cancellation Date</p>
+              <p className="mt-1 text-sm text-foreground">
+                {project.updatedAt ? new Date(project.updatedAt).toLocaleDateString() : "N/A"}
+              </p>
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  };
+
+  if (authLoading || (loading && projects.length === 0)) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
+  if (!user || user.role !== "FREELANCER") {
+    return null;
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -332,13 +424,44 @@ export default function MyProjectsPage() {
                 Manage and track all your ongoing and completed projects
               </p>
             </div>
-            <Button variant="accent" className="hidden sm:flex">
-              <Briefcase className="mr-2 h-5 w-5" />
-              Find New Work
-            </Button>
+            <Link href="/freelancer/jobs">
+              <Button variant="accent" className="hidden sm:flex">
+                <Briefcase className="mr-2 h-5 w-5" />
+                Find New Work
+              </Button>
+            </Link>
           </div>
+
+          {/* Search Bar */}
+          <form onSubmit={handleSearch} className="mt-6 flex gap-3">
+            <div className="relative flex-1">
+              <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                type="search"
+                placeholder="Search projects by title, skills, or description..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="h-12 w-full rounded-xl border-border bg-card pl-12 pr-4 text-base shadow-sm"
+              />
+            </div>
+            <Button type="submit" variant="accent" size="lg" className="px-8">
+              Search
+            </Button>
+          </form>
         </div>
       </section>
+
+      {/* Error Message */}
+      {error && (
+        <section className="container mx-auto px-4 pt-6">
+          <Alert className="border-2 border-red-200 bg-red-50">
+            <AlertCircle className="h-5 w-5 text-red-600" />
+            <AlertDescription className="text-red-800 font-semibold">
+              {error}
+            </AlertDescription>
+          </Alert>
+        </section>
+      )}
 
       {/* Stats */}
       <section className="border-b border-border bg-background py-6">
@@ -352,7 +475,7 @@ export default function MyProjectsPage() {
                 <div>
                   <p className="text-sm text-muted-foreground">Active Projects</p>
                   <p className="font-display text-2xl font-bold text-foreground">
-                    {projectsData.active.length}
+                    {activeTab === "active" ? filteredProjects.length : 0}
                   </p>
                 </div>
               </div>
@@ -365,7 +488,7 @@ export default function MyProjectsPage() {
                 <div>
                   <p className="text-sm text-muted-foreground">Completed</p>
                   <p className="font-display text-2xl font-bold text-foreground">
-                    {projectsData.completed.length}
+                    {activeTab === "completed" ? filteredProjects.length : 0}
                   </p>
                 </div>
               </div>
@@ -377,7 +500,7 @@ export default function MyProjectsPage() {
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Total Earned</p>
-                  <p className="font-display text-2xl font-bold text-foreground">$12,450</p>
+                  <p className="font-display text-2xl font-bold text-foreground">$0</p>
                 </div>
               </div>
             </div>

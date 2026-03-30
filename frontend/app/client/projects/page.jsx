@@ -1,10 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Navbar from "@/components/layout/Navbar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { useAuth } from "@/contexts/AuthContext";
+import { getMyProjects, updateProject, deleteProject } from "@/lib/api";
 import { 
   Search, 
   Clock,
@@ -14,11 +18,17 @@ import {
   ChevronDown,
   Calendar,
   Users,
-  Briefcase
+  Briefcase,
+  AlertCircle,
+  Plus,
+  Edit,
+  Trash2,
+  Send,
+  MoreVertical
 } from "lucide-react";
 
-// Dummy project data
-const projects = [
+// Dummy project data (fallback)
+const dummyProjects = [
   {
     id: "1",
     title: "E-commerce Website Development with React",
@@ -136,7 +146,148 @@ const projects = [
 ];
 
 export default function BrowseProjectsPage() {
+  const router = useRouter();
+  const { user, loading: authLoading } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
+  const [projects, setProjects] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [actionLoading, setActionLoading] = useState({});
+  const [successMessage, setSuccessMessage] = useState("");
+
+  // Redirect if not authenticated or not a client
+  useEffect(() => {
+    if (!authLoading && (!user || user.role !== "CLIENT")) {
+      router.push("/login");
+    }
+  }, [user, authLoading, router]);
+
+  // Fetch projects
+  useEffect(() => {
+    const fetchProjects = async () => {
+      if (!user || user.role !== "CLIENT") return;
+
+      try {
+        setLoading(true);
+        setError("");
+
+        const params = {};
+        if (statusFilter !== "all") {
+          params.status = statusFilter;
+        }
+
+        const response = await getMyProjects(params);
+
+        if (response.success) {
+          setProjects(response.projects || []);
+        } else {
+          setError(response.error || "Failed to load projects");
+        }
+      } catch (err) {
+        console.error("Error fetching projects:", err);
+        setError(err.message || "Failed to load projects");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (!authLoading && user) {
+      fetchProjects();
+    }
+  }, [user, authLoading, statusFilter]);
+
+  // Handle publish draft
+  const handlePublish = async (projectId) => {
+    if (!confirm("Are you sure you want to publish this project? It will become visible to freelancers.")) {
+      return;
+    }
+
+    try {
+      setActionLoading({ ...actionLoading, [projectId]: "publishing" });
+      setError("");
+      setSuccessMessage("");
+
+      const response = await updateProject(projectId, { status: "active" });
+
+      if (response.success) {
+        setSuccessMessage("Project published successfully!");
+        // Update the project in the list
+        setProjects(projects.map(p => 
+          p.id === projectId ? { ...p, status: "active" } : p
+        ));
+        // Clear success message after 3 seconds
+        setTimeout(() => setSuccessMessage(""), 3000);
+      } else {
+        setError(response.error || "Failed to publish project");
+      }
+    } catch (err) {
+      console.error("Error publishing project:", err);
+      setError(err.message || "Failed to publish project");
+    } finally {
+      setActionLoading({ ...actionLoading, [projectId]: null });
+    }
+  };
+
+  // Handle delete project
+  const handleDelete = async (projectId) => {
+    if (!confirm("Are you sure you want to delete this project? This action cannot be undone.")) {
+      return;
+    }
+
+    try {
+      setActionLoading({ ...actionLoading, [projectId]: "deleting" });
+      setError("");
+      setSuccessMessage("");
+
+      const response = await deleteProject(projectId);
+
+      if (response.success) {
+        setSuccessMessage("Project deleted successfully!");
+        // Remove the project from the list
+        setProjects(projects.filter(p => p.id !== projectId));
+        // Clear success message after 3 seconds
+        setTimeout(() => setSuccessMessage(""), 3000);
+      } else {
+        setError(response.error || "Failed to delete project");
+      }
+    } catch (err) {
+      console.error("Error deleting project:", err);
+      setError(err.message || "Failed to delete project");
+    } finally {
+      setActionLoading({ ...actionLoading, [projectId]: null });
+    }
+  };
+
+  // Filter projects by search query
+  const filteredProjects = projects.filter((project) => {
+    if (!searchQuery) return true;
+    const query = searchQuery.toLowerCase();
+    return (
+      project.title.toLowerCase().includes(query) ||
+      project.description.toLowerCase().includes(query) ||
+      project.skills.some((skill) => skill.toLowerCase().includes(query))
+    );
+  });
+  
+  console.log('Render state:', { 
+    totalProjects: projects.length, 
+    filteredProjects: filteredProjects.length,
+    statusFilter,
+    searchQuery 
+  });
+
+  if (authLoading || (loading && projects.length === 0)) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
+  if (!user || user.role !== "CLIENT") {
+    return null;
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -145,29 +296,28 @@ export default function BrowseProjectsPage() {
       {/* Hero Section */}
       <section className="border-b border-border bg-gradient-hero py-12">
         <div className="container mx-auto px-4">
-          <div className="mx-auto max-w-3xl text-center">
-            <h1 className="font-display text-4xl font-bold tracking-tight text-foreground sm:text-5xl mb-4">
-              Browse <span className="text-gradient-gold">Projects</span>
-            </h1>
-            <p className="text-lg text-muted-foreground mb-8">
-              Discover opportunities and find the perfect project for your skills
-            </p>
+          <div className="flex items-start justify-between gap-8">
+            <div className="flex-1">
+              <h1 className="font-display text-4xl font-bold tracking-tight text-foreground sm:text-5xl mb-4">
+                My <span className="text-gradient-gold">Projects</span>
+              </h1>
+              <p className="text-lg text-muted-foreground">
+                Manage your posted projects and track their progress
+              </p>
+            </div>
 
             {/* Search Bar */}
-            <div className="flex flex-col gap-3 sm:flex-row">
-              <div className="relative flex-1">
+            <div className="w-full max-w-md">
+              <div className="relative">
                 <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   type="search"
-                  placeholder="Search projects by title, skills, or category..."
+                  placeholder="Search projects..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="h-14 w-full rounded-xl border-border bg-card pl-12 pr-4 text-base"
+                  className="h-12 w-full rounded-xl border-border bg-card pl-12 pr-4 text-base"
                 />
               </div>
-              <Button variant="accent" size="xl">
-                Search Projects
-              </Button>
             </div>
           </div>
         </div>
@@ -177,32 +327,48 @@ export default function BrowseProjectsPage() {
       <section className="border-b border-border bg-card py-4">
         <div className="container mx-auto px-4">
           <div className="flex flex-wrap items-center gap-3">
-            <Button variant="outline" size="sm">
-              <Filter className="mr-2 h-4 w-4" />
-              All Filters
+            <Button 
+              variant={statusFilter === "all" ? "accent" : "outline"} 
+              size="sm"
+              onClick={() => setStatusFilter("all")}
+            >
+              All
             </Button>
-            <Button variant="outline" size="sm">
-              Budget
-              <ChevronDown className="ml-2 h-4 w-4" />
+            <Button 
+              variant={statusFilter === "draft" ? "accent" : "outline"} 
+              size="sm"
+              onClick={() => setStatusFilter("draft")}
+            >
+              Draft
             </Button>
-            <Button variant="outline" size="sm">
-              Project Type
-              <ChevronDown className="ml-2 h-4 w-4" />
+            <Button 
+              variant={statusFilter === "active" ? "accent" : "outline"} 
+              size="sm"
+              onClick={() => setStatusFilter("active")}
+            >
+              Active
             </Button>
-            <Button variant="outline" size="sm">
-              Experience Level
-              <ChevronDown className="ml-2 h-4 w-4" />
+            <Button 
+              variant={statusFilter === "in_progress" ? "accent" : "outline"} 
+              size="sm"
+              onClick={() => setStatusFilter("in_progress")}
+            >
+              In Progress
             </Button>
-            <Button variant="outline" size="sm">
-              Duration
-              <ChevronDown className="ml-2 h-4 w-4" />
+            <Button 
+              variant={statusFilter === "completed" ? "accent" : "outline"} 
+              size="sm"
+              onClick={() => setStatusFilter("completed")}
+            >
+              Completed
             </Button>
-            <div className="ml-auto">
-              <Button variant="ghost" size="sm">
-                Sort by: Newest First
-                <ChevronDown className="ml-2 h-4 w-4" />
-              </Button>
-            </div>
+            <Button 
+              variant={statusFilter === "cancelled" ? "accent" : "outline"} 
+              size="sm"
+              onClick={() => setStatusFilter("cancelled")}
+            >
+              Cancelled
+            </Button>
           </div>
         </div>
       </section>
@@ -210,15 +376,65 @@ export default function BrowseProjectsPage() {
       {/* Results Section */}
       <section className="py-8">
         <div className="container mx-auto px-4">
+          {/* Error Message */}
+          {error && (
+            <Alert className="mb-6 border-2 border-red-200 bg-red-50">
+              <AlertCircle className="h-5 w-5 text-red-600" />
+              <AlertDescription className="text-red-800 font-semibold">
+                {error}
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {/* Success Message */}
+          {successMessage && (
+            <Alert className="mb-6 border-2 border-green-200 bg-green-50">
+              <AlertCircle className="h-5 w-5 text-green-600" />
+              <AlertDescription className="text-green-800 font-semibold">
+                {successMessage}
+              </AlertDescription>
+            </Alert>
+          )}
+
           <div className="mb-6 flex items-center justify-between">
             <p className="text-muted-foreground">
-              {projects.length} projects available
+              {filteredProjects.length} project{filteredProjects.length !== 1 ? "s" : ""} found
             </p>
           </div>
 
+          {/* Loading State */}
+          {loading && (
+            <div className="flex items-center justify-center py-12">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-accent"></div>
+            </div>
+          )}
+
+          {/* Empty State */}
+          {!loading && filteredProjects.length === 0 && (
+            <div className="rounded-2xl border border-border bg-card p-12 text-center">
+              <Briefcase className="mx-auto h-12 w-12 text-muted-foreground" />
+              <h3 className="mt-4 font-display text-xl font-semibold text-foreground">
+                No projects found
+              </h3>
+              <p className="mt-2 text-muted-foreground">
+                {searchQuery
+                  ? "Try adjusting your search query"
+                  : "Get started by posting your first project"}
+              </p>
+              {!searchQuery && (
+                <Link href="/client/post-project">
+                  <Button variant="accent" className="mt-6">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Post a Project
+                  </Button>
+                </Link>
+              )}
+            </div>
+          )}
+
           {/* Projects List */}
           <div className="space-y-6">
-            {projects.map((project) => (
+            {filteredProjects.map((project) => (
               <div
                 key={project.id}
                 className="group overflow-hidden rounded-2xl border border-border bg-card p-6 transition-all hover:shadow-xl"
@@ -226,28 +442,41 @@ export default function BrowseProjectsPage() {
                 {/* Header */}
                 <div className="mb-4 flex items-start justify-between">
                   <div className="flex-1">
-                    <Link href={`/project/${project.id}`}>
-                      <h3 className="font-display text-xl font-bold text-foreground hover:text-accent transition-colors mb-2">
+                    <Link href={`/client/projects/${project.id}`}>
+                      <h3 className="font-display text-xl font-bold text-foreground hover:text-accent transition-colors mb-2 cursor-pointer">
                         {project.title}
                       </h3>
                     </Link>
                     <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
                       <span className="flex items-center gap-1">
                         <Clock className="h-4 w-4" />
-                        Posted {project.postedDate}
+                        {new Date(project.createdAt).toLocaleDateString()}
                       </span>
-                      <span className="flex items-center gap-1">
-                        <MapPin className="h-4 w-4" />
-                        {project.client.location}
-                      </span>
+                      {project.location && (
+                        <span className="flex items-center gap-1">
+                          <MapPin className="h-4 w-4" />
+                          {project.location}
+                        </span>
+                      )}
                       <span className="flex items-center gap-1">
                         <Users className="h-4 w-4" />
-                        {project.proposals} proposals
+                        {project.proposalsCount} proposal{project.proposalsCount !== 1 ? "s" : ""}
                       </span>
                     </div>
                   </div>
-                  <div className="rounded-full bg-accent/10 px-3 py-1 text-sm font-medium text-accent">
-                    {project.category}
+                  <div className="flex flex-col gap-2 items-end">
+                    <div className="rounded-full bg-accent/10 px-3 py-1 text-sm font-medium text-accent">
+                      {project.category}
+                    </div>
+                    <div className={`rounded-full px-3 py-1 text-xs font-medium ${
+                      project.status === "active" ? "bg-green-100 text-green-700" :
+                      project.status === "draft" ? "bg-gray-100 text-gray-700" :
+                      project.status === "in_progress" ? "bg-blue-100 text-blue-700" :
+                      project.status === "completed" ? "bg-purple-100 text-purple-700" :
+                      "bg-red-100 text-red-700"
+                    }`}>
+                      {project.status.replace("_", " ").toUpperCase()}
+                    </div>
                   </div>
                 </div>
 
@@ -280,52 +509,112 @@ export default function BrowseProjectsPage() {
                         </p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Calendar className="h-5 w-5 text-muted-foreground" />
-                      <div>
-                        <p className="text-sm text-muted-foreground">Duration</p>
-                        <p className="font-semibold text-foreground">{project.duration}</p>
+                    {project.duration && (
+                      <div className="flex items-center gap-2">
+                        <Calendar className="h-5 w-5 text-muted-foreground" />
+                        <div>
+                          <p className="text-sm text-muted-foreground">Duration</p>
+                          <p className="font-semibold text-foreground">{project.duration}</p>
+                        </div>
                       </div>
-                    </div>
+                    )}
                     <div className="flex items-center gap-2">
                       <Briefcase className="h-5 w-5 text-muted-foreground" />
                       <div>
                         <p className="text-sm text-muted-foreground">Experience</p>
-                        <p className="font-semibold text-foreground">{project.experienceLevel}</p>
+                        <p className="font-semibold text-foreground capitalize">
+                          {project.experienceLevel.replace("_", " ")}
+                        </p>
                       </div>
                     </div>
                   </div>
                   <div className="flex gap-2">
-                    <Button variant="outline">
-                      Save
-                    </Button>
-                    <Button variant="accent">
-                      Apply Now
-                    </Button>
-                  </div>
-                </div>
-
-                {/* Client Info */}
-                <div className="mt-4 flex items-center gap-3 border-t border-border pt-4">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-accent/10 text-accent font-semibold">
-                    {project.client.name.charAt(0)}
-                  </div>
-                  <div>
-                    <p className="font-medium text-foreground">{project.client.name}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {project.client.jobsPosted} jobs posted • {project.client.hireRate}% hire rate
-                    </p>
+                    {/* Show different buttons based on status */}
+                    {project.status === "draft" ? (
+                      <>
+                        <Button
+                          variant="accent"
+                          onClick={() => handlePublish(project.id)}
+                          disabled={actionLoading[project.id] === "publishing"}
+                        >
+                          {actionLoading[project.id] === "publishing" ? (
+                            <>
+                              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                              Publishing...
+                            </>
+                          ) : (
+                            <>
+                              <Send className="h-4 w-4 mr-2" />
+                              Publish
+                            </>
+                          )}
+                        </Button>
+                        <Link href={`/client/post-project?edit=${project.id}`}>
+                          <Button variant="outline">
+                            <Edit className="h-4 w-4 mr-2" />
+                            Edit
+                          </Button>
+                        </Link>
+                        <Button
+                          variant="outline"
+                          onClick={() => handleDelete(project.id)}
+                          disabled={actionLoading[project.id] === "deleting"}
+                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                        >
+                          {actionLoading[project.id] === "deleting" ? (
+                            <>
+                              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-600 mr-2"></div>
+                              Deleting...
+                            </>
+                          ) : (
+                            <>
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              Delete
+                            </>
+                          )}
+                        </Button>
+                      </>
+                    ) : (
+                      <>
+                        <Link href={`/client/projects/${project.id}`}>
+                          <Button variant="outline">
+                            View Details
+                          </Button>
+                        </Link>
+                        {(project.status === "active" || project.status === "in_progress") && (
+                          <Link href={`/client/post-project?edit=${project.id}`}>
+                            <Button variant="accent">
+                              <Edit className="h-4 w-4 mr-2" />
+                              Edit
+                            </Button>
+                          </Link>
+                        )}
+                        {project.status === "active" && project.proposalsCount === 0 && (
+                          <Button
+                            variant="outline"
+                            onClick={() => handleDelete(project.id)}
+                            disabled={actionLoading[project.id] === "deleting"}
+                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                          >
+                            {actionLoading[project.id] === "deleting" ? (
+                              <>
+                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-600 mr-2"></div>
+                                Deleting...
+                              </>
+                            ) : (
+                              <>
+                                <Trash2 className="h-4 w-4 mr-2" />
+                                Delete
+                              </>
+                            )}
+                          </Button>
+                        )}
+                      </>
+                    )}
                   </div>
                 </div>
               </div>
             ))}
-          </div>
-
-          {/* Load More */}
-          <div className="mt-8 text-center">
-            <Button variant="outline" size="lg">
-              Load More Projects
-            </Button>
           </div>
         </div>
       </section>
