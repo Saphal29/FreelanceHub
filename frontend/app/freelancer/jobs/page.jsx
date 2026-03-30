@@ -1,10 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import Navbar from "@/components/layout/Navbar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import JobCard from "@/components/cards/JobCard";
+import { useAuth } from "@/contexts/AuthContext";
+import { getProjects, getProjectCategories } from "@/lib/api";
 import {
   Search,
   Filter,
@@ -14,119 +18,284 @@ import {
   Briefcase,
   Star,
   TrendingUp,
+  AlertCircle,
 } from "lucide-react";
 
-// Dummy job listings
-const allJobs = [
-  {
-    title: "Senior React Developer for SaaS Platform",
-    description: "Looking for an experienced React developer to help build and maintain our SaaS platform. Must have experience with TypeScript, Node.js, and cloud services.",
-    budget: "$5,000 - $8,000",
-    duration: "3-6 months",
-    location: "Remote",
-    skills: ["React", "TypeScript", "Node.js", "AWS"],
-    postedAt: "2 hours ago",
-    proposals: 12,
-  },
-  {
-    title: "UI/UX Designer for Fintech Mobile App",
-    description: "We need a talented designer to create intuitive and beautiful interfaces for our financial technology mobile application.",
-    budget: "$2,000 - $3,500",
-    duration: "1-2 months",
-    location: "Remote",
-    skills: ["Figma", "Mobile Design", "UI/UX", "Prototyping"],
-    postedAt: "5 hours ago",
-    proposals: 8,
-  },
-  {
-    title: "Full-Stack Developer for E-learning Platform",
-    description: "Building an innovative e-learning platform and need a full-stack developer to implement new features and optimize performance.",
-    budget: "$4,000 - $6,000",
-    duration: "2-3 months",
-    location: "Remote",
-    skills: ["React", "Python", "PostgreSQL", "Docker"],
-    postedAt: "1 day ago",
-    proposals: 23,
-  },
-  {
-    title: "WordPress Developer for Agency Website",
-    description: "Need an experienced WordPress developer to build a custom theme and implement advanced functionality for our digital agency.",
-    budget: "$1,500 - $2,500",
-    duration: "1 month",
-    location: "Remote",
-    skills: ["WordPress", "PHP", "JavaScript", "CSS"],
-    postedAt: "1 day ago",
-    proposals: 15,
-  },
-  {
-    title: "Mobile App Developer - Flutter",
-    description: "Seeking a Flutter developer to create a cross-platform mobile application for our startup. Experience with Firebase required.",
-    budget: "$3,000 - $5,000",
-    duration: "2-3 months",
-    location: "Remote",
-    skills: ["Flutter", "Dart", "Firebase", "Mobile Development"],
-    postedAt: "2 days ago",
-    proposals: 19,
-  },
-  {
-    title: "Data Analyst for Marketing Campaign",
-    description: "Looking for a data analyst to help analyze marketing campaign performance and provide actionable insights.",
-    budget: "$2,000 - $3,000",
-    duration: "1 month",
-    location: "Remote",
-    skills: ["Python", "SQL", "Data Analysis", "Tableau"],
-    postedAt: "3 days ago",
-    proposals: 11,
-  },
-  {
-    title: "Content Writer for Tech Blog",
-    description: "Need a skilled content writer to create engaging articles about technology, software development, and digital trends.",
-    budget: "$500 - $1,000",
-    duration: "Ongoing",
-    location: "Remote",
-    skills: ["Content Writing", "SEO", "Technical Writing", "Research"],
-    postedAt: "3 days ago",
-    proposals: 27,
-  },
-  {
-    title: "DevOps Engineer for Cloud Migration",
-    description: "Experienced DevOps engineer needed to help migrate our infrastructure to AWS and set up CI/CD pipelines.",
-    budget: "$6,000 - $10,000",
-    duration: "3-4 months",
-    location: "Remote",
-    skills: ["AWS", "Docker", "Kubernetes", "CI/CD"],
-    postedAt: "4 days ago",
-    proposals: 9,
-  },
-];
 
-const categories = [
-  { name: "All Jobs", count: allJobs.length },
-  { name: "Web Development", count: 45 },
-  { name: "Mobile Development", count: 28 },
-  { name: "Design", count: 32 },
-  { name: "Writing", count: 18 },
-  { name: "Marketing", count: 24 },
-];
 
 export default function FindWorkPage() {
+  const router = useRouter();
+  const { user, loading: authLoading } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All Jobs");
-  const [jobs, setJobs] = useState(allJobs);
+  const [projects, setProjects] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [categoryCounts, setCategoryCounts] = useState({});
+  const [dbCategories, setDbCategories] = useState([]);
+  const [sortBy, setSortBy] = useState("created_at");
+  const [sortOrder, setSortOrder] = useState("DESC");
+  
+  // Filter states
+  const [filters, setFilters] = useState({
+    budgetRanges: [],
+    durations: [],
+  });
+
+  // Build categories list with counts
+  const categories = [
+    { name: "All Jobs", count: categoryCounts["All Jobs"] || 0 },
+    ...dbCategories.map(cat => ({
+      name: cat.name,
+      count: categoryCounts[cat.name] || 0
+    }))
+  ];
+
+  // Redirect if not authenticated or not a freelancer
+  useEffect(() => {
+    if (!authLoading && (!user || user.role !== "FREELANCER")) {
+      router.push("/login");
+    }
+  }, [user, authLoading, router]);
+
+  // Load categories from database
+  useEffect(() => {
+    const loadCategories = async () => {
+      try {
+        const response = await getProjectCategories();
+        if (response.success) {
+          setDbCategories(response.categories || []);
+        }
+      } catch (error) {
+        console.error("Error loading categories:", error);
+      }
+    };
+
+    loadCategories();
+  }, []);
+
+  // Fetch projects
+  useEffect(() => {
+    fetchProjects();
+  }, [user, authLoading, selectedCategory, sortBy, sortOrder]);
+
+  const fetchProjects = async () => {
+    if (!user || user.role !== "FREELANCER") return;
+
+    try {
+      setLoading(true);
+      setError("");
+
+      const params = {
+        status: "active", // Only show active projects
+        sortBy: sortBy,
+        sortOrder: sortOrder,
+        limit: 50
+      };
+
+      // Add search query
+      if (searchQuery.trim()) {
+        params.search = searchQuery.trim();
+      }
+
+      // Add category filter
+      if (selectedCategory && selectedCategory !== "All Jobs") {
+        params.category = selectedCategory;
+      }
+
+      // Add budget filters
+      if (filters.budgetRanges.length > 0) {
+        // Find the min and max from selected ranges
+        let minBudget = Infinity;
+        let maxBudget = 0;
+        
+        filters.budgetRanges.forEach(range => {
+          if (range === "Under $1,000") {
+            minBudget = Math.min(minBudget, 0);
+            maxBudget = Math.max(maxBudget, 1000);
+          } else if (range === "$1,000 - $3,000") {
+            minBudget = Math.min(minBudget, 1000);
+            maxBudget = Math.max(maxBudget, 3000);
+          } else if (range === "$3,000 - $5,000") {
+            minBudget = Math.min(minBudget, 3000);
+            maxBudget = Math.max(maxBudget, 5000);
+          } else if (range === "$5,000 - $10,000") {
+            minBudget = Math.min(minBudget, 5000);
+            maxBudget = Math.max(maxBudget, 10000);
+          } else if (range === "Above $10,000") {
+            minBudget = Math.min(minBudget, 10000);
+            maxBudget = Math.max(maxBudget, 1000000);
+          }
+        });
+        
+        if (minBudget !== Infinity) params.budgetMin = minBudget;
+        if (maxBudget !== 0) params.budgetMax = maxBudget;
+      }
+
+      // Add duration filter (client-side filtering since backend doesn't support it)
+
+      const response = await getProjects(params);
+
+      if (response.success) {
+        let fetchedProjects = response.projects || [];
+        
+        // Apply duration filter client-side
+        if (filters.durations.length > 0) {
+          fetchedProjects = fetchedProjects.filter(project => {
+            const duration = project.duration?.toLowerCase() || "";
+            
+            return filters.durations.some(selectedDuration => {
+              if (selectedDuration === "Less than 1 month") {
+                return duration.includes("week") || 
+                       duration.includes("1 week") || 
+                       duration.includes("2 week") || 
+                       duration.includes("3 week") ||
+                       duration.includes("4 week");
+              } else if (selectedDuration === "1-3 months") {
+                return duration.includes("1 month") || 
+                       duration.includes("2 month") || 
+                       duration.includes("3 month") ||
+                       duration.includes("1-2 month") ||
+                       duration.includes("2-3 month");
+              } else if (selectedDuration === "3-6 months") {
+                return duration.includes("3 month") || 
+                       duration.includes("4 month") || 
+                       duration.includes("5 month") || 
+                       duration.includes("6 month") ||
+                       duration.includes("3-6 month") ||
+                       duration.includes("4-6 month");
+              } else if (selectedDuration === "More than 6 months") {
+                return duration.includes("6 month") || 
+                       duration.includes("7 month") || 
+                       duration.includes("8 month") ||
+                       duration.includes("9 month") ||
+                       duration.includes("year") ||
+                       duration.includes("ongoing");
+              }
+              return false;
+            });
+          });
+        }
+        
+        setProjects(fetchedProjects);
+        
+        // Calculate category counts dynamically based on fetched projects
+        const counts = {};
+        
+        counts["All Jobs"] = fetchedProjects.length;
+        
+        // Count projects for each database category
+        dbCategories.forEach(cat => {
+          counts[cat.name] = fetchedProjects.filter(p => p.category === cat.name).length;
+        });
+        
+        setCategoryCounts(counts);
+      } else {
+        setError(response.error || "Failed to load projects");
+      }
+    } catch (err) {
+      console.error("Error fetching projects:", err);
+      setError(err.message || "Failed to load projects");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleFilterChange = (filterType, value) => {
+    setFilters(prev => {
+      const currentValues = prev[filterType];
+      const newValues = currentValues.includes(value)
+        ? currentValues.filter(v => v !== value)
+        : [...currentValues, value];
+      
+      return {
+        ...prev,
+        [filterType]: newValues
+      };
+    });
+  };
+
+  const clearAllFilters = () => {
+    setSearchQuery("");
+    setSelectedCategory("All Jobs");
+    setSortBy("created_at");
+    setSortOrder("DESC");
+    setFilters({
+      budgetRanges: [],
+      durations: [],
+    });
+  };
+
+  const handleSortChange = (e) => {
+    const value = e.target.value;
+    
+    switch (value) {
+      case "newest":
+        setSortBy("created_at");
+        setSortOrder("DESC");
+        break;
+      case "oldest":
+        setSortBy("created_at");
+        setSortOrder("ASC");
+        break;
+      case "highest_budget":
+        setSortBy("budget_max");
+        setSortOrder("DESC");
+        break;
+      case "lowest_budget":
+        setSortBy("budget_min");
+        setSortOrder("ASC");
+        break;
+      default:
+        setSortBy("created_at");
+        setSortOrder("DESC");
+    }
+  };
+
+  const applyFilters = () => {
+    fetchProjects();
+  };
+
+  // Convert projects to job format for JobCard
+  const jobs = projects.map((project) => ({
+    title: project.title,
+    description: project.description,
+    budget: `$${project.budget.min.toLocaleString()} - $${project.budget.max.toLocaleString()}`,
+    duration: project.duration || "Not specified",
+    location: project.isRemote ? "Remote" : (project.location || "Not specified"),
+    skills: project.skills || [],
+    postedAt: new Date(project.createdAt).toLocaleDateString(),
+    proposals: project.proposalsCount || 0,
+    projectId: project.id,
+  }));
+
+  // Filter jobs based on search query
+  const filteredJobs = jobs.filter((job) => {
+    if (!searchQuery) return true;
+    const query = searchQuery.toLowerCase();
+    return (
+      job.title.toLowerCase().includes(query) ||
+      job.description.toLowerCase().includes(query) ||
+      job.skills.some((skill) => skill.toLowerCase().includes(query))
+    );
+  });
 
   const handleSearch = (e) => {
     e.preventDefault();
-    // Filter jobs based on search query
-    const filtered = allJobs.filter(
-      (job) =>
-        job.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        job.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        job.skills.some((skill) =>
-          skill.toLowerCase().includes(searchQuery.toLowerCase())
-        )
-    );
-    setJobs(filtered);
+    fetchProjects();
   };
+
+  if (authLoading || (loading && projects.length === 0)) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
+  if (!user || user.role !== "FREELANCER") {
+    return null;
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -167,11 +336,16 @@ export default function FindWorkPage() {
           <div className="flex flex-wrap items-center justify-center gap-8 text-sm">
             <div className="flex items-center gap-2">
               <Briefcase className="h-4 w-4 text-accent" />
-              <span className="font-medium text-foreground">{jobs.length} Jobs Available</span>
+              <span className="font-medium text-foreground">{filteredJobs.length} Jobs Available</span>
             </div>
             <div className="flex items-center gap-2">
               <TrendingUp className="h-4 w-4 text-accent" />
-              <span className="font-medium text-foreground">15 New Today</span>
+              <span className="font-medium text-foreground">
+                {projects.filter(p => {
+                  const hoursSinceCreated = (Date.now() - new Date(p.createdAt).getTime()) / (1000 * 60 * 60);
+                  return hoursSinceCreated < 24;
+                }).length} New Today
+              </span>
             </div>
             <div className="flex items-center gap-2">
               <Star className="h-4 w-4 text-accent" />
@@ -197,7 +371,9 @@ export default function FindWorkPage() {
                   {categories.map((category) => (
                     <button
                       key={category.name}
-                      onClick={() => setSelectedCategory(category.name)}
+                      onClick={() => {
+                        setSelectedCategory(category.name);
+                      }}
                       className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-sm transition-colors ${
                         selectedCategory === category.name
                           ? "bg-accent text-accent-foreground"
@@ -205,15 +381,6 @@ export default function FindWorkPage() {
                       }`}
                     >
                       <span>{category.name}</span>
-                      <span
-                        className={`rounded-full px-2 py-0.5 text-xs ${
-                          selectedCategory === category.name
-                            ? "bg-accent-foreground/20"
-                            : "bg-secondary"
-                        }`}
-                      >
-                        {category.count}
-                      </span>
                     </button>
                   ))}
                 </div>
@@ -239,12 +406,23 @@ export default function FindWorkPage() {
                     >
                       <input
                         type="checkbox"
+                        checked={filters.budgetRanges.includes(range)}
+                        onChange={() => handleFilterChange("budgetRanges", range)}
                         className="h-4 w-4 rounded border-border text-accent focus:ring-accent"
                       />
                       <span>{range}</span>
                     </label>
                   ))}
                 </div>
+                <Button 
+                  onClick={applyFilters} 
+                  variant="accent" 
+                  size="sm" 
+                  className="w-full mt-3"
+                  disabled={loading}
+                >
+                  Apply Budget Filter
+                </Button>
               </div>
 
               {/* Duration Filter */}
@@ -262,6 +440,8 @@ export default function FindWorkPage() {
                       >
                         <input
                           type="checkbox"
+                          checked={filters.durations.includes(duration)}
+                          onChange={() => handleFilterChange("durations", duration)}
                           className="h-4 w-4 rounded border-border text-accent focus:ring-accent"
                         />
                         <span>{duration}</span>
@@ -269,48 +449,75 @@ export default function FindWorkPage() {
                     )
                   )}
                 </div>
-              </div>
-
-              {/* Location Filter */}
-              <div className="rounded-2xl border border-border bg-card p-5">
-                <h3 className="mb-4 flex items-center font-display text-lg font-semibold text-foreground">
-                  <MapPin className="mr-2 h-5 w-5 text-accent" />
-                  Location
-                </h3>
-                <div className="space-y-2">
-                  {["Remote", "On-site", "Hybrid"].map((location) => (
-                    <label
-                      key={location}
-                      className="flex cursor-pointer items-center gap-3 rounded-lg px-3 py-2 text-sm text-foreground transition-colors hover:bg-secondary"
-                    >
-                      <input
-                        type="checkbox"
-                        className="h-4 w-4 rounded border-border text-accent focus:ring-accent"
-                      />
-                      <span>{location}</span>
-                    </label>
-                  ))}
-                </div>
+                <Button 
+                  onClick={applyFilters} 
+                  variant="accent" 
+                  size="sm" 
+                  className="w-full mt-3"
+                  disabled={loading}
+                >
+                  Apply Duration Filter
+                </Button>
               </div>
             </div>
           </div>
 
           {/* Job Listings */}
           <div className="lg:col-span-3">
+            {/* Error Message */}
+            {error && (
+              <Alert className="mb-6 border-2 border-red-200 bg-red-50">
+                <AlertCircle className="h-5 w-5 text-red-600" />
+                <AlertDescription className="text-red-800 font-semibold">
+                  {error}
+                </AlertDescription>
+              </Alert>
+            )}
+
             <div className="mb-6 flex items-center justify-between">
-              <p className="text-sm text-muted-foreground">
-                Showing <span className="font-semibold text-foreground">{jobs.length}</span> jobs
-              </p>
-              <select className="rounded-lg border border-border bg-card px-4 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-accent">
-                <option>Most Relevant</option>
-                <option>Newest First</option>
-                <option>Highest Budget</option>
-                <option>Lowest Budget</option>
+              <div className="flex items-center gap-3">
+                <p className="text-sm text-muted-foreground">
+                  Showing <span className="font-semibold text-foreground">{filteredJobs.length}</span> jobs
+                </p>
+                {(searchQuery || selectedCategory !== "All Jobs" || filters.budgetRanges.length > 0 || filters.durations.length > 0) && (
+                  <Button 
+                    variant="ghost" 
+                    size="sm"
+                    onClick={clearAllFilters}
+                    className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                  >
+                    Clear All Filters
+                  </Button>
+                )}
+              </div>
+              <select 
+                onChange={handleSortChange}
+                value={
+                  sortBy === "created_at" && sortOrder === "DESC" ? "newest" :
+                  sortBy === "created_at" && sortOrder === "ASC" ? "oldest" :
+                  sortBy === "budget_max" && sortOrder === "DESC" ? "highest_budget" :
+                  sortBy === "budget_min" && sortOrder === "ASC" ? "lowest_budget" :
+                  "newest"
+                }
+                className="rounded-lg border border-border bg-card px-4 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-accent"
+              >
+                <option value="newest">Newest First</option>
+                <option value="oldest">Oldest First</option>
+                <option value="highest_budget">Highest Budget</option>
+                <option value="lowest_budget">Lowest Budget</option>
               </select>
             </div>
 
+            {/* Loading State */}
+            {loading && (
+              <div className="flex items-center justify-center py-12">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-accent"></div>
+              </div>
+            )}
+
+            {/* Jobs List */}
             <div className="space-y-6">
-              {jobs.map((job, index) => (
+              {filteredJobs.map((job, index) => (
                 <div
                   key={index}
                   className="animate-fade-up opacity-0"
@@ -321,7 +528,7 @@ export default function FindWorkPage() {
               ))}
             </div>
 
-            {jobs.length === 0 && (
+            {!loading && filteredJobs.length === 0 && (
               <div className="rounded-2xl border border-border bg-card p-12 text-center">
                 <Search className="mx-auto h-12 w-12 text-muted-foreground" />
                 <h3 className="mt-4 font-display text-xl font-semibold text-foreground">
@@ -331,14 +538,11 @@ export default function FindWorkPage() {
                   Try adjusting your search or filters to find more opportunities
                 </p>
                 <Button
-                  onClick={() => {
-                    setSearchQuery("");
-                    setJobs(allJobs);
-                  }}
+                  onClick={clearAllFilters}
                   variant="accent"
                   className="mt-6"
                 >
-                  Clear Filters
+                  Clear All Filters
                 </Button>
               </div>
             )}
