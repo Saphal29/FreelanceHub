@@ -1,445 +1,725 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Navbar from "@/components/layout/Navbar";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { useAuth } from "@/contexts/AuthContext";
 import {
-  Play,
-  Pause,
-  Square,
-  Clock,
-  Calendar,
-  DollarSign,
-  TrendingUp,
-  BarChart3,
-  Download,
-  Plus,
+  startTimer, stopTimer, getActiveTimer,
+  createManualTimeEntry, updateTimeEntry, deleteTimeEntry,
+  getContractTimeEntries, submitTimeEntriesForApproval,
+  approveTimeEntry, rejectTimeEntry, getContractTimeSummary
+} from "@/lib/api";
+import { getUserContracts } from "@/lib/api";
+import {
+  Play, Square, Plus, Clock, DollarSign, CheckCircle,
+  XCircle, AlertCircle, Trash2, Edit2, Send, Timer
 } from "lucide-react";
 
-// Dummy time entries
-const timeEntries = [
-  {
-    id: 1,
-    project: "E-commerce Website Development",
-    client: "TechStart Inc.",
-    date: "Dec 15, 2024",
-    duration: "4h 30m",
-    description: "Implemented shopping cart functionality",
-    hourlyRate: 50,
-    amount: 225,
-  },
-  {
-    id: 2,
-    project: "Mobile App UI/UX Design",
-    client: "HealthApp Co.",
-    date: "Dec 15, 2024",
-    duration: "3h 15m",
-    description: "Created wireframes for user profile screens",
-    hourlyRate: 45,
-    amount: 146.25,
-  },
-  {
-    id: 3,
-    project: "E-commerce Website Development",
-    client: "TechStart Inc.",
-    date: "Dec 14, 2024",
-    duration: "5h 00m",
-    description: "Set up payment gateway integration",
-    hourlyRate: 50,
-    amount: 250,
-  },
-  {
-    id: 4,
-    project: "Brand Identity Package",
-    client: "GreenLeaf Organic",
-    date: "Dec 14, 2024",
-    duration: "2h 45m",
-    description: "Designed logo variations and color palette",
-    hourlyRate: 40,
-    amount: 110,
-  },
-  {
-    id: 5,
-    project: "Mobile App UI/UX Design",
-    client: "HealthApp Co.",
-    date: "Dec 13, 2024",
-    duration: "4h 00m",
-    description: "User research and competitor analysis",
-    hourlyRate: 45,
-    amount: 180,
-  },
-];
+const formatDuration = (minutes) => {
+  if (!minutes) return "0h 0m";
+  const h = Math.floor(minutes / 60);
+  const m = Math.round(minutes % 60);
+  return `${h}h ${m}m`;
+};
+
+const formatElapsed = (startTime) => {
+  const diff = Math.floor((Date.now() - new Date(startTime).getTime()) / 1000);
+  const h = Math.floor(diff / 3600);
+  const m = Math.floor((diff % 3600) / 60);
+  const s = diff % 60;
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+};
+
+const STATUS_STYLES = {
+  draft: "bg-gray-100 text-gray-700",
+  submitted: "bg-yellow-100 text-yellow-700",
+  approved: "bg-green-100 text-green-700",
+  rejected: "bg-red-100 text-red-700",
+  disputed: "bg-orange-100 text-orange-700"
+};
 
 export default function TimeTrackingPage() {
-  const [isTracking, setIsTracking] = useState(false);
-  const [isPaused, setIsPaused] = useState(false);
-  const [elapsedTime, setElapsedTime] = useState(0);
-  const [currentProject, setCurrentProject] = useState("");
-  const [currentDescription, setCurrentDescription] = useState("");
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const { user, loading: authLoading } = useAuth();
+
+  const [contracts, setContracts] = useState([]);
+  const [selectedContract, setSelectedContract] = useState(null);
+  const [timeEntries, setTimeEntries] = useState([]);
+  const [summary, setSummary] = useState(null);
+  const [activeTimer, setActiveTimer] = useState(null);
+  const [elapsed, setElapsed] = useState("00:00:00");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+  const [selectedEntries, setSelectedEntries] = useState([]);
+
+  // Timer start form
+  const [showStartForm, setShowStartForm] = useState(false);
+  const [timerDesc, setTimerDesc] = useState("");
+  const [timerRate, setTimerRate] = useState("");
+
+  // Manual entry form
+  const [showManualForm, setShowManualForm] = useState(false);
+  const [manualForm, setManualForm] = useState({
+    description: "", startTime: "", endTime: "", hourlyRate: "", isBillable: true
+  });
+
+  // Edit form
+  const [editingEntry, setEditingEntry] = useState(null);
+
+  // Reject modal
+  const [rejectingEntry, setRejectingEntry] = useState(null);
+  const [rejectReason, setRejectReason] = useState("");
+
+  const timerRef = useRef(null);
+  const isFreelancer = user?.role === "FREELANCER";
+  const isClient = user?.role === "CLIENT";
 
   useEffect(() => {
-    let interval;
-    if (isTracking && !isPaused) {
-      interval = setInterval(() => {
-        setElapsedTime((prev) => prev + 1);
+    if (!authLoading && !user) router.push("/login");
+  }, [user, authLoading, router]);
+
+  useEffect(() => {
+    if (user) fetchContracts();
+  }, [user]);
+
+  useEffect(() => {
+    const contractId = searchParams.get("contractId");
+    if (contractId && contracts.length > 0) {
+      const found = contracts.find(c => c.id === contractId);
+      if (found) setSelectedContract(found);
+    }
+  }, [searchParams, contracts]);
+
+  useEffect(() => {
+    if (selectedContract) {
+      fetchTimeEntries();
+      fetchSummary();
+    }
+  }, [selectedContract]);
+
+  useEffect(() => {
+    if (isFreelancer) fetchActiveTimer();
+  }, [isFreelancer]);
+
+  // Tick elapsed timer
+  useEffect(() => {
+    if (activeTimer) {
+      timerRef.current = setInterval(() => {
+        setElapsed(formatElapsed(activeTimer.startTime));
       }, 1000);
+    } else {
+      clearInterval(timerRef.current);
+      setElapsed("00:00:00");
     }
-    return () => clearInterval(interval);
-  }, [isTracking, isPaused]);
+    return () => clearInterval(timerRef.current);
+  }, [activeTimer]);
 
-  const formatTime = (seconds) => {
-    const hours = Math.floor(seconds / 3600);
-    const minutes = Math.floor((seconds % 3600) / 60);
-    const secs = seconds % 60;
-    return `${hours.toString().padStart(2, "0")}:${minutes
-      .toString()
-      .padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
-  };
-
-  const handleStart = () => {
-    if (!currentProject) {
-      alert("Please select a project first");
-      return;
+  const fetchContracts = async () => {
+    try {
+      const res = await getUserContracts({ status: 'active' });
+      setContracts(res.contracts || []);
+      if (res.contracts?.length > 0 && !selectedContract) {
+        setSelectedContract(res.contracts[0]);
+      }
+    } catch (err) {
+      setError("Failed to load contracts");
+    } finally {
+      setLoading(false);
     }
-    setIsTracking(true);
-    setIsPaused(false);
   };
 
-  const handlePause = () => {
-    setIsPaused(!isPaused);
+  const fetchActiveTimer = async () => {
+    try {
+      const res = await getActiveTimer();
+      setActiveTimer(res.activeTimer);
+    } catch {}
   };
 
-  const handleStop = () => {
-    setIsTracking(false);
-    setIsPaused(false);
-    setElapsedTime(0);
-    setCurrentProject("");
-    setCurrentDescription("");
+  const fetchTimeEntries = async () => {
+    if (!selectedContract) return;
+    try {
+      const res = await getContractTimeEntries(selectedContract.id);
+      setTimeEntries(res.timeEntries || []);
+    } catch {}
   };
 
-  const totalHoursThisWeek = timeEntries.reduce((acc, entry) => {
-    const [hours, minutes] = entry.duration.split("h ");
-    return acc + parseInt(hours) + parseInt(minutes) / 60;
-  }, 0);
+  const fetchSummary = async () => {
+    if (!selectedContract) return;
+    try {
+      const res = await getContractTimeSummary(selectedContract.id);
+      setSummary(res.summary);
+    } catch {}
+  };
 
-  const totalEarningsThisWeek = timeEntries.reduce((acc, entry) => acc + entry.amount, 0);
+  const showSuccess = (msg) => { setSuccess(msg); setTimeout(() => setSuccess(""), 3000); };
+
+  const handleStartTimer = async (e) => {
+    e.preventDefault();
+    try {
+      setError("");
+      const res = await startTimer({
+        contractId: selectedContract.id,
+        projectId: selectedContract.projectId,
+        description: timerDesc,
+        hourlyRate: timerRate ? parseFloat(timerRate) : null
+      });
+      if (res.success) {
+        setActiveTimer(res.timeEntry);
+        setShowStartForm(false);
+        setTimerDesc("");
+        setTimerRate("");
+        showSuccess("Timer started!");
+      } else {
+        setError(res.error);
+      }
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
+  const handleStopTimer = async () => {
+    if (!activeTimer) return;
+    try {
+      setError("");
+      const res = await stopTimer(activeTimer.id);
+      if (res.success) {
+        setActiveTimer(null);
+        fetchTimeEntries();
+        fetchSummary();
+        showSuccess("Timer stopped!");
+      } else {
+        setError(res.error);
+      }
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
+  const handleManualEntry = async (e) => {
+    e.preventDefault();
+    try {
+      setError("");
+      const res = await createManualTimeEntry({
+        contractId: selectedContract.id,
+        projectId: selectedContract.projectId,
+        ...manualForm,
+        hourlyRate: manualForm.hourlyRate ? parseFloat(manualForm.hourlyRate) : null
+      });
+      if (res.success) {
+        setShowManualForm(false);
+        setManualForm({ description: "", startTime: "", endTime: "", hourlyRate: "", isBillable: true });
+        fetchTimeEntries();
+        fetchSummary();
+        showSuccess("Time entry added!");
+      } else {
+        setError(res.error);
+      }
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
+  const handleUpdateEntry = async (e) => {
+    e.preventDefault();
+    try {
+      setError("");
+      const res = await updateTimeEntry(editingEntry.id, {
+        description: editingEntry.description,
+        hourlyRate: editingEntry.hourlyRate,
+        isBillable: editingEntry.isBillable
+      });
+      if (res.success) {
+        setEditingEntry(null);
+        fetchTimeEntries();
+        fetchSummary();
+        showSuccess("Entry updated!");
+      } else {
+        setError(res.error);
+      }
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
+  const handleDelete = async (id) => {
+    if (!confirm("Delete this time entry?")) return;
+    try {
+      const res = await deleteTimeEntry(id);
+      if (res.success) {
+        fetchTimeEntries();
+        fetchSummary();
+        showSuccess("Entry deleted!");
+      }
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
+  const handleSubmitSelected = async () => {
+    if (!selectedEntries.length) return;
+    try {
+      const res = await submitTimeEntriesForApproval(selectedEntries);
+      if (res.success) {
+        setSelectedEntries([]);
+        fetchTimeEntries();
+        showSuccess(`${res.timeEntries.length} entries submitted for approval!`);
+      }
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
+  const handleApprove = async (id) => {
+    try {
+      const res = await approveTimeEntry(id);
+      if (res.success) { fetchTimeEntries(); fetchSummary(); showSuccess("Entry approved!"); }
+    } catch (err) { setError(err.message); }
+  };
+
+  const handleReject = async () => {
+    if (!rejectingEntry) return;
+    try {
+      const res = await rejectTimeEntry(rejectingEntry, rejectReason);
+      if (res.success) {
+        setRejectingEntry(null);
+        setRejectReason("");
+        fetchTimeEntries();
+        showSuccess("Entry rejected.");
+      }
+    } catch (err) { setError(err.message); }
+  };
+
+  const toggleSelectEntry = (id) => {
+    setSelectedEntries(prev =>
+      prev.includes(id) ? prev.filter(e => e !== id) : [...prev, id]
+    );
+  };
+
+  if (authLoading || loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
+  if (!user) return null;
+
+  const draftEntries = timeEntries.filter(e => e.status === 'draft' && e.endTime);
 
   return (
     <div className="min-h-screen bg-background">
-      <Navbar userType="freelancer" />
-
-      {/* Header */}
-      <section className="border-b border-border bg-secondary/30 py-8">
-        <div className="container mx-auto px-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="font-display text-3xl font-bold text-foreground sm:text-4xl">
-                Time Tracking
-              </h1>
-              <p className="mt-2 text-lg text-muted-foreground">
-                Track your work hours and manage your time efficiently
-              </p>
-            </div>
-            <Button variant="outline" className="hidden sm:flex">
-              <Download className="mr-2 h-5 w-5" />
-              Export Report
-            </Button>
-          </div>
-        </div>
-      </section>
-
-      {/* Stats */}
-      <section className="border-b border-border bg-background py-6">
-        <div className="container mx-auto px-4">
-          <div className="grid gap-4 sm:grid-cols-3">
-            <div className="rounded-xl border border-border bg-card p-6">
-              <div className="flex items-center gap-3">
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-accent/10">
-                  <Clock className="h-6 w-6 text-accent" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">This Week</p>
-                  <p className="font-display text-2xl font-bold text-foreground">
-                    {totalHoursThisWeek.toFixed(1)}h
-                  </p>
-                </div>
-              </div>
-            </div>
-            <div className="rounded-xl border border-border bg-card p-6">
-              <div className="flex items-center gap-3">
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-accent/10">
-                  <DollarSign className="h-6 w-6 text-accent" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Earnings</p>
-                  <p className="font-display text-2xl font-bold text-foreground">
-                    ${totalEarningsThisWeek.toFixed(2)}
-                  </p>
-                </div>
-              </div>
-            </div>
-            <div className="rounded-xl border border-border bg-card p-6">
-              <div className="flex items-center gap-3">
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-accent/10">
-                  <TrendingUp className="h-6 w-6 text-accent" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Avg. Rate</p>
-                  <p className="font-display text-2xl font-bold text-foreground">$45/hr</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Main Content */}
+      <Navbar userType={isClient ? "client" : "freelancer"} />
       <main className="container mx-auto px-4 py-8">
-        <div className="grid gap-8 lg:grid-cols-3">
-          {/* Timer Section */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* Active Timer */}
-            <div className="rounded-2xl border border-border bg-card p-8">
-              <h2 className="mb-6 font-display text-xl font-semibold text-foreground">
-                Time Tracker
-              </h2>
-
-              {/* Timer Display */}
-              <div className="mb-6 text-center">
-                <div className="inline-flex items-center justify-center rounded-2xl bg-secondary p-8">
-                  <span className="font-display text-6xl font-bold text-foreground">
-                    {formatTime(elapsedTime)}
-                  </span>
-                </div>
-              </div>
-
-              {/* Project Selection */}
-              <div className="mb-4 space-y-4">
-                <div>
-                  <label className="mb-2 block text-sm font-medium text-foreground">
-                    Project
-                  </label>
-                  <select
-                    value={currentProject}
-                    onChange={(e) => setCurrentProject(e.target.value)}
-                    disabled={isTracking}
-                    className="w-full rounded-xl border border-border bg-card px-4 py-3 text-foreground focus:outline-none focus:ring-2 focus:ring-accent disabled:opacity-50"
-                  >
-                    <option value="">Select a project...</option>
-                    <option value="E-commerce Website Development">
-                      E-commerce Website Development
-                    </option>
-                    <option value="Mobile App UI/UX Design">Mobile App UI/UX Design</option>
-                    <option value="Brand Identity Package">Brand Identity Package</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="mb-2 block text-sm font-medium text-foreground">
-                    Description (Optional)
-                  </label>
-                  <Input
-                    value={currentDescription}
-                    onChange={(e) => setCurrentDescription(e.target.value)}
-                    disabled={isTracking}
-                    placeholder="What are you working on?"
-                    className="border-border bg-card"
-                  />
-                </div>
-              </div>
-
-              {/* Timer Controls */}
-              <div className="flex gap-3">
-                {!isTracking ? (
-                  <Button
-                    onClick={handleStart}
-                    variant="accent"
-                    size="lg"
-                    className="flex-1"
-                  >
-                    <Play className="mr-2 h-5 w-5" />
-                    Start Timer
-                  </Button>
-                ) : (
-                  <>
-                    <Button
-                      onClick={handlePause}
-                      variant="outline"
-                      size="lg"
-                      className="flex-1"
-                    >
-                      {isPaused ? (
-                        <>
-                          <Play className="mr-2 h-5 w-5" />
-                          Resume
-                        </>
-                      ) : (
-                        <>
-                          <Pause className="mr-2 h-5 w-5" />
-                          Pause
-                        </>
-                      )}
-                    </Button>
-                    <Button
-                      onClick={handleStop}
-                      variant="destructive"
-                      size="lg"
-                      className="flex-1"
-                    >
-                      <Square className="mr-2 h-5 w-5" />
-                      Stop & Save
-                    </Button>
-                  </>
-                )}
-              </div>
+        <div className="max-w-5xl mx-auto">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h1 className="font-display text-3xl font-bold text-foreground">Time Tracking</h1>
+              <p className="text-muted-foreground mt-1">Track and manage billable hours</p>
             </div>
+          </div>
 
-            {/* Recent Time Entries */}
-            <div className="rounded-2xl border border-border bg-card p-6">
-              <div className="mb-6 flex items-center justify-between">
-                <h2 className="font-display text-xl font-semibold text-foreground">
-                  Recent Entries
-                </h2>
-                <Button variant="ghost" size="sm">
-                  <Plus className="mr-2 h-4 w-4" />
-                  Add Manual Entry
-                </Button>
-              </div>
+          {success && (
+            <Alert className="mb-4 border-green-200 bg-green-50">
+              <CheckCircle className="h-4 w-4 text-green-600" />
+              <AlertDescription className="text-green-800">{success}</AlertDescription>
+            </Alert>
+          )}
+          {error && (
+            <Alert className="mb-4 border-red-200 bg-red-50">
+              <AlertCircle className="h-4 w-4 text-red-600" />
+              <AlertDescription className="text-red-800">{error}</AlertDescription>
+            </Alert>
+          )}
 
-              <div className="space-y-4">
-                {timeEntries.map((entry) => (
-                  <div
-                    key={entry.id}
-                    className="flex items-start justify-between rounded-xl border border-border bg-secondary p-4 transition-colors hover:bg-secondary/80"
-                  >
-                    <div className="flex-1">
-                      <h3 className="font-semibold text-foreground">{entry.project}</h3>
-                      <p className="mt-1 text-sm text-muted-foreground">{entry.description}</p>
-                      <div className="mt-2 flex items-center gap-4 text-xs text-muted-foreground">
-                        <span className="flex items-center gap-1">
-                          <Calendar className="h-3 w-3" />
-                          {entry.date}
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <Clock className="h-3 w-3" />
-                          {entry.duration}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <p className="font-display text-lg font-bold text-accent">
-                        ${entry.amount.toFixed(2)}
-                      </p>
-                      <p className="text-xs text-muted-foreground">${entry.hourlyRate}/hr</p>
-                    </div>
-                  </div>
+          {/* Contract Selector */}
+          {contracts.length > 0 && (
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-foreground mb-2">Select Contract</label>
+              <select
+                value={selectedContract?.id || ""}
+                onChange={(e) => {
+                  const c = contracts.find(c => c.id === e.target.value);
+                  setSelectedContract(c);
+                }}
+                className="border border-border rounded-xl px-3 py-2 text-sm bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-accent w-full max-w-md"
+              >
+                {contracts.map(c => (
+                  <option key={c.id} value={c.id}>{c.projectTitle}</option>
                 ))}
-              </div>
+              </select>
             </div>
-          </div>
+          )}
 
-          {/* Sidebar */}
-          <div className="space-y-6">
-            {/* Weekly Summary */}
-            <div className="rounded-2xl border border-border bg-card p-6">
-              <h3 className="mb-4 flex items-center font-display text-lg font-semibold text-foreground">
-                <BarChart3 className="mr-2 h-5 w-5 text-accent" />
-                This Week
-              </h3>
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Monday</span>
-                  <span className="font-semibold text-foreground">6.5h</span>
+          {contracts.length === 0 && (
+            <Card className="border-border">
+              <CardContent className="p-8 text-center">
+                <Timer className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
+                <p className="text-muted-foreground">No active contracts found.</p>
+              </CardContent>
+            </Card>
+          )}
+
+          {selectedContract && (
+            <div className="space-y-6">
+              {/* Summary Cards */}
+              {summary && (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  {[
+                    { label: "Total Hours", value: `${summary.totalHours}h`, icon: Clock },
+                    { label: "Billable Hours", value: `${summary.billableHours}h`, icon: DollarSign },
+                    { label: "Billable Amount", value: `NPR ${summary.totalBillableAmount.toLocaleString()}`, icon: DollarSign },
+                    { label: "Approved", value: `NPR ${summary.approvedAmount.toLocaleString()}`, icon: CheckCircle }
+                  ].map(({ label, value, icon: Icon }) => (
+                    <Card key={label} className="border-border">
+                      <CardContent className="p-4">
+                        <div className="flex items-center gap-2 mb-1">
+                          <Icon className="h-4 w-4 text-accent" />
+                          <span className="text-xs text-muted-foreground">{label}</span>
+                        </div>
+                        <p className="text-lg font-bold text-foreground">{value}</p>
+                      </CardContent>
+                    </Card>
+                  ))}
                 </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Tuesday</span>
-                  <span className="font-semibold text-foreground">7.0h</span>
+              )}
+
+              {/* Active Timer (freelancer only) */}
+              {isFreelancer && (
+                <Card className="border-border">
+                  <CardHeader>
+                    <CardTitle className="flex items-center font-display text-xl">
+                      <Timer className="h-5 w-5 mr-2 text-accent" />
+                      Timer
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {activeTimer ? (
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-4xl font-mono font-bold text-foreground">{elapsed}</p>
+                          <p className="text-sm text-muted-foreground mt-1">
+                            {activeTimer.description || "No description"} — {activeTimer.projectTitle}
+                          </p>
+                          {activeTimer.hourlyRate && (
+                            <p className="text-xs text-muted-foreground">
+                              NPR {activeTimer.hourlyRate}/hr
+                            </p>
+                          )}
+                        </div>
+                        <Button
+                          onClick={handleStopTimer}
+                          className="bg-red-600 hover:bg-red-700 text-white"
+                          size="lg"
+                        >
+                          <Square className="h-5 w-5 mr-2" />
+                          Stop
+                        </Button>
+                      </div>
+                    ) : (
+                      <>
+                        {!showStartForm ? (
+                          <div className="flex gap-3">
+                            <Button variant="accent" onClick={() => setShowStartForm(true)}>
+                              <Play className="h-4 w-4 mr-2" />
+                              Start Timer
+                            </Button>
+                            <Button variant="outline" onClick={() => setShowManualForm(true)}>
+                              <Plus className="h-4 w-4 mr-2" />
+                              Add Manual Entry
+                            </Button>
+                          </div>
+                        ) : (
+                          <form onSubmit={handleStartTimer} className="space-y-3">
+                            <input
+                              type="text"
+                              placeholder="What are you working on?"
+                              value={timerDesc}
+                              onChange={e => setTimerDesc(e.target.value)}
+                              className="w-full border border-border rounded-xl px-3 py-2 text-sm bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-accent"
+                            />
+                            <input
+                              type="number"
+                              placeholder="Hourly rate (NPR, optional)"
+                              value={timerRate}
+                              onChange={e => setTimerRate(e.target.value)}
+                              className="w-full border border-border rounded-xl px-3 py-2 text-sm bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-accent"
+                            />
+                            <div className="flex gap-2">
+                              <Button type="submit" variant="accent">
+                                <Play className="h-4 w-4 mr-2" />
+                                Start
+                              </Button>
+                              <Button type="button" variant="outline" onClick={() => setShowStartForm(false)}>
+                                Cancel
+                              </Button>
+                            </div>
+                          </form>
+                        )}
+                      </>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Manual Entry Form */}
+              {showManualForm && isFreelancer && (
+                <Card className="border-border">
+                  <CardHeader>
+                    <CardTitle className="font-display text-lg">Add Manual Entry</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <form onSubmit={handleManualEntry} className="space-y-3">
+                      <input
+                        type="text"
+                        placeholder="Description"
+                        value={manualForm.description}
+                        onChange={e => setManualForm(p => ({ ...p, description: e.target.value }))}
+                        className="w-full border border-border rounded-xl px-3 py-2 text-sm bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-accent"
+                        required
+                      />
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="text-xs text-muted-foreground mb-1 block">Start Time</label>
+                          <input
+                            type="datetime-local"
+                            value={manualForm.startTime}
+                            onChange={e => setManualForm(p => ({ ...p, startTime: e.target.value }))}
+                            className="w-full border border-border rounded-xl px-3 py-2 text-sm bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-accent"
+                            required
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs text-muted-foreground mb-1 block">End Time</label>
+                          <input
+                            type="datetime-local"
+                            value={manualForm.endTime}
+                            onChange={e => setManualForm(p => ({ ...p, endTime: e.target.value }))}
+                            className="w-full border border-border rounded-xl px-3 py-2 text-sm bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-accent"
+                            required
+                          />
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <input
+                          type="number"
+                          placeholder="Hourly rate (NPR)"
+                          value={manualForm.hourlyRate}
+                          onChange={e => setManualForm(p => ({ ...p, hourlyRate: e.target.value }))}
+                          className="w-full border border-border rounded-xl px-3 py-2 text-sm bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-accent"
+                        />
+                        <label className="flex items-center gap-2 text-sm text-foreground cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={manualForm.isBillable}
+                            onChange={e => setManualForm(p => ({ ...p, isBillable: e.target.checked }))}
+                            className="rounded"
+                          />
+                          Billable
+                        </label>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button type="submit" variant="accent">Add Entry</Button>
+                        <Button type="button" variant="outline" onClick={() => setShowManualForm(false)}>Cancel</Button>
+                      </div>
+                    </form>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Submit for Approval */}
+              {isFreelancer && draftEntries.length > 0 && (
+                <div className="flex items-center justify-between bg-yellow-50 border border-yellow-200 rounded-xl p-4">
+                  <p className="text-sm text-yellow-800">
+                    {selectedEntries.length > 0
+                      ? `${selectedEntries.length} entries selected`
+                      : `${draftEntries.length} draft entries ready to submit`}
+                  </p>
+                  <Button
+                    variant="accent"
+                    size="sm"
+                    disabled={selectedEntries.length === 0}
+                    onClick={handleSubmitSelected}
+                  >
+                    <Send className="h-4 w-4 mr-2" />
+                    Submit for Approval
+                  </Button>
                 </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Wednesday</span>
-                  <span className="font-semibold text-foreground">5.5h</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Thursday</span>
-                  <span className="font-semibold text-foreground">8.0h</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Friday</span>
-                  <span className="font-semibold text-accent">
-                    {totalHoursThisWeek.toFixed(1)}h
-                  </span>
-                </div>
-                <div className="border-t border-border pt-4">
-                  <div className="flex items-center justify-between">
-                    <span className="font-medium text-foreground">Total</span>
-                    <span className="font-display text-xl font-bold text-accent">
-                      {totalHoursThisWeek.toFixed(1)}h
+              )}
+
+              {/* Time Entries List */}
+              <Card className="border-border">
+                <CardHeader>
+                  <CardTitle className="font-display text-xl flex items-center">
+                    <Clock className="h-5 w-5 mr-2 text-accent" />
+                    Time Entries
+                    <span className="ml-auto text-sm font-normal text-muted-foreground">
+                      {timeEntries.length} entries
                     </span>
-                  </div>
-                </div>
-              </div>
-            </div>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {timeEntries.length === 0 ? (
+                    <p className="text-center text-muted-foreground py-8">No time entries yet.</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {timeEntries.map(entry => (
+                        <div key={entry.id} className="flex items-start gap-3 p-3 bg-muted rounded-xl">
+                          {/* Checkbox for freelancer draft entries */}
+                          {isFreelancer && entry.status === 'draft' && entry.endTime && (
+                            <input
+                              type="checkbox"
+                              checked={selectedEntries.includes(entry.id)}
+                              onChange={() => toggleSelectEntry(entry.id)}
+                              className="mt-1 rounded"
+                            />
+                          )}
 
-            {/* Project Breakdown */}
-            <div className="rounded-2xl border border-border bg-card p-6">
-              <h3 className="mb-4 font-display text-lg font-semibold text-foreground">
-                By Project
-              </h3>
-              <div className="space-y-4">
-                <div>
-                  <div className="mb-2 flex items-center justify-between text-sm">
-                    <span className="text-foreground">E-commerce Website</span>
-                    <span className="font-semibold text-foreground">9.5h</span>
-                  </div>
-                  <div className="h-2 w-full overflow-hidden rounded-full bg-secondary">
-                    <div className="h-full w-[50%] rounded-full bg-accent" />
-                  </div>
-                </div>
-                <div>
-                  <div className="mb-2 flex items-center justify-between text-sm">
-                    <span className="text-foreground">Mobile App Design</span>
-                    <span className="font-semibold text-foreground">7.25h</span>
-                  </div>
-                  <div className="h-2 w-full overflow-hidden rounded-full bg-secondary">
-                    <div className="h-full w-[38%] rounded-full bg-accent" />
-                  </div>
-                </div>
-                <div>
-                  <div className="mb-2 flex items-center justify-between text-sm">
-                    <span className="text-foreground">Brand Identity</span>
-                    <span className="font-semibold text-foreground">2.75h</span>
-                  </div>
-                  <div className="h-2 w-full overflow-hidden rounded-full bg-secondary">
-                    <div className="h-full w-[14%] rounded-full bg-accent" />
-                  </div>
-                </div>
-              </div>
-            </div>
+                          <div className="flex-1 min-w-0">
+                            {editingEntry?.id === entry.id ? (
+                              <form onSubmit={handleUpdateEntry} className="space-y-2">
+                                <input
+                                  type="text"
+                                  value={editingEntry.description}
+                                  onChange={e => setEditingEntry(p => ({ ...p, description: e.target.value }))}
+                                  className="w-full border border-border rounded-lg px-2 py-1 text-sm bg-background"
+                                />
+                                <div className="flex gap-2 items-center">
+                                  <input
+                                    type="number"
+                                    value={editingEntry.hourlyRate || ""}
+                                    onChange={e => setEditingEntry(p => ({ ...p, hourlyRate: e.target.value }))}
+                                    placeholder="Rate"
+                                    className="w-24 border border-border rounded-lg px-2 py-1 text-sm bg-background"
+                                  />
+                                  <label className="flex items-center gap-1 text-xs">
+                                    <input
+                                      type="checkbox"
+                                      checked={editingEntry.isBillable}
+                                      onChange={e => setEditingEntry(p => ({ ...p, isBillable: e.target.checked }))}
+                                    />
+                                    Billable
+                                  </label>
+                                  <Button type="submit" size="sm" variant="accent">Save</Button>
+                                  <Button type="button" size="sm" variant="outline" onClick={() => setEditingEntry(null)}>Cancel</Button>
+                                </div>
+                              </form>
+                            ) : (
+                              <>
+                                <p className="font-medium text-foreground text-sm truncate">
+                                  {entry.description || "No description"}
+                                </p>
+                                <div className="flex flex-wrap gap-3 mt-1 text-xs text-muted-foreground">
+                                  <span>{new Date(entry.startTime).toLocaleDateString()}</span>
+                                  {entry.endTime && (
+                                    <span className="flex items-center gap-1">
+                                      <Clock className="h-3 w-3" />
+                                      {formatDuration(entry.durationMinutes)}
+                                    </span>
+                                  )}
+                                  {!entry.endTime && (
+                                    <span className="text-green-600 font-medium">Running...</span>
+                                  )}
+                                  {entry.isBillable && entry.totalAmount > 0 && (
+                                    <span className="flex items-center gap-1">
+                                      <DollarSign className="h-3 w-3" />
+                                      NPR {entry.totalAmount.toLocaleString()}
+                                    </span>
+                                  )}
+                                  {!entry.isBillable && (
+                                    <span className="text-muted-foreground">Non-billable</span>
+                                  )}
+                                </div>
+                                {entry.rejectionReason && (
+                                  <p className="text-xs text-red-600 mt-1">Rejected: {entry.rejectionReason}</p>
+                                )}
+                              </>
+                            )}
+                          </div>
 
-            {/* Quick Actions */}
-            <div className="rounded-2xl border border-border bg-card p-6">
-              <h3 className="mb-4 font-display text-lg font-semibold text-foreground">
-                Quick Actions
-              </h3>
-              <div className="space-y-2">
-                <Button variant="outline" className="w-full justify-start">
-                  <Calendar className="mr-2 h-4 w-4" />
-                  View Calendar
-                </Button>
-                <Button variant="outline" className="w-full justify-start">
-                  <BarChart3 className="mr-2 h-4 w-4" />
-                  Analytics
-                </Button>
-                <Button variant="outline" className="w-full justify-start">
-                  <Download className="mr-2 h-4 w-4" />
-                  Export Timesheet
-                </Button>
-              </div>
+                          <div className="flex items-center gap-2 shrink-0">
+                            <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_STYLES[entry.status] || STATUS_STYLES.draft}`}>
+                              {entry.status}
+                            </span>
+
+                            {/* Freelancer actions */}
+                            {isFreelancer && ['draft', 'rejected'].includes(entry.status) && entry.endTime && (
+                              <>
+                                <button
+                                  onClick={() => setEditingEntry(entry)}
+                                  className="text-muted-foreground hover:text-foreground"
+                                >
+                                  <Edit2 className="h-4 w-4" />
+                                </button>
+                                <button
+                                  onClick={() => handleDelete(entry.id)}
+                                  className="text-muted-foreground hover:text-red-600"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </button>
+                              </>
+                            )}
+
+                            {/* Client actions */}
+                            {isClient && entry.status === 'submitted' && (
+                              <>
+                                <button
+                                  onClick={() => handleApprove(entry.id)}
+                                  className="text-green-600 hover:text-green-700"
+                                  title="Approve"
+                                >
+                                  <CheckCircle className="h-4 w-4" />
+                                </button>
+                                <button
+                                  onClick={() => setRejectingEntry(entry.id)}
+                                  className="text-red-600 hover:text-red-700"
+                                  title="Reject"
+                                >
+                                  <XCircle className="h-4 w-4" />
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
             </div>
-          </div>
+          )}
         </div>
       </main>
+
+      {/* Reject Modal */}
+      {rejectingEntry && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-card border border-border rounded-2xl p-6 max-w-md w-full">
+            <h3 className="font-display text-lg font-bold text-foreground mb-4">Reject Time Entry</h3>
+            <textarea
+              value={rejectReason}
+              onChange={e => setRejectReason(e.target.value)}
+              placeholder="Reason for rejection..."
+              rows={3}
+              className="w-full border border-border rounded-xl px-3 py-2 text-sm bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-accent mb-4"
+            />
+            <div className="flex gap-2">
+              <Button onClick={handleReject} className="bg-red-600 hover:bg-red-700 text-white flex-1">
+                Reject
+              </Button>
+              <Button variant="outline" onClick={() => { setRejectingEntry(null); setRejectReason(""); }} className="flex-1">
+                Cancel
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
