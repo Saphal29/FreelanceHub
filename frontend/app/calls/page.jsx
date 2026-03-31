@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Navbar from "@/components/layout/Navbar";
 import { useAuth } from "@/contexts/AuthContext";
@@ -24,7 +24,7 @@ const statusColors = {
   connected: "bg-blue-100 text-blue-700",
 };
 
-export default function CallsPage() {
+function CallsContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user, loading: authLoading } = useAuth();
@@ -310,5 +310,17 @@ export default function CallsPage() {
         )}
       </main>
     </div>
+  );
+}
+
+export default function CallsPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-primary"></div>
+      </div>
+    }>
+      <CallsContent />
+    </Suspense>
   );
 }

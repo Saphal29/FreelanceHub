@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Navbar from "@/components/layout/Navbar";
 import { Button } from "@/components/ui/button";
@@ -42,7 +42,7 @@ const STATUS_STYLES = {
   disputed: "bg-orange-100 text-orange-700"
 };
 
-export default function TimeTrackingPage() {
+function TimeTrackingContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user, loading: authLoading } = useAuth();
@@ -721,5 +721,17 @@ export default function TimeTrackingPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function TimeTrackingPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-primary"></div>
+      </div>
+    }>
+      <TimeTrackingContent />
+    </Suspense>
   );
 }

@@ -1,13 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { verifyEsewaPayment } from "@/lib/api";
 import { CheckCircle, XCircle, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 
-export default function EsewaVerifyPage() {
+function EsewaVerifyContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [status, setStatus] = useState("verifying");
@@ -121,5 +121,18 @@ export default function EsewaVerifyPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function EsewaVerifyPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex flex-col items-center justify-center bg-background gap-4">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-500"></div>
+        <p className="text-lg font-semibold text-foreground">Loading...</p>
+      </div>
+    }>
+      <EsewaVerifyContent />
+    </Suspense>
   );
 }

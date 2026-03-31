@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -60,7 +60,7 @@ const projectSchema = z.object({
   path: ["budgetMax"],
 });
 
-export default function PostProjectPage() {
+function PostProjectContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const editProjectId = searchParams.get("edit");
@@ -914,5 +914,17 @@ export default function PostProjectPage() {
         </div>
       </main>
     </div>
+  );
+}
+
+export default function PostProjectPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
+      </div>
+    }>
+      <PostProjectContent />
+    </Suspense>
   );
 }

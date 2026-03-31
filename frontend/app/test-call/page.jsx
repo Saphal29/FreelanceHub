@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { useWebRTC } from "@/hooks/useWebRTC";
-import { useCallNotifications } from "@/components/calls/CallNotificationManager";
 
 export default function TestCallPage() {
   const [calleeId, setCalleeId] = useState("");
@@ -18,8 +17,6 @@ export default function TestCallPage() {
     isAudioMuted,
     isVideoOff 
   } = useWebRTC();
-
-  const { incomingCall, acceptCall, rejectCall } = useCallNotifications();
 
   const handleInitiateCall = async () => {
     if (!calleeId.trim()) {
@@ -158,32 +155,6 @@ export default function TestCallPage() {
             </div>
           </div>
         </div>
-
-        {/* Incoming Call Notification */}
-        {incomingCall && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg p-6 max-w-sm w-full mx-4">
-              <h3 className="text-xl font-semibold mb-4">Incoming Call</h3>
-              <p className="mb-4">
-                {incomingCall.callerName || "Unknown"} is calling you
-              </p>
-              <div className="flex gap-4">
-                <button
-                  onClick={rejectCall}
-                  className="flex-1 bg-red-500 hover:bg-red-600 text-white py-2 rounded font-semibold"
-                >
-                  Decline
-                </button>
-                <button
-                  onClick={acceptCall}
-                  className="flex-1 bg-green-500 hover:bg-green-600 text-white py-2 rounded font-semibold"
-                >
-                  Accept
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );

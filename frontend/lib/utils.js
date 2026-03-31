@@ -149,6 +149,43 @@ export function getInitials(name) {
     .substring(0, 2);
 }
 
+// Generate consistent avatar color based on email/string
+export function getAvatarColor(str) {
+  if (!str) return 'bg-gray-500';
+  
+  // Generate a hash from the string
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = str.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  
+  // Convert hash to color class
+  const colors = [
+    'bg-blue-500',
+    'bg-green-500',
+    'bg-purple-500',
+    'bg-pink-500',
+    'bg-indigo-500',
+    'bg-red-500',
+    'bg-yellow-500',
+    'bg-teal-500',
+    'bg-cyan-500',
+    'bg-orange-500'
+  ];
+  
+  const index = Math.abs(hash) % colors.length;
+  return colors[index];
+}
+
+// Format name utility
+export function formatName(name) {
+  if (!name) return '';
+  return name
+    .split(' ')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(' ');
+}
+
 // Sleep utility for delays
 export function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
