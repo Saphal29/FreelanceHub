@@ -1,5 +1,8 @@
 const express = require('express');
 const cors = require('cors');
+const path = require('path');
+const http = require('http');
+const { Server } = require('socket.io');
 require('dotenv').config();
 
 // Import utilities and middleware
@@ -20,6 +23,10 @@ const { generalRateLimiter } = require('./middlewares/rateLimitMiddleware');
 
 // Import routes
 const authRoutes = require('./routes/authRoutes');
+const profileRoutes = require('./routes/profileRoutes');
+const projectRoutes = require('./routes/projectRoutes');
+const proposalRoutes = require('./routes/proposalRoutes');
+const notificationRoutes = require('./routes/notificationRoutes');
 
 // Create Express app
 const app = express();
@@ -51,8 +58,26 @@ app.use(suspiciousActivityDetection);
 // Rate limiting (applied to all routes)
 app.use(generalRateLimiter);
 
+// Serve static files from uploads directory
+app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 // API routes
 app.use('/api/auth', authRoutes);
+app.use('/api/profile', profileRoutes);
+app.use('/api/projects', projectRoutes);
+app.use('/api/proposals', proposalRoutes);
+app.use('/api/notifications', notificationRoutes);
+app.use('/api/contracts', require('./routes/contractRoutes'));
+app.use('/api/payments', require('./routes/paymentRoutes'));
+app.use('/api/time', require('./routes/timeTrackingRoutes'));
+app.use('/api/chat', require('./routes/chatRoutes'));
+app.use('/api/calls', require('./routes/callRoutes'));
+app.use('/api/rooms', require('./routes/roomRoutes'));
+app.use('/api/milestones', require('./routes/milestoneRoutes'));
+app.use('/api/disputes', require('./routes/disputeRoutes'));
+app.use('/api/admin', require('./routes/adminRoutes'));
+app.use('/api/reviews', require('./routes/reviewRoutes'));
+app.use('/api/files', require('./routes/fileRoutes'));
+app.use('/api/invites', require('./routes/inviteRoutes'));
 
 // Health check endpoint
 app.get('/health', (req, res) => {
@@ -128,9 +153,53 @@ const startServer = async () => {
     
     // Start the server
     const PORT = process.env.PORT || 5000;
-    const server = app.listen(PORT, () => {
+    const httpServer = http.createServer(app);
+
+    // Initialize Socket.io
+    const io = new Server(httpServer, {
+      cors: {
+        origin: (origin, callback) => {
+          // In development, allow all origins from local network
+          if (process.env.NODE_ENV === 'development') {
+            const allowedOrigins = [
+              process.env.FRONTEND_URL || 'http://localhost:3000',
+              'http://localhost:3000',
+              'http://192.168.100.6:3000',
+              'https://localhost:3000',
+              'https://192.168.100.6:3000'
+            ];
+            
+            // Allow any origin from 192.168.x.x network
+            if (!origin || allowedOrigins.includes(origin) || /^http:\/\/192\.168\.\d+\.\d+:\d+$/.test(origin)) {
+              callback(null, true);
+            } else {
+              callback(new Error('Not allowed by CORS'));
+            }
+          } else {
+            // Production: strict origin checking
+            const allowedOrigins = [process.env.FRONTEND_URL || 'http://localhost:3000'];
+            if (!origin || allowedOrigins.includes(origin)) {
+              callback(null, true);
+            } else {
+              callback(new Error('Not allowed by CORS'));
+            }
+          }
+        },
+        methods: ['GET', 'POST'],
+        credentials: true
+      }
+    });
+
+    const { initSocket } = require('./socket/socketHandler');
+    initSocket(io);
+
+    const { initVideoSignaling } = require('./socket/videoSignalingHandler');
+    initVideoSignaling(io);
+
+    const server = httpServer.listen(PORT, '0.0.0.0', () => {
       logger.info(`🚀 Server running on port ${PORT}`);
       logger.info(`📍 API available at http://localhost:${PORT}/api`);
+      logger.info(`📍 Network API available at http://192.168.100.6:${PORT}/api`);
       logger.info(`🏥 Health check at http://localhost:${PORT}/health`);
       logger.info(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
       

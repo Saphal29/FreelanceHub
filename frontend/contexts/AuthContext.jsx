@@ -137,9 +137,7 @@ export const AuthProvider = ({ children }) => {
       setLoading(false);
       
       // Redirect to login page
-      if (typeof window !== 'undefined') {
-        window.location.href = '/login';
-      }
+      window.location.href = '/login';
     }
   }, []);
 
@@ -202,13 +200,11 @@ export const AuthProvider = ({ children }) => {
       }
     };
 
-    if (typeof window !== 'undefined') {
-      window.addEventListener('storage', handleStorageChange);
-      
-      return () => {
-        window.removeEventListener('storage', handleStorageChange);
-      };
-    }
+    window.addEventListener('storage', handleStorageChange);
+    
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+    };
   }, [loadUser]);
 
   /**
@@ -258,9 +254,7 @@ export const withAuth = (WrappedComponent) => {
     }
 
     if (!user) {
-      if (typeof window !== 'undefined') {
-        window.location.href = '/login';
-      }
+      window.location.href = '/login';
       return null;
     }
 

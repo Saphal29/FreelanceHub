@@ -10,12 +10,23 @@ const corsMiddleware = (req, res, next) => {
   const allowedOrigins = [
     process.env.FRONTEND_URL || 'http://localhost:3000',
     'http://localhost:3000',
-    'http://127.0.0.1:3000'
+    'http://127.0.0.1:3000',
+    'http://192.168.100.6:3000',  // Local WiFi network access (HTTP)
+    'https://localhost:3000',      // HTTPS localhost
+    'https://192.168.100.6:3000'   // HTTPS network access
   ];
   
   const origin = req.headers.origin;
   
-  if (allowedOrigins.includes(origin)) {
+  // In development, allow all origins from local network
+  if (process.env.NODE_ENV === 'development' && origin) {
+    // Allow any origin from 192.168.x.x network
+    if (origin.match(/^http:\/\/192\.168\.\d+\.\d+:\d+$/)) {
+      res.setHeader('Access-Control-Allow-Origin', origin);
+    } else if (allowedOrigins.includes(origin)) {
+      res.setHeader('Access-Control-Allow-Origin', origin);
+    }
+  } else if (allowedOrigins.includes(origin)) {
     res.setHeader('Access-Control-Allow-Origin', origin);
   }
   
@@ -51,8 +62,16 @@ const securityHeaders = (req, res, next) => {
   // Referrer policy
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
   
-  // Content Security Policy
-  res.setHeader('Content-Security-Policy', "default-src 'self'");
+  // Content Security Policy - allow websockets and API connections from local network
+  if (process.env.NODE_ENV === 'development') {
+    res.setHeader('Content-Security-Policy', 
+      "default-src 'self'; " +
+      "connect-src 'self' ws://localhost:5000 wss://localhost:5000 http://localhost:5000 " +
+      "ws://192.168.100.6:5000 wss://192.168.100.6:5000 http://192.168.100.6:5000"
+    );
+  } else {
+    res.setHeader('Content-Security-Policy', "default-src 'self'; connect-src 'self' ws://localhost:5000 wss://localhost:5000 http://localhost:5000");
+  }
   
   // Remove server information
   res.removeHeader('X-Powered-By');
@@ -272,8 +291,13 @@ const ipWhitelist = (allowedIPs = []) => {
  * @param {Function} next - Express next function
  */
 const suspiciousActivityDetection = (req, res, next) => {
+  // More specific SQL injection patterns that look for actual SQL syntax
   const suspiciousPatterns = [
-    /\b(union|select|insert|delete|drop|create|alter)\b/i, // SQL injection
+    /(\bunion\s+select\b|\bselect\s+.*\s+from\b)/i, // SQL injection with SELECT FROM
+    /(\bdrop\s+table\b|\bdrop\s+database\b)/i, // DROP statements
+    /(\binsert\s+into\b.*\bvalues\b)/i, // INSERT statements
+    /(\bdelete\s+from\b)/i, // DELETE statements
+    /(\bupdate\s+.*\s+set\b)/i, // UPDATE statements
     /<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, // XSS
     /\.\.\//g, // Path traversal
     /\bjavascript:/gi // JavaScript protocol
