@@ -98,7 +98,7 @@ export default function LoginPage() {
           } else if (userRole === 'CLIENT') {
             redirectTo = '/dashboard';
           } else if (userRole === 'ADMIN') {
-            redirectTo = '/admin';
+            redirectTo = '/admin/dashboard';
           } else {
             redirectTo = '/dashboard';
           }

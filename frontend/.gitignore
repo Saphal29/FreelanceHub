@@ -1,0 +1,25 @@
+# SSL Certificates
+certs/
+*.pem
+*.key
+*.crt
+
+# Dependencies
+node_modules/
+
+# Next.js
+.next/
+out/
+
+# Environment
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Testing
+coverage/
+
+# Misc
+.DS_Store
+*.log

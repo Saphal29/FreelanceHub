@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { MapPin, Clock, Users, Bookmark } from "lucide-react";
+import Link from "next/link";
 
 const JobCard = ({
   title,
@@ -10,13 +11,16 @@ const JobCard = ({
   skills,
   postedAt,
   proposals,
+  projectId,
 }) => {
   return (
     <div className="group rounded-2xl border border-border bg-card p-6 transition-all hover:shadow-xl">
       <div className="flex items-start justify-between gap-4">
-        <h3 className="font-display text-lg font-semibold text-foreground line-clamp-2">
-          {title}
-        </h3>
+        <Link href={`/projects/${projectId}`}>
+          <h3 className="font-display text-lg font-semibold text-foreground line-clamp-2 hover:text-accent transition-colors cursor-pointer">
+            {title}
+          </h3>
+        </Link>
         <button className="shrink-0 text-muted-foreground transition-colors hover:text-accent">
           <Bookmark className="h-5 w-5" />
         </button>
@@ -58,11 +62,13 @@ const JobCard = ({
       <div className="mt-4 flex items-center justify-between border-t border-border pt-4">
         <div>
           <p className="text-xs text-muted-foreground">Budget</p>
-          <p className="mt-0.5 font-display text-lg font-bold text-foreground">{budget}</p>
+          <p className="mt-0.5 font-display text-lg font-bold text-foreground">${budget}</p>
         </div>
-        <Button variant="accent" size="sm">
-          Apply Now
-        </Button>
+        <Link href={`/projects/${projectId}`}>
+          <Button variant="accent" size="sm">
+            View Details
+          </Button>
+        </Link>
       </div>
 
       <p className="mt-3 text-xs text-muted-foreground">Posted {postedAt}</p>

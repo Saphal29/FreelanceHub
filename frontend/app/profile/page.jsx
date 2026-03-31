@@ -19,7 +19,10 @@ import {
   CheckCircle,
   AlertCircle,
   DollarSign,
-  LogOut
+  LogOut,
+  Camera,
+  Upload,
+  Star
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -27,7 +30,8 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useAuth } from '@/contexts/AuthContext';
-import { updateProfile } from '@/lib/api';
+import { updateProfile, getProfile, uploadProfileImage } from '@/lib/api';
+import RatingDisplay from '@/components/reviews/RatingDisplay';
 
 // Base validation schema
 const baseProfileSchema = z.object({
@@ -85,6 +89,9 @@ export default function ProfilePage() {
   const [success, setSuccess] = useState('');
   const [error, setError] = useState('');
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [avatarUrl, setAvatarUrl] = useState('');
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [imagePreview, setImagePreview] = useState('');
 
   const isFreelancer = user?.role === 'FREELANCER';
   const isClient = user?.role === 'CLIENT';
@@ -119,29 +126,80 @@ export default function ProfilePage() {
 
   // Populate form with user data when user is loaded
   useEffect(() => {
-    if (user) {
-      const formData = {
-        fullName: user.fullName || '',
-        phone: user.phone || '',
-        location: user.location || '',
-        website: user.website || '',
-      };
+    const loadProfile = async () => {
+      if (user) {
+        try {
+          // Get complete profile data from new API
+          const profileResponse = await getProfile();
+          const profileData = profileResponse.profile;
+          
+          // Set avatar URL with full path
+          const avatarPath = profileData.avatarUrl || '';
+          const fullAvatarUrl = avatarPath 
+            ? (avatarPath.startsWith('http') ? avatarPath : `${process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'http://localhost:5000'}${avatarPath}`)
+            : '';
+          
+          setAvatarUrl(avatarPath);
+          setImagePreview(fullAvatarUrl);
+          
+          const formData = {
+            fullName: profileData.fullName || '',
+            phone: profileData.phone || '',
+            location: profileData.location || '',
+            website: profileData.website || '',
+          };
 
-      if (isFreelancer && user.freelancerProfile) {
-        formData.title = user.freelancerProfile.title || '';
-        formData.bio = user.freelancerProfile.bio || '';
-        formData.skills = user.freelancerProfile.skills || '';
-        formData.hourlyRate = user.freelancerProfile.hourlyRate?.toString() || '';
+          if (isFreelancer && profileData.freelancerProfile) {
+            formData.title = profileData.freelancerProfile.title || '';
+            formData.bio = profileData.freelancerProfile.bio || '';
+            formData.skills = profileData.freelancerProfile.skills || '';
+            formData.hourlyRate = profileData.freelancerProfile.hourlyRate?.toString() || '';
+          }
+
+          if (isClient && profileData.clientProfile) {
+            formData.companyName = profileData.clientProfile.companyName || '';
+            formData.companySize = profileData.clientProfile.companySize || '';
+            formData.industry = profileData.clientProfile.industry || '';
+          }
+
+          reset(formData);
+        } catch (error) {
+          console.error('Error loading profile:', error);
+          // Fallback to user data from context
+          const avatarPath = user.avatarUrl || '';
+          const fullAvatarUrl = avatarPath 
+            ? (avatarPath.startsWith('http') ? avatarPath : `${process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'http://localhost:5000'}${avatarPath}`)
+            : '';
+          
+          setAvatarUrl(avatarPath);
+          setImagePreview(fullAvatarUrl);
+          
+          const formData = {
+            fullName: user.fullName || '',
+            phone: user.phone || '',
+            location: user.location || '',
+            website: user.website || '',
+          };
+
+          if (isFreelancer && user.freelancerProfile) {
+            formData.title = user.freelancerProfile.title || '';
+            formData.bio = user.freelancerProfile.bio || '';
+            formData.skills = user.freelancerProfile.skills || '';
+            formData.hourlyRate = user.freelancerProfile.hourlyRate?.toString() || '';
+          }
+
+          if (isClient && user.clientProfile) {
+            formData.companyName = user.clientProfile.companyName || '';
+            formData.companySize = user.clientProfile.companySize || '';
+            formData.industry = user.clientProfile.industry || '';
+          }
+
+          reset(formData);
+        }
       }
+    };
 
-      if (isClient && user.clientProfile) {
-        formData.companyName = user.clientProfile.companyName || '';
-        formData.companySize = user.clientProfile.companySize || '';
-        formData.industry = user.clientProfile.industry || '';
-      }
-
-      reset(formData);
-    }
+    loadProfile();
   }, [user, reset, isFreelancer, isClient]);
 
   // Redirect if not authenticated
@@ -162,7 +220,7 @@ export default function ProfilePage() {
       if (response.success) {
         setSuccess('Profile updated successfully!');
         // Update user context with new data
-        updateUser(response.user);
+        updateUser(response.profile);
         // Clear success message after 3 seconds
         setTimeout(() => setSuccess(''), 3000);
       } else {
@@ -183,6 +241,70 @@ export default function ProfilePage() {
     } catch (err) {
       setError('Failed to logout. Please try again.');
       setIsLoggingOut(false);
+    }
+  };
+
+  const handleImageChange = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
+    if (!allowedTypes.includes(file.type)) {
+      setError('Please upload a valid image file (JPEG, PNG, or WebP)');
+      return;
+    }
+
+    // Validate file size (5MB limit)
+    const maxSize = 5 * 1024 * 1024; // 5MB
+    if (file.size > maxSize) {
+      setError('Image size must be less than 5MB');
+      return;
+    }
+
+    try {
+      setUploadingImage(true);
+      setError('');
+
+      // Create preview
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result);
+      };
+      reader.readAsDataURL(file);
+
+      // Upload image
+      const response = await uploadProfileImage(file);
+
+      if (response.success) {
+        const fullImageUrl = response.imageUrl.startsWith('http') 
+          ? response.imageUrl 
+          : `${process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'http://localhost:5000'}${response.imageUrl}`;
+        
+        setAvatarUrl(response.imageUrl);
+        setImagePreview(fullImageUrl);
+        setSuccess('Profile picture uploaded successfully!');
+        
+        // Update user context
+        updateUser({ ...user, avatarUrl: response.imageUrl });
+        setTimeout(() => setSuccess(''), 3000);
+      } else {
+        setError(response.error || 'Failed to upload image');
+        // Reset preview on error
+        const fallbackUrl = avatarUrl 
+          ? (avatarUrl.startsWith('http') ? avatarUrl : `${process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'http://localhost:5000'}${avatarUrl}`)
+          : '';
+        setImagePreview(fallbackUrl);
+      }
+    } catch (err) {
+      setError(err.message || 'Failed to upload image');
+      // Reset preview on error
+      const fallbackUrl = avatarUrl 
+        ? (avatarUrl.startsWith('http') ? avatarUrl : `${process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'http://localhost:5000'}${avatarUrl}`)
+        : '';
+      setImagePreview(fallbackUrl);
+    } finally {
+      setUploadingImage(false);
     }
   };
 
@@ -269,6 +391,48 @@ export default function ProfilePage() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
+                {/* Profile Picture Upload */}
+                <div className="flex flex-col items-center space-y-4 pb-6 border-b border-border">
+                  <div className="relative">
+                    {imagePreview ? (
+                      <img
+                        src={imagePreview.startsWith('http') ? imagePreview : `${process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'http://localhost:5000'}${imagePreview}`}
+                        alt="Profile"
+                        className="h-32 w-32 rounded-full object-cover border-4 border-border"
+                      />
+                    ) : (
+                      <div className="h-32 w-32 rounded-full bg-secondary flex items-center justify-center border-4 border-border">
+                        <User className="h-16 w-16 text-muted-foreground" />
+                      </div>
+                    )}
+                    {uploadingImage && (
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-full">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
+                      </div>
+                    )}
+                    <label
+                      htmlFor="avatar-upload"
+                      className="absolute bottom-0 right-0 h-10 w-10 rounded-full bg-accent text-white flex items-center justify-center cursor-pointer hover:bg-accent/90 transition-colors shadow-lg"
+                    >
+                      <Camera className="h-5 w-5" />
+                      <input
+                        id="avatar-upload"
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp"
+                        onChange={handleImageChange}
+                        className="sr-only"
+                        disabled={uploadingImage}
+                      />
+                    </label>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-sm font-medium text-foreground">Profile Picture</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      JPG, PNG or WebP. Max size 5MB.
+                    </p>
+                  </div>
+                </div>
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {/* Full Name */}
                   <div className="space-y-2">
@@ -501,6 +665,29 @@ export default function ProfilePage() {
                 </CardContent>
               </Card>
             )}
+
+            {/* Reviews & Ratings Section */}
+            <Card className="border-border">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="flex items-center font-display text-xl">
+                    <Star className="h-5 w-5 mr-2 text-yellow-400" />
+                    Reviews & Ratings
+                  </CardTitle>
+                  <Link href="/reviews">
+                    <Button variant="outline" size="sm">
+                      View All Reviews
+                    </Button>
+                  </Link>
+                </div>
+                <CardDescription className="text-muted-foreground">
+                  Your reputation and feedback from {isFreelancer ? 'clients' : 'freelancers'}
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <RatingDisplay userId={user.id} showDetails={true} />
+              </CardContent>
+            </Card>
 
             {/* Submit Button */}
             <div className="flex justify-end space-x-4">
