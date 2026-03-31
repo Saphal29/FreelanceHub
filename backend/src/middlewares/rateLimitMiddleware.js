@@ -126,7 +126,7 @@ const registrationRateLimiter = createRateLimiter({
  * 100 requests per 15 minutes
  */
 const generalRateLimiter = createRateLimiter({
-  windowMs: 15 * 60 * 1000, // 15 minutes
+  windowMs: 5 * 60 * 1000, // 15 minutes
   max: 100, // Limit each IP to 100 requests per windowMs
   message: {
     success: false,
@@ -243,6 +243,64 @@ const logRateLimit = (req, res, next) => {
   next();
 };
 
+/**
+ * Image upload rate limiter
+ * 5 uploads per hour
+ */
+const imageUploadRateLimiter = createRateLimiter({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 5, // Limit each IP to 5 image uploads per hour
+  message: {
+    success: false,
+    error: 'Too many image upload attempts, please try again later',
+    code: 'IMAGE_UPLOAD_RATE_LIMIT_EXCEEDED'
+  }
+});
+
+/**
+ * Search rate limiter
+ * 500 searches per hour (very generous for authenticated users)
+ */
+const searchRateLimiter = createRateLimiter({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 500, // Limit each IP to 500 searches per hour
+  message: {
+    success: false,
+    error: 'Too many search requests, please try again later',
+    code: 'SEARCH_RATE_LIMIT_EXCEEDED'
+  }
+});
+
+/**
+ * Project creation rate limiter
+ * 10 projects per hour
+ */
+const projectCreateRateLimiter = createRateLimiter({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 10, // Limit each IP to 10 project creations per hour
+  message: {
+    success: false,
+    error: 'Too many project creation attempts, please try again later',
+    code: 'PROJECT_CREATE_RATE_LIMIT_EXCEEDED'
+  },
+  keyGenerator: (req) => req.user?.userId || req.ip
+});
+
+/**
+ * Project update rate limiter
+ * 20 updates per hour
+ */
+const projectUpdateRateLimiter = createRateLimiter({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 20, // Limit each IP to 20 project updates per hour
+  message: {
+    success: false,
+    error: 'Too many project update attempts, please try again later',
+    code: 'PROJECT_UPDATE_RATE_LIMIT_EXCEEDED'
+  },
+  keyGenerator: (req) => req.user?.userId || req.ip
+});
+
 module.exports = {
   createRateLimiter,
   authRateLimiter,
@@ -251,6 +309,10 @@ module.exports = {
   generalRateLimiter,
   profileUpdateRateLimiter,
   emailVerificationRateLimiter,
+  imageUploadRateLimiter,
+  searchRateLimiter,
+  projectCreateRateLimiter,
+  projectUpdateRateLimiter,
   createUserRateLimiter,
   logRateLimit
 };
