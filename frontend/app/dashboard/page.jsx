@@ -419,9 +419,11 @@ const ClientHome = () => {
                 Join millions of businesses who hire freelancers on FreelanceHub.
               </p>
               <div className="mt-8 flex flex-wrap gap-4">
-                <Button variant="accent" size="lg">
-                  Post a Project
-                </Button>
+                <Link href="/client/post-project">
+                  <Button variant="accent" size="lg">
+                    Post a Project
+                  </Button>
+                </Link>
                 <Button
                   variant="outline"
                   size="lg"
