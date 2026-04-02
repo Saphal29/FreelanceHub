@@ -20,6 +20,7 @@ import {
   TrendingUp,
   AlertCircle,
 } from "lucide-react";
+import { Pagination } from "@/components/ui/pagination";
 
 
 
@@ -35,6 +36,10 @@ export default function FindWorkPage() {
   const [dbCategories, setDbCategories] = useState([]);
   const [sortBy, setSortBy] = useState("created_at");
   const [sortOrder, setSortOrder] = useState("DESC");
+  
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(4);
   
   // Filter states
   const [filters, setFilters] = useState({
@@ -220,6 +225,7 @@ export default function FindWorkPage() {
     setSelectedCategory("All Jobs");
     setSortBy("created_at");
     setSortOrder("DESC");
+    setCurrentPage(1); // Reset pagination
     setFilters({
       budgetRanges: [],
       durations: [],
@@ -280,8 +286,20 @@ export default function FindWorkPage() {
     );
   });
 
+  // Pagination logic
+  const totalPages = Math.ceil(filteredJobs.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedJobs = filteredJobs.slice(startIndex, endIndex);
+
+  const handlePageChange = (page) => {
+    setCurrentPage(page);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   const handleSearch = (e) => {
     e.preventDefault();
+    setCurrentPage(1); // Reset to first page on search
     fetchProjects();
   };
 
@@ -305,7 +323,7 @@ export default function FindWorkPage() {
       <section className="border-b border-border bg-gradient-hero py-8 lg:py-12">
         <div className="container mx-auto px-4">
           <h1 className="font-display text-3xl font-bold text-foreground sm:text-4xl">
-            Find Work
+            Find <span className="text-amber-500">Work</span>
           </h1>
           <p className="mt-2 text-lg text-muted-foreground">
             Discover opportunities that match your skills and expertise
@@ -517,7 +535,7 @@ export default function FindWorkPage() {
 
             {/* Jobs List */}
             <div className="space-y-6">
-              {filteredJobs.map((job, index) => (
+              {paginatedJobs.map((job, index) => (
                 <div
                   key={index}
                   className="animate-fade-up opacity-0"
@@ -527,6 +545,17 @@ export default function FindWorkPage() {
                 </div>
               ))}
             </div>
+
+            {/* Pagination */}
+            {!loading && filteredJobs.length > 0 && (
+              <Pagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPageChange={handlePageChange}
+                itemsPerPage={itemsPerPage}
+                totalItems={filteredJobs.length}
+              />
+            )}
 
             {!loading && filteredJobs.length === 0 && (
               <div className="rounded-2xl border border-border bg-card p-12 text-center">

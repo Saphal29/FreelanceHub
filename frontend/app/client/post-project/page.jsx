@@ -304,15 +304,12 @@ function PostProjectContent() {
       {/* Header */}
       <section className="border-b border-border bg-secondary/30 py-8">
         <div className="container mx-auto px-4">
-          <Link
-            href="/dashboard"
-            className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors mb-4"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            <span>Back to Dashboard</span>
-          </Link>
           <h1 className="font-display text-3xl font-bold text-foreground sm:text-4xl">
-            {isEditMode ? "Edit Project" : "Post a Project"}
+            {isEditMode ? (
+              <>Edit <span className="text-amber-500">Project</span></>
+            ) : (
+              <>Post <span className="text-amber-500">Project</span></>
+            )}
           </h1>
           <p className="mt-2 text-lg text-muted-foreground">
             {isEditMode 

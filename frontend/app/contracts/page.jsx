@@ -19,6 +19,7 @@ import {
   MessageSquare
 } from "lucide-react";
 import Link from "next/link";
+import { Pagination } from "@/components/ui/pagination";
 
 export default function ContractsPage() {
   const router = useRouter();
@@ -28,6 +29,10 @@ export default function ContractsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [filter, setFilter] = useState("all");
+  
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(4);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -106,7 +111,7 @@ export default function ContractsPage() {
           {/* Header */}
           <div className="mb-6">
             <h1 className="font-display text-3xl font-bold text-foreground">
-              My Contracts
+              My <span className="text-amber-500">Contracts</span>
             </h1>
             <p className="text-muted-foreground mt-1">
               View and manage your contracts
@@ -164,8 +169,11 @@ export default function ContractsPage() {
               </CardContent>
             </Card>
           ) : (
-            <div className="grid gap-4 md:grid-cols-2">
-              {contracts.map((contract) => (
+            <>
+              <div className="grid gap-4 md:grid-cols-2">
+                {contracts
+                  .slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
+                  .map((contract) => (
                 <Card
                   key={contract.id}
                   className="border-border hover:shadow-lg transition-shadow cursor-pointer"
@@ -237,7 +245,20 @@ export default function ContractsPage() {
                   </CardContent>
                 </Card>
               ))}
-            </div>
+              </div>
+              
+              {/* Pagination */}
+              <Pagination
+                currentPage={currentPage}
+                totalPages={Math.ceil(contracts.length / itemsPerPage)}
+                onPageChange={(page) => {
+                  setCurrentPage(page);
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
+                itemsPerPage={itemsPerPage}
+                totalItems={contracts.length}
+              />
+            </>
           )}
         </div>
       </main>

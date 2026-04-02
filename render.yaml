@@ -1,0 +1,87 @@
+services:
+  # Backend API Service
+  - type: web
+    name: freelancehub-backend
+    env: node
+    region: oregon
+    plan: free
+    rootDir: backend
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 5000
+      - key: DB_HOST
+        sync: false
+      - key: DB_PORT
+        sync: false
+      - key: DB_NAME
+        sync: false
+      - key: DB_USER
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_EXPIRES_IN
+        value: 7d
+      - key: BCRYPT_ROUNDS
+        value: 12
+      - key: EMAIL_SERVICE
+        value: gmail
+      - key: EMAIL_HOST
+        value: smtp.gmail.com
+      - key: EMAIL_PORT
+        value: 587
+      - key: EMAIL_SECURE
+        value: false
+      - key: EMAIL_USER
+        sync: false
+      - key: EMAIL_PASSWORD
+        sync: false
+      - key: EMAIL_FROM_NAME
+        value: FreelanceHub
+      - key: EMAIL_FROM_ADDRESS
+        sync: false
+      - key: CORS_ORIGIN
+        sync: false
+      - key: FRONTEND_URL
+        sync: false
+      - key: BACKEND_URL
+        sync: false
+      - key: API_URL
+        sync: false
+      - key: KHALTI_SECRET_KEY
+        sync: false
+      - key: KHALTI_BASE_URL
+        value: https://khalti.com/api/v2
+      - key: PLATFORM_FEE_PERCENT
+        value: 10
+      - key: ESEWA_MERCHANT_CODE
+        sync: false
+      - key: ESEWA_SECRET_KEY
+        sync: false
+      - key: ESEWA_BASE_URL
+        value: https://esewa.com.np
+    healthCheckPath: /api/health
+
+  # PostgreSQL Database
+  - type: pserv
+    name: freelancehub-db
+    env: docker
+    plan: free
+    region: oregon
+    image: postgres:15
+    envVars:
+      - key: POSTGRES_DB
+        value: freelancehub_db
+      - key: POSTGRES_USER
+        value: freelancehub_user
+      - key: POSTGRES_PASSWORD
+        generateValue: true
+    disk:
+      name: freelancehub-db-data
+      mountPath: /var/lib/postgresql/data
+      sizeGB: 1

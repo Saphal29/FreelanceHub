@@ -8,7 +8,7 @@ const nextConfig = {
       },
       {
         protocol: 'http',
-        hostname: '192.168.100.6',
+        hostname: '192.168.44.82',
       },
       {
         protocol: 'http',
@@ -17,7 +17,7 @@ const nextConfig = {
     ],
   },
   // Allow cross-origin requests from network devices for development
-  allowedDevOrigins: ['192.168.100.6', '192.168.46.49'],
+  allowedDevOrigins: ['192.168.44.82', '192.168.46.49'],
 }
 
 module.exports = nextConfig

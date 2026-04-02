@@ -63,13 +63,13 @@ async function ensureCertificates() {
       console.log('\n🔒 HTTPS Server Ready!');
       console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
       console.log(`📍 Local:    https://localhost:${port}`);
-      console.log(`📍 Network:  https://192.168.100.6:${port}`);
+      console.log(`📍 Network:  https://192.168.44.82:${port}`);
       console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
       console.log('\n⚠️  Browser Security Warning:');
       console.log('   Your browser will show a warning about the self-signed certificate.');
       console.log('   Click "Advanced" → "Proceed to localhost (unsafe)" to continue.\n');
       console.log('📱 On your phone:');
-      console.log('   1. Open https://192.168.100.6:3000');
+      console.log('   1. Open https://192.168.44.82:3000');
       console.log('   2. Accept the security warning');
       console.log('   3. Camera/microphone will now work!\n');
     });

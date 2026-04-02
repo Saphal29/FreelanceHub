@@ -20,6 +20,7 @@ import {
   Filter,
 } from "lucide-react";
 import Link from "next/link";
+import { Pagination } from "@/components/ui/pagination";
 
 const STATUS_CONFIG = {
   open: { label: "Open", color: "bg-blue-100 text-blue-700", icon: FileText },
@@ -48,6 +49,10 @@ export default function DisputesPage() {
   const [error, setError] = useState("");
   
   const [statusFilter, setStatusFilter] = useState("");
+  
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(4);
   const [categoryFilter, setCategoryFilter] = useState("");
 
   useEffect(() => {
@@ -116,7 +121,9 @@ export default function DisputesPage() {
           {/* Header */}
           <div className="flex items-center justify-between mb-6">
             <div>
-              <h1 className="font-display text-3xl font-bold text-foreground">Disputes</h1>
+              <h1 className="font-display text-3xl font-bold text-foreground">
+                My <span className="text-amber-500">Disputes</span>
+              </h1>
               <p className="text-muted-foreground mt-1">Manage and track your disputes</p>
             </div>
             <Link href="/disputes/file">
@@ -189,8 +196,11 @@ export default function DisputesPage() {
               </CardContent>
             </Card>
           ) : (
-            <div className="space-y-4">
-              {disputes.map((dispute) => {
+            <>
+              <div className="space-y-4">
+                {disputes
+                  .slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
+                  .map((dispute) => {
                 const statusConfig = getStatusConfig(dispute.status);
                 const StatusIcon = statusConfig.icon;
                 const isFiledByUser = dispute.filedBy === user.id;
@@ -250,7 +260,20 @@ export default function DisputesPage() {
                   </Link>
                 );
               })}
-            </div>
+              </div>
+              
+              {/* Pagination */}
+              <Pagination
+                currentPage={currentPage}
+                totalPages={Math.ceil(disputes.length / itemsPerPage)}
+                onPageChange={(page) => {
+                  setCurrentPage(page);
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
+                itemsPerPage={itemsPerPage}
+                totalItems={disputes.length}
+              />
+            </>
           )}
         </div>
       </main>

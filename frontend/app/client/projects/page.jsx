@@ -7,6 +7,7 @@ import Navbar from "@/components/layout/Navbar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/contexts/AuthContext";
 import { getMyProjects, updateProject, deleteProject } from "@/lib/api";
 import { 
@@ -26,6 +27,7 @@ import {
   Send,
   MoreVertical
 } from "lucide-react";
+import { Pagination } from "@/components/ui/pagination";
 
 // Dummy project data (fallback)
 const dummyProjects = [
@@ -155,6 +157,10 @@ export default function BrowseProjectsPage() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [actionLoading, setActionLoading] = useState({});
   const [successMessage, setSuccessMessage] = useState("");
+  
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(4);
 
   // Redirect if not authenticated or not a client
   useEffect(() => {
@@ -433,189 +439,199 @@ export default function BrowseProjectsPage() {
           )}
 
           {/* Projects List */}
-          <div className="space-y-6">
-            {filteredProjects.map((project) => (
-              <div
+          <div className="grid gap-4 md:grid-cols-2">
+            {filteredProjects
+              .slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
+              .map((project) => (
+              <Card
                 key={project.id}
-                className="group overflow-hidden rounded-2xl border border-border bg-card p-6 transition-all hover:shadow-xl"
+                className="border-border hover:shadow-lg transition-shadow cursor-pointer"
+                onClick={() => router.push(`/client/projects/${project.id}`)}
               >
-                {/* Header */}
-                <div className="mb-4 flex items-start justify-between">
-                  <div className="flex-1">
-                    <Link href={`/client/projects/${project.id}`}>
-                      <h3 className="font-display text-xl font-bold text-foreground hover:text-accent transition-colors mb-2 cursor-pointer">
+                <CardHeader>
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1">
+                      <CardTitle className="font-display text-lg">
                         {project.title}
-                      </h3>
-                    </Link>
-                    <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
-                      <span className="flex items-center gap-1">
-                        <Clock className="h-4 w-4" />
-                        {new Date(project.createdAt).toLocaleDateString()}
-                      </span>
-                      {project.location && (
-                        <span className="flex items-center gap-1">
-                          <MapPin className="h-4 w-4" />
-                          {project.location}
-                        </span>
-                      )}
-                      <span className="flex items-center gap-1">
-                        <Users className="h-4 w-4" />
-                        {project.proposalsCount} proposal{project.proposalsCount !== 1 ? "s" : ""}
-                      </span>
+                      </CardTitle>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Project #{project.id.slice(0, 8)}
+                      </p>
                     </div>
-                  </div>
-                  <div className="flex flex-col gap-2 items-end">
-                    <div className="rounded-full bg-accent/10 px-3 py-1 text-sm font-medium text-accent">
-                      {project.category}
-                    </div>
-                    <div className={`rounded-full px-3 py-1 text-xs font-medium ${
-                      project.status === "active" ? "bg-green-100 text-green-700" :
-                      project.status === "draft" ? "bg-gray-100 text-gray-700" :
-                      project.status === "in_progress" ? "bg-blue-100 text-blue-700" :
-                      project.status === "completed" ? "bg-purple-100 text-purple-700" :
-                      "bg-red-100 text-red-700"
-                    }`}>
-                      {project.status.replace("_", " ").toUpperCase()}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Description */}
-                <p className="mb-4 text-muted-foreground line-clamp-2">
-                  {project.description}
-                </p>
-
-                {/* Skills */}
-                <div className="mb-4 flex flex-wrap gap-2">
-                  {project.skills.map((skill, index) => (
-                    <span
-                      key={index}
-                      className="rounded-full bg-secondary px-3 py-1 text-xs text-foreground"
-                    >
-                      {skill}
-                    </span>
-                  ))}
-                </div>
-
-                {/* Footer */}
-                <div className="flex flex-wrap items-center justify-between gap-4 border-t border-border pt-4">
-                  <div className="flex items-center gap-6">
                     <div className="flex items-center gap-2">
-                      <DollarSign className="h-5 w-5 text-muted-foreground" />
-                      <div>
-                        <p className="text-sm text-muted-foreground">Budget</p>
-                        <p className="font-semibold text-foreground">
-                          ${project.budget.min.toLocaleString()} - ${project.budget.max.toLocaleString()}
-                        </p>
+                      {/* Edit Button for active/in_progress projects */}
+                      {(project.status === "active" || project.status === "in_progress" || project.status === "draft") && (
+                        <Link 
+                          href={`/client/post-project?edit=${project.id}`}
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                        </Link>
+                      )}
+                      {/* Status Badge */}
+                      <div className={`rounded-full px-3 py-1 text-xs font-medium whitespace-nowrap ${
+                        project.status === "active" ? "bg-green-100 text-green-700" :
+                        project.status === "draft" ? "bg-gray-100 text-gray-700" :
+                        project.status === "in_progress" ? "bg-blue-100 text-blue-700" :
+                        project.status === "completed" ? "bg-purple-100 text-purple-700" :
+                        "bg-red-100 text-red-700"
+                      }`}>
+                        {project.status.replace("_", " ").toUpperCase()}
                       </div>
                     </div>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {/* Category Badge */}
+                    <div className="flex items-center gap-2">
+                      <Briefcase className="h-4 w-4 text-accent" />
+                      <span className="text-sm text-muted-foreground">Category:</span>
+                      <span className="font-semibold text-foreground">{project.category}</span>
+                    </div>
+
+                    {/* Budget */}
+                    <div className="flex items-center gap-2">
+                      <DollarSign className="h-4 w-4 text-accent" />
+                      <span className="text-sm text-muted-foreground">Budget:</span>
+                      <span className="font-semibold text-foreground">
+                        ${project.budget.min.toLocaleString()} - ${project.budget.max.toLocaleString()}
+                      </span>
+                    </div>
+                    
+                    {/* Duration */}
                     {project.duration && (
                       <div className="flex items-center gap-2">
-                        <Calendar className="h-5 w-5 text-muted-foreground" />
-                        <div>
-                          <p className="text-sm text-muted-foreground">Duration</p>
-                          <p className="font-semibold text-foreground">{project.duration}</p>
-                        </div>
+                        <Clock className="h-4 w-4 text-accent" />
+                        <span className="text-sm text-muted-foreground">Duration:</span>
+                        <span className="font-semibold text-foreground">
+                          {project.duration}
+                        </span>
                       </div>
                     )}
+
+                    {/* Proposals Count */}
                     <div className="flex items-center gap-2">
-                      <Briefcase className="h-5 w-5 text-muted-foreground" />
-                      <div>
-                        <p className="text-sm text-muted-foreground">Experience</p>
-                        <p className="font-semibold text-foreground capitalize">
-                          {project.experienceLevel.replace("_", " ")}
-                        </p>
+                      <Users className="h-4 w-4 text-accent" />
+                      <span className="text-sm text-muted-foreground">Proposals:</span>
+                      <span className="font-semibold text-foreground">
+                        {project.proposalsCount}
+                      </span>
+                    </div>
+
+                    {/* Skills */}
+                    <div className="pt-3 border-t border-border">
+                      <p className="text-xs font-semibold text-foreground mb-2">Required Skills:</p>
+                      <div className="flex flex-wrap gap-1">
+                        {project.skills.slice(0, 3).map((skill, index) => (
+                          <span
+                            key={index}
+                            className="rounded-full bg-secondary px-2 py-1 text-xs text-foreground"
+                          >
+                            {skill}
+                          </span>
+                        ))}
+                        {project.skills.length > 3 && (
+                          <span className="rounded-full bg-secondary px-2 py-1 text-xs text-muted-foreground">
+                            +{project.skills.length - 3} more
+                          </span>
+                        )}
                       </div>
                     </div>
-                  </div>
-                  <div className="flex gap-2">
-                    {/* Show different buttons based on status */}
-                    {project.status === "draft" ? (
-                      <>
-                        <Button
-                          variant="accent"
-                          onClick={() => handlePublish(project.id)}
-                          disabled={actionLoading[project.id] === "publishing"}
-                        >
-                          {actionLoading[project.id] === "publishing" ? (
-                            <>
-                              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                              Publishing...
-                            </>
-                          ) : (
-                            <>
-                              <Send className="h-4 w-4 mr-2" />
-                              Publish
-                            </>
-                          )}
-                        </Button>
-                        <Link href={`/client/post-project?edit=${project.id}`}>
-                          <Button variant="outline">
-                            <Edit className="h-4 w-4 mr-2" />
-                            Edit
-                          </Button>
-                        </Link>
-                        <Button
-                          variant="outline"
-                          onClick={() => handleDelete(project.id)}
-                          disabled={actionLoading[project.id] === "deleting"}
-                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                        >
-                          {actionLoading[project.id] === "deleting" ? (
-                            <>
-                              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-600 mr-2"></div>
-                              Deleting...
-                            </>
-                          ) : (
-                            <>
-                              <Trash2 className="h-4 w-4 mr-2" />
-                              Delete
-                            </>
-                          )}
-                        </Button>
-                      </>
-                    ) : (
-                      <>
-                        <Link href={`/client/projects/${project.id}`}>
-                          <Button variant="outline">
-                            View Details
-                          </Button>
-                        </Link>
-                        {(project.status === "active" || project.status === "in_progress") && (
-                          <Link href={`/client/post-project?edit=${project.id}`}>
-                            <Button variant="accent">
-                              <Edit className="h-4 w-4 mr-2" />
-                              Edit
-                            </Button>
-                          </Link>
+                    
+                    {/* Footer with Actions */}
+                    <div className="pt-3 border-t border-border">
+                      <div className="flex items-center justify-between text-xs text-muted-foreground mb-3">
+                        <span>Posted {new Date(project.createdAt).toLocaleDateString()}</span>
+                        {project.location && (
+                          <span className="flex items-center gap-1">
+                            <MapPin className="h-3 w-3" />
+                            {project.location}
+                          </span>
                         )}
-                        {project.status === "active" && project.proposalsCount === 0 && (
+                      </div>
+                      
+                      {/* Action Buttons */}
+                      <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
+                        {project.status === "draft" ? (
+                          <>
+                            <Button
+                              variant="accent"
+                              size="sm"
+                              className="flex-1"
+                              onClick={() => handlePublish(project.id)}
+                              disabled={actionLoading[project.id] === "publishing"}
+                            >
+                              {actionLoading[project.id] === "publishing" ? (
+                                <>
+                                  <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white mr-1"></div>
+                                  Publishing...
+                                </>
+                              ) : (
+                                <>
+                                  <Send className="h-3 w-3 mr-1" />
+                                  Publish
+                                </>
+                              )}
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleDelete(project.id)}
+                              disabled={actionLoading[project.id] === "deleting"}
+                              className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                            >
+                              {actionLoading[project.id] === "deleting" ? (
+                                <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-red-600"></div>
+                              ) : (
+                                <Trash2 className="h-3 w-3" />
+                              )}
+                            </Button>
+                          </>
+                        ) : project.status === "active" && project.proposalsCount === 0 ? (
                           <Button
                             variant="outline"
+                            size="sm"
+                            className="w-full text-red-600 hover:text-red-700 hover:bg-red-50"
                             onClick={() => handleDelete(project.id)}
                             disabled={actionLoading[project.id] === "deleting"}
-                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
                           >
                             {actionLoading[project.id] === "deleting" ? (
                               <>
-                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-600 mr-2"></div>
+                                <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-red-600 mr-1"></div>
                                 Deleting...
                               </>
                             ) : (
                               <>
-                                <Trash2 className="h-4 w-4 mr-2" />
-                                Delete
+                                <Trash2 className="h-3 w-3 mr-1" />
+                                Delete Project
                               </>
                             )}
                           </Button>
-                        )}
-                      </>
-                    )}
+                        ) : null}
+                      </div>
+                    </div>
                   </div>
-                </div>
-              </div>
+                </CardContent>
+              </Card>
             ))}
           </div>
+          
+          {/* Pagination */}
+          {filteredProjects.length > 0 && (
+            <Pagination
+              currentPage={currentPage}
+              totalPages={Math.ceil(filteredProjects.length / itemsPerPage)}
+              onPageChange={(page) => {
+                setCurrentPage(page);
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+              itemsPerPage={itemsPerPage}
+              totalItems={filteredProjects.length}
+            />
+          )}
         </div>
       </section>
     </div>

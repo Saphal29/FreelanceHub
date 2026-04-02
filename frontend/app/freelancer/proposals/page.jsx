@@ -19,6 +19,7 @@ import {
   MinusCircle,
   User
 } from "lucide-react";
+import { Pagination } from "@/components/ui/pagination";
 
 export default function MyProposalsPage() {
   const router = useRouter();
@@ -29,6 +30,10 @@ export default function MyProposalsPage() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [actionLoading, setActionLoading] = useState({});
   const [successMessage, setSuccessMessage] = useState("");
+  
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(4);
 
   // Redirect if not authenticated or not a freelancer
   useEffect(() => {
@@ -141,7 +146,7 @@ export default function MyProposalsPage() {
           {/* Header */}
           <div className="mb-6">
             <h1 className="font-display text-3xl font-bold text-foreground">
-              My Proposals
+              My <span className="text-amber-500">Proposals</span>
             </h1>
             <p className="text-muted-foreground mt-1">
               Track and manage your submitted proposals
@@ -233,8 +238,11 @@ export default function MyProposalsPage() {
               </CardContent>
             </Card>
           ) : (
-            <div className="grid gap-4 md:grid-cols-2">
-              {proposals.map((proposal) => (
+            <>
+              <div className="grid gap-4 md:grid-cols-2">
+                {proposals
+                  .slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
+                  .map((proposal) => (
                 <Card
                   key={proposal.id}
                   className="border-border hover:shadow-lg transition-shadow"
@@ -330,7 +338,20 @@ export default function MyProposalsPage() {
                   </CardContent>
                 </Card>
               ))}
-            </div>
+              </div>
+              
+              {/* Pagination */}
+              <Pagination
+                currentPage={currentPage}
+                totalPages={Math.ceil(proposals.length / itemsPerPage)}
+                onPageChange={(page) => {
+                  setCurrentPage(page);
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
+                itemsPerPage={itemsPerPage}
+                totalItems={proposals.length}
+              />
+            </>
           )}
         </div>
       </main>

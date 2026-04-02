@@ -164,9 +164,9 @@ const startServer = async () => {
             const allowedOrigins = [
               process.env.FRONTEND_URL || 'http://localhost:3000',
               'http://localhost:3000',
-              'http://192.168.100.6:3000',
+              'http://192.168.44.82:3000',
               'https://localhost:3000',
-              'https://192.168.100.6:3000'
+              'https://192.168.44.82:3000'
             ];
             
             // Allow any origin from 192.168.x.x network
@@ -199,7 +199,7 @@ const startServer = async () => {
     const server = httpServer.listen(PORT, '0.0.0.0', () => {
       logger.info(`🚀 Server running on port ${PORT}`);
       logger.info(`📍 API available at http://localhost:${PORT}/api`);
-      logger.info(`📍 Network API available at http://192.168.100.6:${PORT}/api`);
+      logger.info(`📍 Network API available at http://192.168.44.82:${PORT}/api`);
       logger.info(`🏥 Health check at http://localhost:${PORT}/health`);
       logger.info(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
       

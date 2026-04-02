@@ -58,7 +58,7 @@ try {
       altNames: [
         { type: 2, value: 'localhost' },
         { type: 7, ip: '127.0.0.1' },
-        { type: 7, ip: '192.168.100.6' }
+        { type: 7, ip: '192.168.44.82' }
       ]
     }
   ]);

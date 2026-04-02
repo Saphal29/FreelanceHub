@@ -11,9 +11,9 @@ const corsMiddleware = (req, res, next) => {
     process.env.FRONTEND_URL || 'http://localhost:3000',
     'http://localhost:3000',
     'http://127.0.0.1:3000',
-    'http://192.168.100.6:3000',  // Local WiFi network access (HTTP)
+    'http://192.168.44.82:3000',  // Local WiFi network access (HTTP)
     'https://localhost:3000',      // HTTPS localhost
-    'https://192.168.100.6:3000'   // HTTPS network access
+    'https://192.168.44.82:3000'   // HTTPS network access
   ];
   
   const origin = req.headers.origin;
@@ -67,7 +67,7 @@ const securityHeaders = (req, res, next) => {
     res.setHeader('Content-Security-Policy', 
       "default-src 'self'; " +
       "connect-src 'self' ws://localhost:5000 wss://localhost:5000 http://localhost:5000 " +
-      "ws://192.168.100.6:5000 wss://192.168.100.6:5000 http://192.168.100.6:5000"
+      "ws://192.168.44.82:5000 wss://192.168.44.82:5000 http://192.168.44.82:5000"
     );
   } else {
     res.setHeader('Content-Security-Policy', "default-src 'self'; connect-src 'self' ws://localhost:5000 wss://localhost:5000 http://localhost:5000");

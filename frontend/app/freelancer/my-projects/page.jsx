@@ -101,7 +101,7 @@ export default function MyProjects() {
           {/* Header */}
           <div className="mb-6">
             <h1 className="font-display text-3xl font-bold text-foreground">
-              My Projects
+              My <span className="text-amber-500">Projects</span>
             </h1>
             <p className="text-muted-foreground mt-1">
               View and manage your active projects
