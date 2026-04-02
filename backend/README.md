@@ -2,6 +2,25 @@
 
 Authentication backend for FreelanceHub Pro platform built with Node.js, Express.js, and PostgreSQL.
 
+## 🚀 Quick Start
+
+### Email Setup (Google Apps Script) ✅
+Your backend is configured to use Google Apps Script for email sending (bypasses Render port restrictions).
+
+**Test your email setup:**
+```bash
+node test-email.js your-email@example.com
+```
+
+See [QUICK_START.md](./QUICK_START.md) for complete setup status.
+
+## 📚 Documentation
+
+- **[QUICK_START.md](./QUICK_START.md)** - Setup status and next steps
+- **[GOOGLE_APPS_SCRIPT_SETUP.md](./GOOGLE_APPS_SCRIPT_SETUP.md)** - Email configuration guide
+- **[DEPLOYMENT_CHECKLIST.md](./DEPLOYMENT_CHECKLIST.md)** - Deploy to Render
+- **[RENDER_OPTIMIZATION.md](./RENDER_OPTIMIZATION.md)** - Performance optimization
+
 ## Setup Instructions
 
 ### 1. Database Setup with pgAdmin
