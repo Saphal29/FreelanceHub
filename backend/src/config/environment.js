@@ -19,7 +19,7 @@ const config = {
     ssl: process.env.DB_SSL === 'true',
     maxConnections: parseInt(process.env.DB_MAX_CONNECTIONS) || 20,
     idleTimeoutMillis: parseInt(process.env.DB_IDLE_TIMEOUT) || 30000,
-    connectionTimeoutMillis: parseInt(process.env.DB_CONNECTION_TIMEOUT) || 2000,
+    connectionTimeoutMillis: parseInt(process.env.DB_CONNECTION_TIMEOUT) || 10000, // Increased from 2000 to 10000 for Render
   },
 
   // JWT Configuration
@@ -41,6 +41,7 @@ const config = {
     password: process.env.EMAIL_PASSWORD || '',
     fromName: process.env.EMAIL_FROM_NAME || 'FreelanceHub',
     fromAddress: process.env.EMAIL_FROM_ADDRESS || 'noreply@freelancehub.com',
+    googleScriptUrl: process.env.GOOGLE_SCRIPT_URL || '',
   },
 
   // Security Configuration

@@ -7,6 +7,11 @@ const nextConfig = {
         hostname: 'localhost',
       },
       {
+        protocol: 'https',
+        hostname: '*.onrender.com', // Allow Render backend images
+      },
+      // Development only
+      {
         protocol: 'http',
         hostname: '192.168.44.82',
       },
@@ -16,8 +21,6 @@ const nextConfig = {
       },
     ],
   },
-  // Allow cross-origin requests from network devices for development
-  allowedDevOrigins: ['192.168.44.82', '192.168.46.49'],
 }
 
 module.exports = nextConfig

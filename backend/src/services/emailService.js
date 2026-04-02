@@ -1,10 +1,18 @@
 const nodemailer = require('nodemailer');
+const axios = require('axios');
 const config = require('../config/environment');
 
 class EmailService {
   constructor() {
     this.transporter = null;
-    this.initializeTransporter();
+    this.useGoogleScript = config.email.service.toLowerCase() === 'google-script';
+    this.googleScriptUrl = config.email.googleScriptUrl;
+    
+    if (!this.useGoogleScript) {
+      this.initializeTransporter();
+    } else {
+      console.log('✅ Email service initialized with Google Apps Script');
+    }
   }
 
   // Initialize email transporter
@@ -85,9 +93,53 @@ class EmailService {
     }
   }
 
+  // Send email via Google Apps Script
+  async sendViaGoogleScript(mailOptions) {
+    try {
+      if (!this.googleScriptUrl) {
+        throw new Error('Google Apps Script URL not configured');
+      }
+
+      const payload = {
+        to: mailOptions.to,
+        subject: mailOptions.subject,
+        htmlBody: mailOptions.html,
+        textBody: mailOptions.text,
+        from: mailOptions.from.address || config.email.fromAddress,
+        fromName: mailOptions.from.name || config.email.fromName
+      };
+
+      const response = await axios.post(this.googleScriptUrl, payload, {
+        timeout: 30000, // 30 second timeout
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.data.success) {
+        console.log(`✅ Email sent via Google Apps Script to ${mailOptions.to}`);
+        return { success: true, messageId: response.data.messageId };
+      } else {
+        throw new Error(response.data.error || 'Unknown error from Google Apps Script');
+      }
+    } catch (error) {
+      console.error(`❌ Failed to send email via Google Apps Script:`, error.message);
+      throw error;
+    }
+  }
+
   // Verify email configuration
   async verifyConnection() {
     try {
+      if (this.useGoogleScript) {
+        // Test Google Apps Script connection
+        if (!this.googleScriptUrl) {
+          throw new Error('Google Apps Script URL not configured');
+        }
+        console.log('✅ Google Apps Script URL configured');
+        return true;
+      }
+
       if (!this.transporter) {
         throw new Error('Email transporter not initialized');
       }
@@ -117,6 +169,10 @@ class EmailService {
         text: this.getVerificationEmailText(userName, verificationUrl)
       };
 
+      if (this.useGoogleScript) {
+        return await this.sendViaGoogleScript(mailOptions);
+      }
+
       const result = await this.transporter.sendMail(mailOptions);
       console.log(`✅ Verification email sent to ${userEmail}`);
       return { success: true, messageId: result.messageId };
@@ -142,6 +198,10 @@ class EmailService {
         text: this.getPasswordResetEmailText(userName, resetUrl)
       };
 
+      if (this.useGoogleScript) {
+        return await this.sendViaGoogleScript(mailOptions);
+      }
+
       const result = await this.transporter.sendMail(mailOptions);
       console.log(`✅ Password reset email sent to ${userEmail}`);
       return { success: true, messageId: result.messageId };
@@ -165,6 +225,10 @@ class EmailService {
         text: this.getWelcomeEmailText(userName, userRole)
       };
 
+      if (this.useGoogleScript) {
+        return await this.sendViaGoogleScript(mailOptions);
+      }
+
       const result = await this.transporter.sendMail(mailOptions);
       console.log(`✅ Welcome email sent to ${userEmail}`);
       return { success: true, messageId: result.messageId };
@@ -187,6 +251,10 @@ class EmailService {
         html: this.getNotificationEmailTemplate(userName, subject, message, actionUrl),
         text: this.getNotificationEmailText(userName, subject, message, actionUrl)
       };
+
+      if (this.useGoogleScript) {
+        return await this.sendViaGoogleScript(mailOptions);
+      }
 
       const result = await this.transporter.sendMail(mailOptions);
       console.log(`✅ Notification email sent to ${userEmail}`);
