@@ -125,7 +125,7 @@ export default function RegisterPage() {
               Freelance<span className="text-gradient-gold">Hub</span>
             </h1>
           </Link>
-          <p className="text-gray-600 text-lg">Join the elite community</p>
+          <p className="text-gray-600 text-lg">Join our community</p>
         </div>
 
         <Card className="card-premium shadow-3xl border-2 border-gray-100">
@@ -137,10 +137,10 @@ export default function RegisterPage() {
             </div>
             <div>
               <CardTitle className="text-3xl font-black text-black mb-2">
-                Join the Elite
+                Create Account
               </CardTitle>
               <CardDescription className="text-gray-600 text-lg">
-                Create your premium account and dominate your market
+                Start your freelancing journey today
               </CardDescription>
             </div>
           </CardHeader>
@@ -327,8 +327,8 @@ export default function RegisterPage() {
                         <Briefcase className="h-6 w-6 text-amber-500" />
                       </div>
                       <div>
-                        <div className="font-bold text-black text-lg">Elite Freelancer</div>
-                        <div className="text-gray-600">Showcase your premium skills</div>
+                        <div className="font-bold text-black text-lg">Freelancer</div>
+                        <div className="text-gray-600">Offer your skills and services</div>
                       </div>
                     </Label>
                   </div>
@@ -339,8 +339,8 @@ export default function RegisterPage() {
                         <Crown className="h-6 w-6 text-black" />
                       </div>
                       <div>
-                        <div className="font-bold text-black text-lg">Premium Client</div>
-                        <div className="text-gray-600">Access top-tier talent</div>
+                        <div className="font-bold text-black text-lg">Client</div>
+                        <div className="text-gray-600">Find talented freelancers</div>
                       </div>
                     </Label>
                   </div>
@@ -361,12 +361,12 @@ export default function RegisterPage() {
                 {loading ? (
                   <div className="flex items-center">
                     <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent mr-3" />
-                    Creating Your Elite Account...
+                    Creating Your Account...
                   </div>
                 ) : (
                   <div className="flex items-center">
                     <Sparkles className="h-5 w-5 mr-3" />
-                    Join the Elite
+                    Create Account
                   </div>
                 )}
               </Button>
@@ -375,7 +375,7 @@ export default function RegisterPage() {
             {/* Login Link */}
             <div className="text-center pt-6 border-t-2 border-gray-100">
               <p className="text-gray-600 text-lg">
-                Already part of the elite?{' '}
+                Already have an account?{' '}
                 <Link 
                   href="/login" 
                   className="font-bold text-black hover:text-amber-600 transition-colors"

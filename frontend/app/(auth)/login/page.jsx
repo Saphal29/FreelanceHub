@@ -140,7 +140,7 @@ function LoginContent() {
               Freelance<span className="text-gradient-gold">Hub</span>
             </h1>
           </Link>
-          <p className="text-gray-600 text-lg">Welcome back to excellence</p>
+          <p className="text-gray-600 text-lg">Welcome back</p>
         </div>
 
         <Card className="card-premium shadow-3xl border-2 border-gray-100">
@@ -155,7 +155,7 @@ function LoginContent() {
                 Sign In
               </CardTitle>
               <CardDescription className="text-gray-600 text-lg">
-                Access your premium account
+                Access your account
               </CardDescription>
             </div>
           </CardHeader>
@@ -260,7 +260,7 @@ function LoginContent() {
                 ) : (
                   <div className="flex items-center">
                     <LogIn className="h-5 w-5 mr-3" />
-                    Sign In to Excellence
+                    Sign In
                   </div>
                 )}
               </Button>
@@ -284,7 +284,7 @@ function LoginContent() {
                   href="/register" 
                   className="font-bold text-black hover:text-amber-600 transition-colors"
                 >
-                  Join the Elite
+                  Create Account
                 </Link>
               </p>
             </div>
@@ -305,7 +305,7 @@ function LoginContent() {
         {/* Footer */}
         <div className="text-center mt-8">
           <p className="text-gray-500">
-            © 2024 FreelanceHub. Crafted with excellence.
+            © 2024 FreelanceHub. Built with care.
           </p>
         </div>
       </div>

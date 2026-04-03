@@ -123,7 +123,7 @@ export default function HomePage() {
             </h1>
             
             <p className="text-base sm:text-lg md:text-xl lg:text-2xl text-gray-600 max-w-4xl mx-auto mb-8 sm:mb-12 md:mb-16 px-4 animate-slide-up">
-              Connect with Nepal&apos;s top talent and premium clients. Build extraordinary careers, 
+              Connect with Nepal&apos;s top talent and clients. Build extraordinary careers, 
               deliver exceptional projects, and shape the future of work together.
             </p>
 
@@ -150,13 +150,13 @@ export default function HomePage() {
                 <div className="text-3xl sm:text-4xl md:text-5xl font-black text-black mb-2 sm:mb-3">
                   {stats.totalFreelancers}+
                 </div>
-                <div className="text-sm sm:text-base md:text-lg text-gray-600 font-semibold">Elite Freelancers</div>
+                <div className="text-sm sm:text-base md:text-lg text-gray-600 font-semibold">Skilled Freelancers</div>
               </div>
               <div className="text-center hover-lift bg-white/50 backdrop-blur-sm rounded-2xl p-6">
                 <div className="text-3xl sm:text-4xl md:text-5xl font-black text-black mb-2 sm:mb-3">
                   {stats.totalClients}+
                 </div>
-                <div className="text-sm sm:text-base md:text-lg text-gray-600 font-semibold">Premium Clients</div>
+                <div className="text-sm sm:text-base md:text-lg text-gray-600 font-semibold">Active Clients</div>
               </div>
               <div className="text-center hover-lift bg-white/50 backdrop-blur-sm rounded-2xl p-6">
                 <div className="text-3xl sm:text-4xl md:text-5xl font-black text-black mb-2 sm:mb-3">
@@ -177,7 +177,7 @@ export default function HomePage() {
               </h2>
               <p className="text-base sm:text-lg md:text-xl text-gray-600 max-w-3xl mx-auto px-4">
                 Whether you&apos;re a visionary freelancer or an ambitious business, 
-                FreelanceHub provides the premium platform you deserve.
+                FreelanceHub provides the platform you need.
               </p>
             </div>
 
@@ -191,31 +191,31 @@ export default function HomePage() {
                   <h3 className="text-2xl sm:text-3xl font-bold text-black ml-4 sm:ml-6">For Freelancers</h3>
                 </div>
                 <p className="text-base sm:text-lg md:text-xl text-gray-600 mb-6 sm:mb-8">
-                  Elevate your career with premium tools, exclusive opportunities, and direct access to high-value clients.
+                  Build your career with powerful tools, great opportunities, and direct access to clients.
                 </p>
                 <ul className="space-y-4 sm:space-y-6 mb-8 sm:mb-10">
                   <li className="flex items-center">
                     <CheckCircle className="h-5 w-5 sm:h-6 sm:w-6 text-amber-500 mr-3 sm:mr-4 flex-shrink-0" />
-                    <span className="text-gray-700 text-base sm:text-lg font-medium">Premium profile showcase</span>
+                    <span className="text-gray-700 text-base sm:text-lg font-medium">Professional profile showcase</span>
                   </li>
                   <li className="flex items-center">
                     <CheckCircle className="h-5 w-5 sm:h-6 sm:w-6 text-amber-500 mr-3 sm:mr-4 flex-shrink-0" />
-                    <span className="text-gray-700 text-base sm:text-lg font-medium">Advanced portfolio tools</span>
+                    <span className="text-gray-700 text-base sm:text-lg font-medium">Portfolio management tools</span>
                   </li>
                   <li className="flex items-center">
                     <CheckCircle className="h-5 w-5 sm:h-6 sm:w-6 text-amber-500 mr-3 sm:mr-4 flex-shrink-0" />
-                    <span className="text-gray-700 text-base sm:text-lg font-medium">Premium rate optimization</span>
+                    <span className="text-gray-700 text-base sm:text-lg font-medium">Competitive rate setting</span>
                   </li>
                   <li className="flex items-center">
                     <CheckCircle className="h-5 w-5 sm:h-6 sm:w-6 text-amber-500 mr-3 sm:mr-4 flex-shrink-0" />
-                    <span className="text-gray-700 text-base sm:text-lg font-medium">Elite client network</span>
+                    <span className="text-gray-700 text-base sm:text-lg font-medium">Growing client network</span>
                   </li>
                 </ul>
                 <Link 
                   href="/register?role=freelancer"
                   className="btn-outline inline-flex items-center text-base sm:text-lg w-full justify-center py-3 sm:py-4"
                 >
-                  Join Elite Freelancers
+                  Join as Freelancer
                   <ArrowRight className="ml-2 sm:ml-3 h-4 w-4 sm:h-5 sm:w-5" />
                 </Link>
               </div>
@@ -229,31 +229,31 @@ export default function HomePage() {
                   <h3 className="text-2xl sm:text-3xl font-bold text-black ml-4 sm:ml-6">For Clients</h3>
                 </div>
                 <p className="text-base sm:text-lg md:text-xl text-gray-600 mb-6 sm:mb-8">
-                  Access Nepal&apos;s finest talent pool. Premium quality, guaranteed results, exceptional service.
+                  Access Nepal&apos;s talented freelancers. Quality work, reliable results, excellent service.
                 </p>
                 <ul className="space-y-4 sm:space-y-6 mb-8 sm:mb-10">
                   <li className="flex items-center">
                     <CheckCircle className="h-5 w-5 sm:h-6 sm:w-6 text-amber-500 mr-3 sm:mr-4 flex-shrink-0" />
-                    <span className="text-gray-700 text-base sm:text-lg font-medium">Verified elite freelancers</span>
+                    <span className="text-gray-700 text-base sm:text-lg font-medium">Verified skilled freelancers</span>
                   </li>
                   <li className="flex items-center">
                     <CheckCircle className="h-5 w-5 sm:h-6 sm:w-6 text-amber-500 mr-3 sm:mr-4 flex-shrink-0" />
-                    <span className="text-gray-700 text-base sm:text-lg font-medium">Premium project matching</span>
+                    <span className="text-gray-700 text-base sm:text-lg font-medium">Smart project matching</span>
                   </li>
                   <li className="flex items-center">
                     <CheckCircle className="h-5 w-5 sm:h-6 sm:w-6 text-amber-500 mr-3 sm:mr-4 flex-shrink-0" />
-                    <span className="text-gray-700 text-base sm:text-lg font-medium">Secure payment guarantee</span>
+                    <span className="text-gray-700 text-base sm:text-lg font-medium">Secure payment system</span>
                   </li>
                   <li className="flex items-center">
                     <CheckCircle className="h-5 w-5 sm:h-6 sm:w-6 text-amber-500 mr-3 sm:mr-4 flex-shrink-0" />
-                    <span className="text-gray-700 text-base sm:text-lg font-medium">Dedicated project success</span>
+                    <span className="text-gray-700 text-base sm:text-lg font-medium">Dedicated project support</span>
                   </li>
                 </ul>
                 <Link 
                   href="/register?role=client"
                   className="btn-secondary inline-flex items-center text-base sm:text-lg w-full justify-center py-3 sm:py-4"
                 >
-                  Hire Premium Talent
+                  Hire Talented Freelancers
                   <ArrowRight className="ml-2 sm:ml-3 h-4 w-4 sm:h-5 sm:w-5" />
                 </Link>
               </div>
@@ -359,10 +359,10 @@ export default function HomePage() {
               
               <div className="relative z-10">
                 <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-black mb-4 sm:mb-6">
-                  Ready to Dominate Your Market?
+                  Ready to Start Your Journey?
                 </h2>
                 <p className="text-base sm:text-lg md:text-xl lg:text-2xl mb-8 sm:mb-12 opacity-90 max-w-3xl mx-auto px-4">
-                  Join the elite community of freelancers and clients who choose excellence over ordinary.
+                  Join the community of freelancers and clients who choose quality and reliability.
                 </p>
                 <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 justify-center">
                   <Link 
@@ -370,7 +370,7 @@ export default function HomePage() {
                     className="inline-flex items-center justify-center px-8 sm:px-10 md:px-12 py-4 sm:py-5 md:py-6 bg-amber-500 text-black font-black text-base sm:text-lg md:text-xl rounded-xl hover:bg-amber-400 transition-all duration-300 transform hover:scale-105 shadow-2xl"
                   >
                     <Sparkles className="mr-2 sm:mr-3 h-5 w-5 sm:h-6 sm:w-6" />
-                    Start Dominating
+                    Get Started
                     <ArrowRight className="ml-2 sm:ml-3 h-5 w-5 sm:h-6 sm:w-6" />
                   </Link>
                   <Link 
