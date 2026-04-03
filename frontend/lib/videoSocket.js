@@ -21,12 +21,14 @@ export const getVideoSocket = () => {
 
   videoSocket = io(`${SOCKET_URL}/video`, {
     auth: { token },
-    transports: ["polling", "websocket"],
+    transports: ["websocket", "polling"], // Try WebSocket first
     reconnection: true,
-    reconnectionDelay: 2000,
-    reconnectionAttempts: 5,
-    timeout: 10000,
+    reconnectionDelay: 1000,
+    reconnectionDelayMax: 5000,
+    reconnectionAttempts: Infinity,
+    timeout: 20000, // Longer timeout for Render
     autoConnect: false,
+    forceNew: true
   });
 
   return videoSocket;

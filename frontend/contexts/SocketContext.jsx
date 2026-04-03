@@ -29,11 +29,14 @@ export const SocketProvider = ({ children }) => {
 
     const newSocket = io(SOCKET_URL, {
       auth: { token },
-      transports: ["polling", "websocket"],
+      transports: ["websocket", "polling"], // Try WebSocket first, fallback to polling
       reconnection: true,
-      reconnectionDelay: 2000,
-      reconnectionAttempts: 5,
-      timeout: 10000
+      reconnectionDelay: 1000,
+      reconnectionDelayMax: 5000,
+      reconnectionAttempts: Infinity, // Keep trying to reconnect
+      timeout: 20000, // Longer timeout for Render cold starts
+      autoConnect: true,
+      forceNew: true
     });
 
     newSocket.on("connect", () => {
