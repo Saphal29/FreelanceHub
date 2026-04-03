@@ -312,11 +312,19 @@ const updateProposalStatus = async (proposalId, clientId, status) => {
       
       // Create contract automatically
       try {
-        await contractService.createContract(proposalId, clientId);
-        logger.info('Contract created automatically', { proposalId });
+        const contract = await contractService.createContract(proposalId, clientId);
+        logger.info('Contract created automatically', { 
+          proposalId, 
+          contractId: contract.id 
+        });
       } catch (contractError) {
-        logger.error('Failed to create contract automatically', { proposalId, error: contractError.message });
-        // Don't fail the proposal acceptance if contract creation fails
+        logger.error('Failed to create contract automatically', { 
+          proposalId, 
+          error: contractError.message,
+          stack: contractError.stack 
+        });
+        // Throw error to fail the proposal acceptance if contract creation fails
+        throw new Error(`Proposal accepted but contract creation failed: ${contractError.message}`);
       }
     }
     
