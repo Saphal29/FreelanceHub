@@ -9,29 +9,31 @@ const logger = require('../utils/logger');
 const corsMiddleware = (req, res, next) => {
   const allowedOrigins = [
     process.env.FRONTEND_URL || 'http://localhost:3000',
+    process.env.CORS_ORIGIN,
     'http://localhost:3000',
     'http://127.0.0.1:3000',
     'http://192.168.44.82:3000',  // Local WiFi network access (HTTP)
     'https://localhost:3000',      // HTTPS localhost
     'https://192.168.44.82:3000'   // HTTPS network access
-  ];
+  ].filter(Boolean); // Remove undefined values
   
   const origin = req.headers.origin;
   
   // In development, allow all origins from local network
   if (process.env.NODE_ENV === 'development' && origin) {
     // Allow any origin from 192.168.x.x network
-    if (origin.match(/^http:\/\/192\.168\.\d+\.\d+:\d+$/)) {
+    if (origin.match(/^https?:\/\/192\.168\.\d+\.\d+:\d+$/)) {
       res.setHeader('Access-Control-Allow-Origin', origin);
     } else if (allowedOrigins.includes(origin)) {
       res.setHeader('Access-Control-Allow-Origin', origin);
     }
-  } else if (allowedOrigins.includes(origin)) {
+  } else if (origin && allowedOrigins.includes(origin)) {
+    // Production: strict origin checking
     res.setHeader('Access-Control-Allow-Origin', origin);
   }
   
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
   res.setHeader('Access-Control-Allow-Credentials', 'true');
   res.setHeader('Access-Control-Max-Age', '86400'); // 24 hours
   
