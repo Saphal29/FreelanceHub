@@ -14,13 +14,27 @@ const Avatar = React.forwardRef(({ className, ...props }, ref) => (
 ))
 Avatar.displayName = "Avatar"
 
-const AvatarImage = React.forwardRef(({ className, ...props }, ref) => (
-  <img
-    ref={ref}
-    className={cn("aspect-square h-full w-full object-cover", className)}
-    {...props}
-  />
-))
+const AvatarImage = React.forwardRef(({ className, onError, ...props }, ref) => {
+  const [imageError, setImageError] = React.useState(false);
+
+  const handleError = (e) => {
+    setImageError(true);
+    if (onError) onError(e);
+  };
+
+  if (imageError || !props.src) {
+    return null; // This will show the fallback
+  }
+
+  return (
+    <img
+      ref={ref}
+      className={cn("aspect-square h-full w-full object-cover", className)}
+      onError={handleError}
+      {...props}
+    />
+  );
+})
 AvatarImage.displayName = "AvatarImage"
 
 const AvatarFallback = React.forwardRef(({ className, children, name, email, ...props }, ref) => {

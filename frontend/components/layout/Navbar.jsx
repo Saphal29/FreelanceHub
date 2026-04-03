@@ -269,7 +269,10 @@ export default function Navbar() {
                 className="flex items-center space-x-3 hover:bg-gray-100 rounded-lg px-2 py-1 transition-colors"
               >
                 <Avatar className="h-8 w-8">
-                  <AvatarImage src={user.profilePicture} alt={user.fullName || user.email} />
+                  <AvatarImage 
+                    src={user.avatarUrl?.startsWith('http') ? user.avatarUrl : `${process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'http://localhost:5000'}${user.avatarUrl}`} 
+                    alt={user.fullName || user.email} 
+                  />
                   <AvatarFallback 
                     className="text-white font-semibold"
                     style={{ backgroundColor: getAvatarColor(user.email || user.fullName) }}
@@ -331,7 +334,10 @@ export default function Navbar() {
             <div className="px-4 py-3 border-b border-gray-200">
               <div className="flex items-center space-x-3">
                 <Avatar className="h-10 w-10">
-                  <AvatarImage src={user.profilePicture} alt={user.fullName || user.email} />
+                  <AvatarImage 
+                    src={user.avatarUrl?.startsWith('http') ? user.avatarUrl : `${process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'http://localhost:5000'}${user.avatarUrl}`} 
+                    alt={user.fullName || user.email} 
+                  />
                   <AvatarFallback 
                     className="text-white font-semibold"
                     style={{ backgroundColor: getAvatarColor(user.email || user.fullName) }}

@@ -85,6 +85,7 @@ app.use('/api/admin', require('./routes/adminRoutes'));
 app.use('/api/reviews', require('./routes/reviewRoutes'));
 app.use('/api/files', require('./routes/fileRoutes'));
 app.use('/api/invites', require('./routes/inviteRoutes'));
+app.use('/api/stats', require('./routes/statsRoutes'));
 
 // Health check endpoint
 app.get('/health', (req, res) => {
