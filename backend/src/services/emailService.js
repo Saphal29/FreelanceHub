@@ -552,11 +552,6 @@ The FreelanceHub Team
 © 2024 FreelanceHub. All rights reserved.
     `;
   }
-}
-
-// Create and export singleton instance
-const emailService = new EmailService();
-module.exports = emailService;
 
   // OTP Email Template (HTML)
   getOTPEmailTemplate(userName, otp) {
@@ -573,7 +568,6 @@ module.exports = emailService;
           .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }
           .otp-box { background: white; border: 2px solid #f59e0b; border-radius: 10px; padding: 20px; text-align: center; margin: 20px 0; }
           .otp-code { font-size: 36px; font-weight: bold; color: #000; letter-spacing: 8px; margin: 10px 0; }
-          .button { display: inline-block; padding: 12px 30px; background: #f59e0b; color: white; text-decoration: none; border-radius: 5px; font-weight: bold; margin: 20px 0; }
           .footer { text-align: center; margin-top: 20px; color: #666; font-size: 12px; }
           .warning { background: #fff3cd; border-left: 4px solid #f59e0b; padding: 15px; margin: 20px 0; }
         </style>
@@ -643,4 +637,7 @@ This is an automated email. Please do not reply to this message.
   }
 }
 
-module.exports = new EmailService();
+// Create and export singleton instance
+const emailService = new EmailService();
+module.exports = emailService;
+

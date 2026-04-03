@@ -105,10 +105,7 @@ export default function VerifyOTPPage() {
       });
 
       if (response.data.success) {
-        setSuccess(response.data.message);
-        setTimeout(() => {
-          router.push('/login?verified=true');
-        }, 2000);
+        setSuccess('verified');
       }
     } catch (err) {
       setError(err.response?.data?.error || 'Verification failed. Please try again.');
@@ -178,21 +175,45 @@ export default function VerifyOTPPage() {
           </CardHeader>
           
           <CardContent className="space-y-6 px-8 pb-8">
-            {/* Success Message */}
-            {success && (
-              <Alert className="border-2 border-green-200 bg-green-50 animate-in slide-in-from-top-2">
-                <CheckCircle className="h-5 w-5 text-green-600" />
-                <AlertDescription className="text-green-800 font-semibold">{success}</AlertDescription>
-              </Alert>
-            )}
+            {/* Success State - Email Verified */}
+            {success === 'verified' ? (
+              <div className="text-center py-8 space-y-6">
+                <div className="flex justify-center">
+                  <div className="h-24 w-24 bg-green-100 rounded-full flex items-center justify-center animate-in zoom-in-50">
+                    <CheckCircle className="h-16 w-16 text-green-600" />
+                  </div>
+                </div>
+                <div className="space-y-3">
+                  <h3 className="text-2xl font-bold text-green-600">Email Verified Successfully!</h3>
+                  <p className="text-gray-600 text-base">
+                    Your account has been verified. You can now close this page and sign in to your account.
+                  </p>
+                </div>
+                <div className="pt-4">
+                  <Link href="/login">
+                    <Button className="btn-primary">
+                      Go to Sign In
+                    </Button>
+                  </Link>
+                </div>
+              </div>
+            ) : (
+              <>
+                {/* Resend Success Message */}
+                {success && success !== 'verified' && (
+                  <Alert className="border-2 border-green-200 bg-green-50 animate-in slide-in-from-top-2">
+                    <CheckCircle className="h-5 w-5 text-green-600" />
+                    <AlertDescription className="text-green-800 font-semibold">{success}</AlertDescription>
+                  </Alert>
+                )}
 
-            {/* Error Message */}
-            {error && (
-              <Alert className="border-2 border-red-200 bg-red-50 animate-in slide-in-from-top-2">
-                <AlertCircle className="h-5 w-5 text-red-600" />
-                <AlertDescription className="text-red-800 font-semibold">{error}</AlertDescription>
-              </Alert>
-            )}
+                {/* Error Message */}
+                {error && (
+                  <Alert className="border-2 border-red-200 bg-red-50 animate-in slide-in-from-top-2">
+                    <AlertCircle className="h-5 w-5 text-red-600" />
+                    <AlertDescription className="text-red-800 font-semibold">{error}</AlertDescription>
+                  </Alert>
+                )}
 
             <form onSubmit={handleSubmit} className="space-y-8">
               {/* OTP Input */}
@@ -255,16 +276,18 @@ export default function VerifyOTPPage() {
               )}
             </div>
 
-            {/* Back Link */}
-            <div className="text-center">
-              <Link 
-                href="/register" 
-                className="inline-flex items-center text-gray-600 hover:text-black transition-colors font-semibold"
-              >
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Back to Register
-              </Link>
-            </div>
+                {/* Back Link */}
+                <div className="text-center">
+                  <Link 
+                    href="/register" 
+                    className="inline-flex items-center text-gray-600 hover:text-black transition-colors font-semibold"
+                  >
+                    <ArrowLeft className="h-4 w-4 mr-2" />
+                    Back to Register
+                  </Link>
+                </div>
+              </>
+            )}
           </CardContent>
         </Card>
 
