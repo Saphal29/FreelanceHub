@@ -93,10 +93,10 @@ export default function RegisterPage() {
       if (response.success) {
         setSuccess(response.message);
         
-        // Redirect to login after 3 seconds
+        // Redirect to OTP verification page
         setTimeout(() => {
-          router.push('/login?registered=true');
-        }, 3000);
+          router.push(`/verify-otp?email=${encodeURIComponent(data.email)}`);
+        }, 1500);
       } else {
         setError(response.error || 'Registration failed');
       }

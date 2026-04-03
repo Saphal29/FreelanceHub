@@ -27,11 +27,27 @@ router.post('/register', registrationRateLimiter, authController.register);
 
 /**
  * @route   GET /api/auth/verify-email
- * @desc    Verify user email with token
+ * @desc    Verify user email with token (legacy)
  * @access  Public
  * @rateLimit 10 requests per hour per IP
  */
 router.get('/verify-email', emailVerificationRateLimiter, authController.verifyEmail);
+
+/**
+ * @route   POST /api/auth/verify-otp
+ * @desc    Verify user email with OTP
+ * @access  Public
+ * @rateLimit 10 requests per hour per IP
+ */
+router.post('/verify-otp', emailVerificationRateLimiter, authController.verifyEmailWithOTP);
+
+/**
+ * @route   POST /api/auth/resend-otp
+ * @desc    Resend OTP to user email
+ * @access  Public
+ * @rateLimit 3 requests per hour per IP
+ */
+router.post('/resend-otp', passwordResetRateLimiter, authController.resendOTP);
 
 /**
  * @route   POST /api/auth/login

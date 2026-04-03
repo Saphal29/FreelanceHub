@@ -5,9 +5,17 @@ const logger = require('../utils/logger');
 const emailService = require('./emailService');
 
 /**
+ * Generate a 6-digit OTP
+ * @returns {string} Six-digit OTP
+ */
+const generateOTP = () => {
+  return Math.floor(100000 + Math.random() * 900000).toString();
+};
+
+/**
  * Create a new user with role-specific profile
  * @param {Object} userData - User registration data
- * @returns {Promise<Object>} Created user and verification token
+ * @returns {Promise<Object>} Created user and OTP
  */
 const createUser = async (userData) => {
   const { email, password, fullName, role, phone } = userData;
@@ -18,17 +26,18 @@ const createUser = async (userData) => {
     // Hash password
     const passwordHash = await bcrypt.hash(password, 10);
     
-    // Generate verification token
-    const verificationToken = uuidv4();
+    // Generate OTP (6 digits)
+    const otp = generateOTP();
+    const otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes from now
     
     // Use transaction to create user and profile atomically
     const result = await transaction(async (client) => {
-      // Insert user
+      // Insert user with OTP
       const userResult = await client.query(
-        `INSERT INTO users (email, password_hash, role, full_name, phone, verification_token)
-         VALUES ($1, $2, $3, $4, $5, $6)
+        `INSERT INTO users (email, password_hash, role, full_name, phone, verification_otp, otp_expires_at, otp_attempts)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, 0)
          RETURNING id, email, full_name, role, verified, created_at`,
-        [email, passwordHash, role, fullName, phone || null, verificationToken]
+        [email, passwordHash, role, fullName, phone || null, otp, otpExpiresAt]
       );
       
       const user = userResult.rows[0];
@@ -48,7 +57,7 @@ const createUser = async (userData) => {
         logger.database('Client profile created', { userId: user.id });
       }
       
-      return { user, verificationToken };
+      return { user, otp };
     });
     
     logger.auth('User registration completed', { 
@@ -57,18 +66,18 @@ const createUser = async (userData) => {
       role: result.user.role 
     });
 
-    // Send verification email
+    // Send OTP email
     try {
-      const emailResult = await emailService.sendVerificationEmail(
+      const emailResult = await emailService.sendOTPEmail(
         result.user.email,
         result.user.full_name,
-        result.verificationToken
+        result.otp
       );
       
       if (emailResult.success) {
-        logger.auth('Verification email sent', { email: result.user.email });
+        logger.auth('OTP email sent', { email: result.user.email });
       } else {
-        logger.error('Failed to send verification email', { 
+        logger.error('Failed to send OTP email', { 
           email: result.user.email, 
           error: emailResult.error 
         });
@@ -182,7 +191,142 @@ const findUserById = async (userId) => {
 };
 
 /**
- * Verify user email using verification token
+ * Verify user email using OTP
+ * @param {string} email - User email
+ * @param {string} otp - Six-digit OTP
+ * @returns {Promise<Object|null>} Verified user or null
+ */
+const verifyEmailWithOTP = async (email, otp) => {
+  try {
+    logger.auth('OTP verification started', { email, otp: '******' });
+    
+    // Find user with OTP
+    const userResult = await query(
+      `SELECT id, email, full_name, role, verified, verification_otp, otp_expires_at, otp_attempts
+       FROM users
+       WHERE email = $1 AND verified = false`,
+      [email]
+    );
+    
+    const user = userResult.rows[0];
+    
+    if (!user) {
+      logger.auth('OTP verification failed - user not found or already verified', { email });
+      return { success: false, error: 'User not found or already verified' };
+    }
+    
+    // Check if OTP has expired
+    if (new Date() > new Date(user.otp_expires_at)) {
+      logger.auth('OTP verification failed - OTP expired', { email });
+      return { success: false, error: 'OTP has expired. Please request a new one.' };
+    }
+    
+    // Check attempts (max 5 attempts)
+    if (user.otp_attempts >= 5) {
+      logger.auth('OTP verification failed - too many attempts', { email });
+      return { success: false, error: 'Too many failed attempts. Please request a new OTP.' };
+    }
+    
+    // Verify OTP
+    if (user.verification_otp !== otp) {
+      // Increment failed attempts
+      await query(
+        `UPDATE users SET otp_attempts = otp_attempts + 1 WHERE id = $1`,
+        [user.id]
+      );
+      
+      logger.auth('OTP verification failed - incorrect OTP', { email, attempts: user.otp_attempts + 1 });
+      return { 
+        success: false, 
+        error: `Incorrect OTP. ${4 - user.otp_attempts} attempts remaining.`,
+        attemptsRemaining: 4 - user.otp_attempts
+      };
+    }
+    
+    // OTP is correct - verify user
+    const result = await query(
+      `UPDATE users 
+       SET verified = true, verification_otp = NULL, otp_expires_at = NULL, otp_attempts = 0
+       WHERE id = $1
+       RETURNING id, email, full_name, role, verified`,
+      [user.id]
+    );
+    
+    const verifiedUser = result.rows[0];
+    
+    logger.auth('OTP verification successful', { 
+      userId: verifiedUser.id, 
+      email: verifiedUser.email 
+    });
+    
+    return { success: true, user: verifiedUser };
+  } catch (error) {
+    logger.error('OTP verification error', { 
+      email, 
+      error: error.message 
+    });
+    throw error;
+  }
+};
+
+/**
+ * Resend OTP to user email
+ * @param {string} email - User email
+ * @returns {Promise<Object>} Result with success status
+ */
+const resendOTP = async (email) => {
+  try {
+    logger.auth('Resend OTP started', { email });
+    
+    // Find unverified user
+    const userResult = await query(
+      `SELECT id, email, full_name, verified
+       FROM users
+       WHERE email = $1 AND verified = false`,
+      [email]
+    );
+    
+    const user = userResult.rows[0];
+    
+    if (!user) {
+      logger.auth('Resend OTP failed - user not found or already verified', { email });
+      return { success: false, error: 'User not found or already verified' };
+    }
+    
+    // Generate new OTP
+    const otp = generateOTP();
+    const otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+    
+    // Update user with new OTP
+    await query(
+      `UPDATE users 
+       SET verification_otp = $1, otp_expires_at = $2, otp_attempts = 0
+       WHERE id = $3`,
+      [otp, otpExpiresAt, user.id]
+    );
+    
+    // Send OTP email
+    const emailResult = await emailService.sendOTPEmail(
+      user.email,
+      user.full_name,
+      otp
+    );
+    
+    if (emailResult.success) {
+      logger.auth('OTP resent successfully', { email });
+      return { success: true, message: 'OTP sent successfully' };
+    } else {
+      logger.error('Failed to resend OTP email', { email, error: emailResult.error });
+      return { success: false, error: 'Failed to send OTP email' };
+    }
+  } catch (error) {
+    logger.error('Resend OTP error', { email, error: error.message });
+    throw error;
+  }
+};
+
+/**
+ * Verify user email using verification token (legacy support)
  * @param {string} token - Verification token
  * @returns {Promise<Object|null>} Verified user or null
  */
@@ -495,6 +639,8 @@ module.exports = {
   findUserByEmail,
   findUserById,
   verifyEmail,
+  verifyEmailWithOTP,
+  resendOTP,
   updateLastLogin,
   setPasswordResetToken,
   findUserByResetToken,

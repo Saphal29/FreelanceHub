@@ -153,6 +153,33 @@ class EmailService {
     }
   }
 
+  // Send OTP email
+  async sendOTPEmail(userEmail, userName, otp) {
+    try {
+      const mailOptions = {
+        from: {
+          name: config.email.fromName,
+          address: config.email.fromAddress
+        },
+        to: userEmail,
+        subject: 'Your FreelanceHub Verification Code',
+        html: this.getOTPEmailTemplate(userName, otp),
+        text: this.getOTPEmailText(userName, otp)
+      };
+
+      if (this.useGoogleScript) {
+        return await this.sendViaGoogleScript(mailOptions);
+      }
+
+      const result = await this.transporter.sendMail(mailOptions);
+      console.log(`✅ OTP email sent to ${userEmail}`);
+      return { success: true, messageId: result.messageId };
+    } catch (error) {
+      console.error(`❌ Failed to send OTP email to ${userEmail}:`, error.message);
+      return { success: false, error: error.message };
+    }
+  }
+
   // Send email verification
   async sendVerificationEmail(userEmail, userName, verificationToken) {
     try {
@@ -530,3 +557,90 @@ The FreelanceHub Team
 // Create and export singleton instance
 const emailService = new EmailService();
 module.exports = emailService;
+
+  // OTP Email Template (HTML)
+  getOTPEmailTemplate(userName, otp) {
+    return `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <style>
+          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+          .header { background: linear-gradient(135deg, #000 0%, #333 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
+          .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }
+          .otp-box { background: white; border: 2px solid #f59e0b; border-radius: 10px; padding: 20px; text-align: center; margin: 20px 0; }
+          .otp-code { font-size: 36px; font-weight: bold; color: #000; letter-spacing: 8px; margin: 10px 0; }
+          .button { display: inline-block; padding: 12px 30px; background: #f59e0b; color: white; text-decoration: none; border-radius: 5px; font-weight: bold; margin: 20px 0; }
+          .footer { text-align: center; margin-top: 20px; color: #666; font-size: 12px; }
+          .warning { background: #fff3cd; border-left: 4px solid #f59e0b; padding: 15px; margin: 20px 0; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1>FreelanceHub</h1>
+            <p>Email Verification</p>
+          </div>
+          <div class="content">
+            <h2>Hello ${userName}!</h2>
+            <p>Thank you for registering with FreelanceHub. To complete your registration, please use the verification code below:</p>
+            
+            <div class="otp-box">
+              <p style="margin: 0; color: #666;">Your Verification Code</p>
+              <div class="otp-code">${otp}</div>
+              <p style="margin: 0; color: #666; font-size: 14px;">Valid for 10 minutes</p>
+            </div>
+
+            <div class="warning">
+              <strong>⚠️ Security Notice:</strong>
+              <ul style="margin: 10px 0;">
+                <li>This code will expire in 10 minutes</li>
+                <li>Never share this code with anyone</li>
+                <li>FreelanceHub will never ask for your code via phone or email</li>
+              </ul>
+            </div>
+
+            <p>If you didn't request this verification code, please ignore this email or contact our support team.</p>
+            
+            <p>Best regards,<br>The FreelanceHub Team</p>
+          </div>
+          <div class="footer">
+            <p>© 2024 FreelanceHub. All rights reserved.</p>
+            <p>This is an automated email. Please do not reply to this message.</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+  }
+
+  // OTP Email Template (Plain Text)
+  getOTPEmailText(userName, otp) {
+    return `
+Hello ${userName}!
+
+Thank you for registering with FreelanceHub.
+
+Your Verification Code: ${otp}
+
+This code will expire in 10 minutes.
+
+SECURITY NOTICE:
+- Never share this code with anyone
+- FreelanceHub will never ask for your code via phone or email
+- If you didn't request this code, please ignore this email
+
+Best regards,
+The FreelanceHub Team
+
+---
+© 2024 FreelanceHub. All rights reserved.
+This is an automated email. Please do not reply to this message.
+    `;
+  }
+}
+
+module.exports = new EmailService();
