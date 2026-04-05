@@ -777,6 +777,35 @@ const deleteMilestone = async (req, res) => {
   }
 };
 
+/**
+ * Get completed projects by category
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ */
+const getCompletedProjectsByCategory = async (req, res) => {
+  try {
+    const { category } = req.query;
+    const limit = parseInt(req.query.limit) || 8;
+
+    logger.info('Get completed projects by category request', { category, limit });
+
+    const projects = await projectService.getCompletedProjectsByCategory(category, limit);
+
+    res.json({
+      success: true,
+      projects,
+      count: projects.length
+    });
+  } catch (error) {
+    logger.error('Get completed projects by category error', { error: error.message });
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch completed projects',
+      code: 'SERVER_ERROR'
+    });
+  }
+};
+
 module.exports = {
   createProject,
   getProjects,
@@ -787,6 +816,7 @@ module.exports = {
   toggleBookmark,
   getCategories,
   getProjectStats,
+  getCompletedProjectsByCategory,
   getMilestones,
   createMilestone,
   updateMilestone,

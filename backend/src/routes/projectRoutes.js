@@ -44,6 +44,15 @@ router.get('/', searchRateLimiter, projectController.getProjects);
 router.get('/categories', projectController.getCategories);
 
 /**
+ * @route   GET /api/projects/completed
+ * @desc    Get completed projects by category
+ * @access  Public
+ * @query   category - Category filter (optional)
+ * @query   limit - Number of projects to return (default: 8)
+ */
+router.get('/completed', projectController.getCompletedProjectsByCategory);
+
+/**
  * @route   GET /api/projects/my/projects
  * @desc    Get current client's projects
  * @access  Private (Clients only)

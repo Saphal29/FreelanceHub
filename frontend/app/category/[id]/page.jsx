@@ -1,104 +1,78 @@
 "use client";
 
-import { useParams } from "next/navigation";
+import { useState, useEffect } from "react";
+import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import Navbar from "@/components/layout/Navbar";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { 
-  ArrowLeft, 
-  Search, 
-  Star, 
-  Clock,
-  DollarSign,
-  Filter,
-  ChevronDown
+import api from "@/lib/api";
+import { getAvatarUrl } from "@/lib/avatarUtils";
+import {
+  ArrowLeft,
+  Star,
+  Loader2,
+  Code,
+  Paintbrush,
+  PenTool,
+  Video,
+  Music,
+  BarChart3,
+  FileText,
+  Megaphone,
 } from "lucide-react";
 
-// Dummy data for category services
-const categoryServices = {
-  "programming-tech": {
-    title: "Programming & Tech",
-    description: "Find expert developers and programmers for your projects",
-    services: [
-      {
-        id: "1",
-        image: "https://images.unsplash.com/photo-1498050108023-c5249f4df085?w=500&h=375&fit=crop",
-        title: "Full Stack Web Development with React and Node.js",
-        seller: { name: "John Developer", avatar: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop", level: "Top Rated" },
-        rating: 4.9,
-        reviewCount: 234,
-        price: 200,
-        deliveryTime: "3 days"
-      },
-      {
-        id: "2",
-        image: "https://images.unsplash.com/photo-1461749280684-dccba630e2f6?w=500&h=375&fit=crop",
-        title: "Mobile App Development for iOS and Android",
-        seller: { name: "Sarah Mobile", avatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&h=100&fit=crop", level: "Pro" },
-        rating: 5.0,
-        reviewCount: 189,
-        price: 350,
-        deliveryTime: "5 days"
-      },
-      {
-        id: "3",
-        image: "https://images.unsplash.com/photo-1555066931-4365d14bab8c?w=500&h=375&fit=crop",
-        title: "Python Automation and Scripting Solutions",
-        seller: { name: "Mike Python", avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop", level: "Rising Talent" },
-        rating: 4.8,
-        reviewCount: 156,
-        price: 150,
-        deliveryTime: "2 days"
-      },
-      {
-        id: "4",
-        image: "https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=500&h=375&fit=crop",
-        title: "WordPress Website Development and Customization",
-        seller: { name: "Emma WordPress", avatar: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100&h=100&fit=crop", level: "Top Rated" },
-        rating: 4.9,
-        reviewCount: 298,
-        price: 180,
-        deliveryTime: "4 days"
-      },
-    ]
-  },
-  "graphics-design": {
-    title: "Graphics & Design",
-    description: "Creative design services for your brand and business",
-    services: [
-      {
-        id: "5",
-        image: "https://images.unsplash.com/photo-1626785774573-4b799315345d?w=500&h=375&fit=crop",
-        title: "Professional Logo Design with Unlimited Revisions",
-        seller: { name: "Alex Designer", avatar: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop", level: "Top Rated" },
-        rating: 5.0,
-        reviewCount: 445,
-        price: 120,
-        deliveryTime: "2 days"
-      },
-      {
-        id: "6",
-        image: "https://images.unsplash.com/photo-1561070791-2526d30994b5?w=500&h=375&fit=crop",
-        title: "Complete Brand Identity Package",
-        seller: { name: "Lisa Brand", avatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&h=100&fit=crop", level: "Pro" },
-        rating: 4.9,
-        reviewCount: 312,
-        price: 250,
-        deliveryTime: "5 days"
-      },
-    ]
-  },
-  // Add more categories as needed
+const categoryIcons = {
+  "programming-tech": Code,
+  "graphics-design": Paintbrush,
+  "writing-translation": PenTool,
+  "video-animation": Video,
+  "music-audio": Music,
+  "business": BarChart3,
+  "data": FileText,
+  "marketing": Megaphone,
 };
 
-export default function CategoryPage() {
+const categoryNames = {
+  "programming-tech": "Programming & Tech",
+  "graphics-design": "Graphics & Design",
+  "writing-translation": "Writing & Translation",
+  "video-animation": "Video & Animation",
+  "music-audio": "Music & Audio",
+  "business": "Business",
+  "data": "Data",
+  "marketing": "Marketing",
+};
+
+const CategoryPage = () => {
   const params = useParams();
+  const router = useRouter();
   const categoryId = params.id;
-  const category = categoryServices[categoryId] || {
-    title: "Category Not Found",
-    description: "This category doesn't exist yet",
-    services: []
+  
+  const [projects, setProjects] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  const CategoryIcon = categoryIcons[categoryId] || Code;
+  const categoryName = categoryNames[categoryId] || "Category";
+
+  useEffect(() => {
+    fetchCompletedProjects();
+  }, [categoryId]);
+
+  const fetchCompletedProjects = async () => {
+    try {
+      setLoading(true);
+      console.log('Fetching completed projects for category:', categoryId);
+      const response = await api.get('/projects/completed', {
+        params: { category: categoryId, limit: 50 }
+      });
+      console.log('Received projects:', response.data);
+      setProjects(response.data.projects || []);
+    } catch (error) {
+      console.error('Error fetching completed projects:', error);
+      setProjects([]);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -108,106 +82,118 @@ export default function CategoryPage() {
       {/* Header */}
       <section className="border-b border-border bg-secondary/30 py-8">
         <div className="container mx-auto px-4">
-          <Link href="/dashboard" className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors mb-4">
-            <ArrowLeft className="h-4 w-4" />
-            <span>Back to Home</span>
-          </Link>
-          <h1 className="font-display text-3xl font-bold text-foreground sm:text-4xl">
-            {category.title}
-          </h1>
-          <p className="mt-2 text-lg text-muted-foreground">
-            {category.description}
-          </p>
-        </div>
-      </section>
-
-      {/* Filters and Search */}
-      <section className="border-b border-border bg-card py-4">
-        <div className="container mx-auto px-4">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm">
-                <Filter className="mr-2 h-4 w-4" />
-                Filters
-              </Button>
-              <Button variant="outline" size="sm">
-                Budget
-                <ChevronDown className="ml-2 h-4 w-4" />
-              </Button>
-              <Button variant="outline" size="sm">
-                Delivery Time
-                <ChevronDown className="ml-2 h-4 w-4" />
-              </Button>
+          <Button
+            variant="ghost"
+            onClick={() => router.back()}
+            className="mb-4"
+          >
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Back
+          </Button>
+          
+          <div className="flex items-center gap-4">
+            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-accent text-accent-foreground">
+              <CategoryIcon className="h-8 w-8" />
             </div>
-            <div className="relative flex-1 max-w-md">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                type="search"
-                placeholder="Search services..."
-                className="h-10 w-full rounded-full border-border bg-secondary pl-10 pr-4"
-              />
+            <div>
+              <h1 className="font-display text-3xl font-bold text-foreground">
+                {categoryName}
+              </h1>
+              <p className="mt-1 text-muted-foreground">
+                Completed projects by talented freelancers
+              </p>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Services Grid */}
+      {/* Projects Grid */}
       <section className="py-12">
         <div className="container mx-auto px-4">
-          <div className="mb-6 flex items-center justify-between">
-            <p className="text-muted-foreground">
-              {category.services.length} services available
-            </p>
-            <Button variant="ghost" size="sm">
-              Sort by: Recommended
-              <ChevronDown className="ml-2 h-4 w-4" />
-            </Button>
-          </div>
-
-          {category.services.length > 0 ? (
-            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-              {category.services.map((service) => (
+          {loading ? (
+            <div className="flex justify-center items-center py-20">
+              <Loader2 className="h-10 w-10 animate-spin text-accent" />
+            </div>
+          ) : projects.length > 0 ? (
+            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {projects.map((project) => (
                 <Link
-                  key={service.id}
-                  href={`/service/${service.id}`}
-                  className="group overflow-hidden rounded-2xl border border-border bg-card transition-all hover:shadow-xl"
+                  key={project.id}
+                  href={`/projects/${project.id}`}
+                  className="group cursor-pointer overflow-hidden rounded-2xl border border-border bg-card transition-all hover:shadow-xl"
                 >
-                  <div className="aspect-[4/3] overflow-hidden">
-                    <img
-                      src={service.image}
-                      alt={service.title}
-                      className="h-full w-full object-cover transition-transform group-hover:scale-105"
-                    />
-                  </div>
-                  <div className="p-4">
-                    <div className="mb-3 flex items-center gap-2">
-                      <img
-                        src={service.seller.avatar}
-                        alt={service.seller.name}
-                        className="h-8 w-8 rounded-full"
-                      />
-                      <div>
-                        <p className="text-sm font-medium text-foreground">{service.seller.name}</p>
-                        <p className="text-xs text-muted-foreground">{service.seller.level}</p>
+                  <div className="p-5">
+                    {/* Freelancer Info */}
+                    <div className="mb-4 flex items-center gap-3">
+                      {project.freelancer?.avatar ? (
+                        <img
+                          src={getAvatarUrl(project.freelancer.avatar)}
+                          alt={project.freelancer.name}
+                          className="h-10 w-10 rounded-full object-cover"
+                        />
+                      ) : (
+                        <div className="h-10 w-10 rounded-full bg-accent/10 flex items-center justify-center">
+                          <span className="text-sm font-semibold text-accent">
+                            {project.freelancer?.name?.charAt(0) || 'F'}
+                          </span>
+                        </div>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-foreground truncate">
+                          {project.freelancer?.name || 'Freelancer'}
+                        </p>
+                        <p className="text-xs text-muted-foreground">Completed Project</p>
                       </div>
                     </div>
-                    <h3 className="mb-3 line-clamp-2 text-sm font-medium text-foreground">
-                      {service.title}
+
+                    {/* Project Title */}
+                    <h3 className="mb-2 line-clamp-2 text-base font-semibold text-foreground group-hover:text-accent transition-colors">
+                      {project.title}
                     </h3>
-                    <div className="mb-3 flex items-center gap-3 text-xs text-muted-foreground">
-                      <div className="flex items-center gap-1">
-                        <Clock className="h-3 w-3" />
-                        {service.deliveryTime}
+
+                    {/* Project Description */}
+                    <p className="mb-4 line-clamp-3 text-sm text-muted-foreground">
+                      {project.description}
+                    </p>
+
+                    {/* Skills */}
+                    {project.skills && project.skills.length > 0 && (
+                      <div className="mb-4 flex flex-wrap gap-2">
+                        {project.skills.slice(0, 4).map((skill, idx) => (
+                          <span
+                            key={idx}
+                            className="rounded-full bg-secondary px-3 py-1 text-xs text-foreground"
+                          >
+                            {skill}
+                          </span>
+                        ))}
+                        {project.skills.length > 4 && (
+                          <span className="rounded-full bg-secondary px-3 py-1 text-xs text-muted-foreground">
+                            +{project.skills.length - 4}
+                          </span>
+                        )}
                       </div>
-                    </div>
-                    <div className="flex items-center justify-between border-t border-border pt-3">
-                      <div className="flex items-center gap-1">
-                        <Star className="h-4 w-4 fill-accent text-accent" />
-                        <span className="text-sm font-semibold text-foreground">{service.rating}</span>
-                        <span className="text-xs text-muted-foreground">({service.reviewCount})</span>
-                      </div>
+                    )}
+
+                    {/* Footer */}
+                    <div className="flex items-center justify-between pt-4 border-t border-border">
+                      {project.rating ? (
+                        <div className="flex items-center gap-1">
+                          <Star className="h-4 w-4 fill-accent text-accent" />
+                          <span className="text-sm font-semibold text-foreground">
+                            {project.rating}
+                          </span>
+                          {project.reviewCount > 0 && (
+                            <span className="text-xs text-muted-foreground">
+                              ({project.reviewCount})
+                            </span>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">No reviews yet</span>
+                      )}
                       <p className="text-sm font-semibold text-foreground">
-                        From ${service.price}
+                        ${project.budget?.min || 0} - ${project.budget?.max || 0}
                       </p>
                     </div>
                   </div>
@@ -215,10 +201,18 @@ export default function CategoryPage() {
               ))}
             </div>
           ) : (
-            <div className="py-16 text-center">
-              <p className="text-lg text-muted-foreground">No services found in this category yet.</p>
+            <div className="text-center py-20">
+              <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-secondary">
+                <CategoryIcon className="h-10 w-10 text-muted-foreground" />
+              </div>
+              <h3 className="font-display text-xl font-semibold text-foreground mb-2">
+                No Completed Projects Yet
+              </h3>
+              <p className="text-muted-foreground mb-6">
+                There are no completed projects in this category at the moment.
+              </p>
               <Link href="/dashboard">
-                <Button variant="accent" className="mt-4">
+                <Button variant="accent">
                   Explore Other Categories
                 </Button>
               </Link>
@@ -228,4 +222,6 @@ export default function CategoryPage() {
       </section>
     </div>
   );
-}
+};
+
+export default CategoryPage;

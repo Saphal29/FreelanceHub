@@ -732,6 +732,91 @@ const toggleProjectBookmark = async (projectId, userId) => {
 };
 
 /**
+ * Get completed projects by category
+ * @param {string} category - Category name
+ * @param {number} limit - Number of projects to return
+ * @returns {Promise<Array>} Completed projects list
+ */
+const getCompletedProjectsByCategory = async (category = null, limit = 8) => {
+  try {
+    logger.info('Getting completed projects by category', { category, limit });
+    
+    let whereClause = `WHERE p.status = 'completed' AND p.visibility = 'public'`;
+    const params = [limit];
+    let paramIndex = 2;
+    
+    if (category) {
+      whereClause += ` AND LOWER(p.category) = LOWER($${paramIndex})`;
+      params.push(category);
+      paramIndex++;
+    }
+    
+    const result = await query(
+      `SELECT 
+        p.id,
+        p.title,
+        p.description,
+        p.category,
+        p.skills,
+        p.budget_min,
+        p.budget_max,
+        p.project_type,
+        p.completed_at,
+        p.created_at,
+        u.full_name as client_name,
+        u.avatar_url as client_avatar,
+        cp.company_name,
+        (SELECT AVG(overall_rating) FROM reviews WHERE project_id = p.id) as average_rating,
+        (SELECT COUNT(*) FROM reviews WHERE project_id = p.id) as review_count,
+        (SELECT u2.full_name FROM contracts c 
+         JOIN users u2 ON c.freelancer_id = u2.id 
+         WHERE c.project_id = p.id LIMIT 1) as freelancer_name,
+        (SELECT u2.avatar_url FROM contracts c 
+         JOIN users u2 ON c.freelancer_id = u2.id 
+         WHERE c.project_id = p.id LIMIT 1) as freelancer_avatar
+      FROM projects p
+      JOIN users u ON p.client_id = u.id
+      LEFT JOIN client_profiles cp ON u.id = cp.user_id
+      ${whereClause}
+      ORDER BY p.completed_at DESC
+      LIMIT $1`,
+      params
+    );
+    
+    logger.info('Completed projects retrieved', { count: result.rows.length, category });
+    
+    return result.rows.map(project => ({
+      id: project.id,
+      title: project.title,
+      description: project.description,
+      category: project.category,
+      skills: project.skills || [],
+      budget: {
+        min: project.budget_min,
+        max: project.budget_max,
+        type: project.project_type
+      },
+      completedAt: project.completed_at,
+      createdAt: project.created_at,
+      client: {
+        name: project.client_name,
+        avatar: project.client_avatar,
+        company: project.company_name
+      },
+      freelancer: {
+        name: project.freelancer_name,
+        avatar: project.freelancer_avatar
+      },
+      rating: project.average_rating ? parseFloat(project.average_rating).toFixed(1) : null,
+      reviewCount: parseInt(project.review_count) || 0
+    }));
+  } catch (error) {
+    logger.error('Error getting completed projects by category', { category, error: error.message });
+    throw error;
+  }
+};
+
+/**
  * Get project categories
  * @returns {Promise<Array>} Categories list
  */
@@ -858,6 +943,7 @@ module.exports = {
   updateMilestone,
   deleteMilestone,
   toggleProjectBookmark,
+  getCompletedProjectsByCategory,
   getProjectCategories,
   formatProjectResponse,
   formatMilestoneResponse,

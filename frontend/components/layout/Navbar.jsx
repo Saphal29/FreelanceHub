@@ -14,6 +14,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/contexts/AuthContext';
 import { getInitials, getAvatarColor } from '@/lib/utils';
+import { getAvatarUrl } from '@/lib/avatarUtils';
 
 export default function Navbar() {
   const router = useRouter();
@@ -270,7 +271,7 @@ export default function Navbar() {
               >
                 <Avatar className="h-8 w-8">
                   <AvatarImage 
-                    src={user.avatarUrl?.startsWith('http') ? user.avatarUrl : `${process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'http://localhost:5000'}${user.avatarUrl}`} 
+                    src={getAvatarUrl(user.avatarUrl)} 
                     alt={user.fullName || user.email} 
                   />
                   <AvatarFallback 
@@ -335,7 +336,7 @@ export default function Navbar() {
               <div className="flex items-center space-x-3">
                 <Avatar className="h-10 w-10">
                   <AvatarImage 
-                    src={user.avatarUrl?.startsWith('http') ? user.avatarUrl : `${process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'http://localhost:5000'}${user.avatarUrl}`} 
+                    src={getAvatarUrl(user.avatarUrl)} 
                     alt={user.fullName || user.email} 
                   />
                   <AvatarFallback 

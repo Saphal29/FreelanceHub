@@ -443,6 +443,9 @@ const searchFreelancers = async (searchQuery) => {
     }
 
     const whereClause = whereConditions.join(' AND ');
+    
+    // Get limit from params or default to 50
+    const resultLimit = searchQuery.limit ? parseInt(searchQuery.limit) : 50;
 
     const result = await query(
       `SELECT
@@ -453,9 +456,9 @@ const searchFreelancers = async (searchQuery) => {
        FROM users u
        JOIN freelancer_profiles fp ON u.id = fp.user_id
        WHERE ${whereClause}
-       ORDER BY fp.is_featured DESC, fp.average_rating DESC, fp.total_jobs_completed DESC
-       LIMIT 50`,
-      params
+       ORDER BY fp.is_featured DESC, fp.average_rating DESC NULLS LAST, fp.total_jobs_completed DESC
+       LIMIT $${paramIndex}`,
+      [...params, resultLimit]
     );
 
     const freelancers = result.rows.map(freelancer => ({

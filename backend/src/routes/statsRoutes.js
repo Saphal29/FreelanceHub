@@ -1,8 +1,8 @@
 const express = require('express');
 const router = express.Router();
-const statsController = require('../controllers/statsController');
+const { getPlatformStats } = require('../controllers/statsController');
 
-// Public stats endpoint (no authentication required)
-router.get('/public', statsController.getPublicStats);
+// Get platform statistics (public endpoint)
+router.get('/platform', getPlatformStats);
 
 module.exports = router;
