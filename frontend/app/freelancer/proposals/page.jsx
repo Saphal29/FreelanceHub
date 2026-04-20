@@ -11,15 +11,16 @@ import { useAuth } from "@/contexts/AuthContext";
 import { getMyProposals, withdrawProposal } from "@/lib/api";
 import { 
   Clock,
-  DollarSign,
   AlertCircle,
   FileText,
   CheckCircle,
   XCircle,
   MinusCircle,
-  User
+  User,
+  Banknote,
 } from "lucide-react";
 import { Pagination } from "@/components/ui/pagination";
+import { formatCurrency } from "@/lib/currency";
 
 export default function MyProposalsPage() {
   const router = useRouter();
@@ -282,10 +283,10 @@ export default function MyProposalsPage() {
                       {/* Proposal Details */}
                       {proposal.proposedBudget && (
                         <div className="flex items-center gap-2">
-                          <DollarSign className="h-4 w-4 text-accent" />
+                          <Banknote className="h-4 w-4 text-accent" />
                           <span className="text-sm text-muted-foreground">Budget:</span>
                           <span className="font-semibold text-foreground">
-                            ${proposal.proposedBudget.toLocaleString()}
+                            {formatCurrency(proposal.proposedBudget)}
                           </span>
                         </div>
                       )}

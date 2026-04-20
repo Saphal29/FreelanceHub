@@ -110,9 +110,36 @@ const getTimeSummary = async (req, res) => {
   }
 };
 
+// Debug endpoint to stop all active timers for current user
+const stopAllActiveTimers = async (req, res) => {
+  try {
+    const { query } = require('../utils/dbQueries');
+    const userId = req.user.userId;
+    
+    const result = await query(
+      `UPDATE time_entries
+       SET end_time = CURRENT_TIMESTAMP
+       WHERE freelancer_id = $1 AND end_time IS NULL AND is_manual = FALSE
+       RETURNING id, description, start_time`,
+      [userId]
+    );
+    
+    logger.info('Stopped all active timers', { userId, count: result.rows.length });
+    res.json({ 
+      success: true, 
+      message: `Stopped ${result.rows.length} active timer(s)`,
+      stoppedTimers: result.rows 
+    });
+  } catch (error) {
+    logger.error('stopAllActiveTimers error', { error: error.message });
+    res.status(400).json({ success: false, error: error.message });
+  }
+};
+
 module.exports = {
   startTimer, stopTimer, getActiveTimer,
   createManualEntry, updateTimeEntry, deleteTimeEntry,
   getContractTimeEntries, submitForApproval,
-  approveTimeEntry, rejectTimeEntry, getTimeSummary
+  approveTimeEntry, rejectTimeEntry, getTimeSummary,
+  stopAllActiveTimers
 };

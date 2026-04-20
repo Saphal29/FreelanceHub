@@ -3,6 +3,16 @@ const logger = require('../utils/logger');
 const notificationService = require('./notificationService');
 
 /**
+ * Format currency for display
+ * @param {number} amount - Amount to format
+ * @returns {string} Formatted currency string
+ */
+const formatCurrency = (amount) => {
+  const numAmount = parseFloat(amount) || 0;
+  return `Rs. ${numAmount.toLocaleString('en-NP', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+};
+
+/**
  * Submit milestone for review
  * @param {string} milestoneId - Milestone ID
  * @param {string} freelancerId - Freelancer user ID
@@ -119,7 +129,31 @@ const submitMilestone = async (milestoneId, freelancerId, submissionData) => {
       );
     }
     
-    // Note: Notification is created automatically by database trigger
+    // Update milestone status to under_review
+    await query(
+      'UPDATE project_milestones SET status = $1 WHERE id = $2',
+      ['under_review', milestoneId]
+    );
+    
+    // Create notification for client
+    try {
+      await query(
+        `INSERT INTO notifications (user_id, type, title, message, project_id, contract_id)
+         VALUES ($1, $2, $3, $4, $5, $6)`,
+        [
+          milestone.client_id,
+          'milestone_submitted',
+          'Milestone Submitted for Review',
+          `A milestone "${milestone.title}" has been submitted for your review`,
+          milestone.project_id,
+          milestone.contract_id
+        ]
+      );
+      logger.info('Notification created for client', { clientId: milestone.client_id, milestoneId });
+    } catch (notifError) {
+      logger.error('Failed to create notification', { error: notifError.message });
+      // Don't fail the submission if notification fails
+    }
     
     logger.info('Milestone submitted successfully', { 
       milestoneId, 
@@ -208,22 +242,78 @@ const reviewMilestoneSubmission = async (submissionId, clientId, reviewData) => 
         [submission.milestone_id]
       );
       
-      // Create escrow release
-      await query(
-        `INSERT INTO escrow (
-          contract_id, milestone_id, client_id, freelancer_id,
-          amount, platform_fee, net_amount, status
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, 'pending')`,
-        [
-          submission.contract_id,
-          submission.milestone_id,
-          clientId,
-          submission.freelancer_id,
-          submission.milestone_amount,
-          submission.milestone_amount * 0.1, // 10% platform fee
-          submission.milestone_amount * 0.9
-        ]
+      // Find and release escrow for this milestone
+      const escrowResult = await query(
+        `SELECT id, amount, net_amount FROM escrow 
+         WHERE milestone_id = $1 AND status = 'held'
+         LIMIT 1`,
+        [submission.milestone_id]
       );
+      
+      if (escrowResult.rows.length > 0) {
+        const escrow = escrowResult.rows[0];
+        
+        // Release escrow to freelancer
+        await query(
+          `UPDATE escrow 
+           SET status = 'released', 
+               released_at = CURRENT_TIMESTAMP,
+               release_note = $1
+           WHERE id = $2`,
+          [`Milestone "${submission.milestone_id}" approved and completed`, escrow.id]
+        );
+        
+        logger.info('Escrow automatically released for approved milestone', { 
+          milestoneId: submission.milestone_id, 
+          escrowId: escrow.id 
+        });
+        
+        // Send payment received notification to freelancer
+        try {
+          await query(
+            `INSERT INTO notifications (user_id, type, title, message, project_id, contract_id)
+             VALUES ($1, $2, $3, $4, $5, $6)`,
+            [
+              submission.freelancer_id,
+              'payment_received',
+              'Payment Received!',
+              `You received ${formatCurrency(escrow.net_amount)} for completing the milestone. Funds have been released to your account.`,
+              submission.project_id,
+              submission.contract_id
+            ]
+          );
+          logger.info('Payment notification sent to freelancer', { 
+            freelancerId: submission.freelancer_id,
+            amount: escrow.net_amount
+          });
+        } catch (notifError) {
+          logger.error('Failed to create payment notification', { error: notifError.message });
+        }
+      } else {
+        logger.warn('No held escrow found for milestone', { milestoneId: submission.milestone_id });
+      }
+      
+      // Send milestone approved notification to freelancer
+      try {
+        await query(
+          `INSERT INTO notifications (user_id, type, title, message, project_id, contract_id)
+           VALUES ($1, $2, $3, $4, $5, $6)`,
+          [
+            submission.freelancer_id,
+            'milestone_approved',
+            'Milestone Approved!',
+            `Your milestone submission has been approved by the client. Great work!`,
+            submission.project_id,
+            submission.contract_id
+          ]
+        );
+        logger.info('Milestone approved notification sent to freelancer', { 
+          freelancerId: submission.freelancer_id,
+          milestoneId: submission.milestone_id
+        });
+      } catch (notifError) {
+        logger.error('Failed to create milestone approved notification', { error: notifError.message });
+      }
       
       // Check if all milestones are completed
       const milestonesCheck = await query(
@@ -275,8 +365,52 @@ const reviewMilestoneSubmission = async (submissionId, clientId, reviewData) => 
         [submission.milestone_id, submissionId, clientId, notes]
       );
       
+      // Send revision request notification to freelancer
+      try {
+        await query(
+          `INSERT INTO notifications (user_id, type, title, message, project_id, contract_id)
+           VALUES ($1, $2, $3, $4, $5, $6)`,
+          [
+            submission.freelancer_id,
+            'milestone_revision_requested',
+            'Revision Requested',
+            `The client has requested revisions for your milestone submission. ${notes ? 'Notes: ' + notes : 'Please check the details and resubmit.'}`,
+            submission.project_id,
+            submission.contract_id
+          ]
+        );
+        logger.info('Revision request notification sent to freelancer', { 
+          freelancerId: submission.freelancer_id,
+          milestoneId: submission.milestone_id
+        });
+      } catch (notifError) {
+        logger.error('Failed to create revision request notification', { error: notifError.message });
+      }
+      
       // Note: Revision notification created automatically by database trigger
     } else if (action === 'reject') {
+      // Send rejection notification to freelancer
+      try {
+        await query(
+          `INSERT INTO notifications (user_id, type, title, message, project_id, contract_id)
+           VALUES ($1, $2, $3, $4, $5, $6)`,
+          [
+            submission.freelancer_id,
+            'milestone_rejected',
+            'Milestone Rejected',
+            `Your milestone submission has been rejected by the client. ${notes ? 'Reason: ' + notes : 'Please contact the client for more details.'}`,
+            submission.project_id,
+            submission.contract_id
+          ]
+        );
+        logger.info('Milestone rejection notification sent to freelancer', { 
+          freelancerId: submission.freelancer_id,
+          milestoneId: submission.milestone_id
+        });
+      } catch (notifError) {
+        logger.error('Failed to create rejection notification', { error: notifError.message });
+      }
+      
       // Note: Rejection notification created automatically by database trigger
     }
     
@@ -333,9 +467,34 @@ const getMilestoneSubmissions = async (milestoneId, userId) => {
       [milestoneId]
     );
     
-    logger.info('Milestone submissions retrieved', { milestoneId, count: result.rows.length });
+    // Fetch uploaded files for each submission
+    const submissionsWithFiles = await Promise.all(
+      result.rows.map(async (submission) => {
+        const filesResult = await query(
+          `SELECT id, original_name, file_path, file_url, file_size, mime_type, category, created_at
+           FROM files
+           WHERE milestone_id = $1 AND status = 'active'
+           ORDER BY created_at ASC`,
+          [milestoneId]
+        );
+        
+        logger.info('Files fetched for milestone', { 
+          milestoneId, 
+          submissionId: submission.id,
+          fileCount: filesResult.rows.length,
+          files: filesResult.rows.map(f => ({ id: f.id, name: f.original_name }))
+        });
+        
+        return {
+          ...submission,
+          deliverableFiles: filesResult.rows
+        };
+      })
+    );
     
-    return result.rows.map(formatSubmissionWithDetailsResponse);
+    logger.info('Milestone submissions retrieved', { milestoneId, count: submissionsWithFiles.length });
+    
+    return submissionsWithFiles.map(formatSubmissionWithDetailsResponse);
   } catch (error) {
     logger.error('Error getting milestone submissions', { milestoneId, error: error.message });
     throw error;
@@ -478,7 +637,8 @@ const formatSubmissionWithDetailsResponse = (submission) => {
     ...formatSubmissionResponse(submission),
     submittedByName: submission.submitted_by_name,
     submittedByAvatar: submission.submitted_by_avatar,
-    reviewedByName: submission.reviewed_by_name
+    reviewedByName: submission.reviewed_by_name,
+    deliverableFiles: submission.deliverableFiles || []
   };
 };
 

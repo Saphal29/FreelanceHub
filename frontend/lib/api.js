@@ -1023,6 +1023,25 @@ export const verifyEsewaPayment = async (data) => {
   }
 };
 
+// Stripe
+export const initiateStripePayment = async (paymentData) => {
+  try {
+    const response = await api.post('/payments/stripe/initiate', paymentData);
+    return response.data;
+  } catch (error) {
+    throw handleApiError(error);
+  }
+};
+
+export const verifyStripePayment = async (sessionId) => {
+  try {
+    const response = await api.get('/payments/stripe/verify', { params: { session_id: sessionId } });
+    return response.data;
+  } catch (error) {
+    throw handleApiError(error);
+  }
+};
+
 // ============================================
 // TIME TRACKING API FUNCTIONS
 // ============================================
@@ -1072,6 +1091,13 @@ export const deleteTimeEntry = async (id) => {
 export const getContractTimeEntries = async (contractId, params = {}) => {
   try {
     const response = await api.get(`/time/contract/${contractId}`, { params });
+    return response.data;
+  } catch (error) { throw handleApiError(error); }
+};
+
+export const getTimeEntries = async (params = {}) => {
+  try {
+    const response = await api.get('/time', { params });
     return response.data;
   } catch (error) { throw handleApiError(error); }
 };

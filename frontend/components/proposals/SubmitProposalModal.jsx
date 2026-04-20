@@ -8,6 +8,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { submitProposal } from "@/lib/api";
 import { X, Send, AlertCircle, CheckCircle } from "lucide-react";
 import FileUpload from "@/components/files/FileUpload";
+import { formatCurrency } from "@/lib/currency";
 
 export default function SubmitProposalModal({ project, onClose, onSuccess }) {
   const [formData, setFormData] = useState({
@@ -149,10 +150,10 @@ export default function SubmitProposalModal({ project, onClose, onSuccess }) {
           {/* Proposed Budget */}
           <div>
             <Label htmlFor="proposedBudget" className="text-foreground font-semibold">
-              Proposed Budget (USD)
+              Proposed Budget (NPR)
             </Label>
             <p className="text-sm text-muted-foreground mb-2">
-              Project budget: ${project.budget?.min?.toLocaleString()} - ${project.budget?.max?.toLocaleString()}
+              Project budget: {formatCurrency(project.budget?.min)} - {formatCurrency(project.budget?.max)}
             </p>
             <Input
               id="proposedBudget"

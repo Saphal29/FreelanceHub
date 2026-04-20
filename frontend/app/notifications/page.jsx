@@ -89,13 +89,20 @@ export default function NotificationsPage() {
     switch (type) {
       case "proposal_received":
       case "proposal_accepted":
+      case "milestone_approved":
+      case "payment_received":
         return <CheckCircle className="h-5 w-5 text-green-600" />;
       case "proposal_rejected":
+      case "milestone_rejected":
         return <XCircle className="h-5 w-5 text-red-600" />;
+      case "milestone_revision_requested":
+        return <AlertCircle className="h-5 w-5 text-yellow-600" />;
       case "contract_created":
         return <FileText className="h-5 w-5 text-blue-600" />;
       case "project_invitation":
         return <Briefcase className="h-5 w-5 text-accent" />;
+      case "meeting_scheduled":
+        return <Clock className="h-5 w-5 text-purple-600" />;
       default:
         return <Bell className="h-5 w-5 text-accent" />;
     }
@@ -177,49 +184,107 @@ export default function NotificationsPage() {
             </Card>
           ) : (
             <div className="space-y-3">
-              {notifications.map((notification) => (
-                <Card
-                  key={notification.id}
-                  className={`border-border cursor-pointer transition-colors hover:bg-secondary/50 ${
-                    !notification.isRead ? 'bg-accent/5 border-accent/20' : ''
-                  }`}
-                  onClick={() => {
-                    if (!notification.isRead) {
-                      handleMarkAsRead(notification.id);
-                    }
-                    // Handle different notification types
-                    if (notification.type === 'project_invitation' && notification.projectId) {
-                      router.push(`/projects/${notification.projectId}`);
-                    } else if (notification.projectId) {
-                      router.push(`/${userType}/projects/${notification.projectId}`);
-                    }
-                  }}
-                >
-                  <CardContent className="p-4">
-                    <div className="flex items-start gap-4">
-                      <div className="flex-shrink-0 mt-1">
-                        {getNotificationIcon(notification.type)}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-start justify-between gap-2">
-                          <h3 className="font-semibold text-foreground">
-                            {notification.title}
-                          </h3>
-                          {!notification.isRead && (
-                            <span className="flex-shrink-0 h-2 w-2 rounded-full bg-accent"></span>
+              {notifications.map((notification) => {
+                // Extract meeting link from message if it's a meeting notification
+                const isMeetingNotification = notification.type === 'meeting_scheduled';
+                let meetingLink = null;
+                let displayMessage = notification.message;
+                
+                if (isMeetingNotification) {
+                  const linkMatch = notification.message.match(/\/calls\/join\/[a-f0-9-]+/);
+                  if (linkMatch) {
+                    meetingLink = linkMatch[0];
+                    // Remove the link from display message
+                    displayMessage = notification.message.replace(/Click to join:.*$/, '').trim();
+                  }
+                }
+
+                return (
+                  <Card
+                    key={notification.id}
+                    className={`border-border transition-colors ${
+                      !notification.isRead ? 'bg-accent/5 border-accent/20' : ''
+                    }`}
+                  >
+                    <CardContent className="p-4">
+                      <div className="flex items-start gap-4">
+                        <div className="flex-shrink-0 mt-1">
+                          {getNotificationIcon(notification.type)}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-start justify-between gap-2">
+                            <h3 className="font-semibold text-foreground">
+                              {notification.title}
+                            </h3>
+                            {!notification.isRead && (
+                              <span className="flex-shrink-0 h-2 w-2 rounded-full bg-accent"></span>
+                            )}
+                          </div>
+                          <p className="text-sm text-muted-foreground mt-1">
+                            {displayMessage}
+                          </p>
+                          {meetingLink && (
+                            <Button
+                              variant="accent"
+                              size="sm"
+                              className="mt-3"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (!notification.isRead) {
+                                  handleMarkAsRead(notification.id);
+                                }
+                                router.push(meetingLink);
+                              }}
+                            >
+                              Join Meeting
+                            </Button>
+                          )}
+                          {!meetingLink && (
+                            <div
+                              className="cursor-pointer"
+                              onClick={() => {
+                                if (!notification.isRead) {
+                                  handleMarkAsRead(notification.id);
+                                }
+                                // Handle different notification types
+                                if (notification.type === 'contract_created' && notification.contractId) {
+                                  router.push(`/contracts/${notification.contractId}`);
+                                } else if (notification.type === 'project_invitation' && notification.projectId) {
+                                  router.push(`/projects/${notification.projectId}`);
+                                } else if (notification.type === 'proposal_received' && notification.projectId) {
+                                  router.push(`/${userType}/projects/${notification.projectId}?scrollTo=proposals`);
+                                } else if (notification.type === 'milestone_submitted' && notification.projectId) {
+                                  router.push(`/${userType}/projects/${notification.projectId}?scrollTo=milestones`);
+                                } else if (notification.type === 'milestone_approved' || 
+                                           notification.type === 'milestone_rejected' || 
+                                           notification.type === 'milestone_revision_requested' ||
+                                           notification.type === 'payment_received') {
+                                  if (notification.contractId) {
+                                    router.push(`/contracts/${notification.contractId}`);
+                                  } else if (notification.projectId) {
+                                    router.push(`/${userType}/projects/${notification.projectId}`);
+                                  }
+                                } else if (notification.projectId) {
+                                  router.push(`/${userType}/projects/${notification.projectId}`);
+                                }
+                              }}
+                            >
+                              <p className="text-xs text-muted-foreground mt-2">
+                                {new Date(notification.createdAt).toLocaleString()}
+                              </p>
+                            </div>
+                          )}
+                          {meetingLink && (
+                            <p className="text-xs text-muted-foreground mt-2">
+                              {new Date(notification.createdAt).toLocaleString()}
+                            </p>
                           )}
                         </div>
-                        <p className="text-sm text-muted-foreground mt-1">
-                          {notification.message}
-                        </p>
-                        <p className="text-xs text-muted-foreground mt-2">
-                          {new Date(notification.createdAt).toLocaleString()}
-                        </p>
                       </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+                    </CardContent>
+                  </Card>
+                );
+              })}
             </div>
           )}
         </div>

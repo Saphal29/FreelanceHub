@@ -108,7 +108,7 @@ export default function MilestoneCard({ milestone, userRole, onUpdate }) {
               onClick={() => setActiveTab('overview')}
               className={`px-4 py-2 font-medium text-sm transition-colors ${
                 activeTab === 'overview'
-                  ? 'text-blue-600 border-b-2 border-blue-600'
+                  ? 'text-amber-600 border-b-2 border-amber-600'
                   : 'text-gray-600 hover:text-gray-900'
               }`}
             >
@@ -120,7 +120,7 @@ export default function MilestoneCard({ milestone, userRole, onUpdate }) {
                 onClick={() => setActiveTab('submit')}
                 className={`px-4 py-2 font-medium text-sm transition-colors ${
                   activeTab === 'submit'
-                    ? 'text-blue-600 border-b-2 border-blue-600'
+                    ? 'text-amber-600 border-b-2 border-amber-600'
                     : 'text-gray-600 hover:text-gray-900'
                 }`}
               >
@@ -133,7 +133,7 @@ export default function MilestoneCard({ milestone, userRole, onUpdate }) {
                 onClick={() => setActiveTab('review')}
                 className={`px-4 py-2 font-medium text-sm transition-colors ${
                   activeTab === 'review'
-                    ? 'text-blue-600 border-b-2 border-blue-600'
+                    ? 'text-amber-600 border-b-2 border-amber-600'
                     : 'text-gray-600 hover:text-gray-900'
                 }`}
               >
@@ -146,7 +146,7 @@ export default function MilestoneCard({ milestone, userRole, onUpdate }) {
                 onClick={() => setActiveTab('revisions')}
                 className={`px-4 py-2 font-medium text-sm transition-colors ${
                   activeTab === 'revisions'
-                    ? 'text-blue-600 border-b-2 border-blue-600'
+                    ? 'text-amber-600 border-b-2 border-amber-600'
                     : 'text-gray-600 hover:text-gray-900'
                 }`}
               >

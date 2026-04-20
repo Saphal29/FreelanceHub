@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { MapPin, Clock, Users, Bookmark } from "lucide-react";
 import Link from "next/link";
+import { formatCurrency } from "@/lib/currency";
 
 const JobCard = ({
   title,
@@ -62,7 +63,11 @@ const JobCard = ({
       <div className="mt-4 flex items-center justify-between border-t border-border pt-4">
         <div>
           <p className="text-xs text-muted-foreground">Budget</p>
-          <p className="mt-0.5 font-display text-lg font-bold text-foreground">${budget}</p>
+          <p className="mt-0.5 font-display text-lg font-bold text-foreground">
+            {typeof budget === 'object' && budget.min !== undefined && budget.max !== undefined
+              ? `${formatCurrency(budget.min)} - ${formatCurrency(budget.max)}`
+              : budget}
+          </p>
         </div>
         <Link href={`/projects/${projectId}`}>
           <Button variant="accent" size="sm">

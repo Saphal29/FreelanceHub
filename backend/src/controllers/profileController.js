@@ -99,7 +99,7 @@ const updateCurrentUserProfile = async (req, res) => {
     // Update user table fields
     const userFields = ['full_name', 'phone'];
     const userUpdates = {};
-    
+
     userFields.forEach(field => {
       if (updates[field] !== undefined) {
         userUpdates[field] = updates[field];
@@ -110,7 +110,7 @@ const updateCurrentUserProfile = async (req, res) => {
       const setClause = Object.keys(userUpdates)
         .map((key, index) => `${key} = $${index + 2}`)
         .join(', ');
-      
+
       const values = [userId, ...Object.values(userUpdates)];
       await pool.query(
         `UPDATE users SET ${setClause}, updated_at = NOW() WHERE id = $1`,
@@ -122,10 +122,23 @@ const updateCurrentUserProfile = async (req, res) => {
     if (role === 'FREELANCER') {
       const profileFields = ['title', 'bio', 'skills', 'hourly_rate', 'experience_years', 'location', 'availability_status', 'website'];
       const profileUpdates = {};
-      
+
       profileFields.forEach(field => {
         if (updates[field] !== undefined) {
-          profileUpdates[field] = updates[field];
+          // Handle skills array conversion
+          if (field === 'skills') {
+            if (typeof updates[field] === 'string') {
+              // Convert comma-separated string to array
+              profileUpdates[field] = updates[field]
+                .split(',')
+                .map(skill => skill.trim())
+                .filter(skill => skill.length > 0);
+            } else if (Array.isArray(updates[field])) {
+              profileUpdates[field] = updates[field];
+            }
+          } else {
+            profileUpdates[field] = updates[field];
+          }
         }
       });
 
@@ -133,7 +146,7 @@ const updateCurrentUserProfile = async (req, res) => {
         const setClause = Object.keys(profileUpdates)
           .map((key, index) => `${key} = $${index + 2}`)
           .join(', ');
-        
+
         const values = [userId, ...Object.values(profileUpdates)];
         await pool.query(
           `UPDATE freelancer_profiles SET ${setClause}, updated_at = NOW() WHERE user_id = $1`,
@@ -143,7 +156,7 @@ const updateCurrentUserProfile = async (req, res) => {
     } else if (role === 'CLIENT') {
       const profileFields = ['company_name', 'industry', 'website'];
       const profileUpdates = {};
-      
+
       profileFields.forEach(field => {
         if (updates[field] !== undefined) {
           profileUpdates[field] = updates[field];
@@ -154,7 +167,7 @@ const updateCurrentUserProfile = async (req, res) => {
         const setClause = Object.keys(profileUpdates)
           .map((key, index) => `${key} = $${index + 2}`)
           .join(', ');
-        
+
         const values = [userId, ...Object.values(profileUpdates)];
         await pool.query(
           `UPDATE client_profiles SET ${setClause}, updated_at = NOW() WHERE user_id = $1`,

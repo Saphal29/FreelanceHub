@@ -37,10 +37,17 @@ export default function JoinMeetingPage() {
   const handleJoin = async () => {
     setJoining(true);
     try {
-      // Create a room for this meeting
-      const roomRes = await createRoom({ roomName: meeting?.title });
-      const roomId = roomRes.room?.roomId;
-      if (!roomId) throw new Error("Failed to create room");
+      // Use the meetingId as the roomId so all participants join the same room
+      const roomId = params.meetingId;
+      
+      // Try to create or join the room
+      try {
+        await createRoom({ roomName: meeting?.title || 'Meeting', roomId });
+      } catch (err) {
+        // Room might already exist, that's okay - we'll join it
+        console.log('Room may already exist, proceeding to join');
+      }
+      
       joinRoom(roomId);
       router.push(`/calls/room/${roomId}`);
     } catch (err) {

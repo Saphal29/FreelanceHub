@@ -13,7 +13,7 @@ import { getMyProjects, updateProject, deleteProject } from "@/lib/api";
 import { 
   Search, 
   Clock,
-  DollarSign,
+  Banknote,
   MapPin,
   Filter,
   ChevronDown,
@@ -28,6 +28,7 @@ import {
   MoreVertical
 } from "lucide-react";
 import { Pagination } from "@/components/ui/pagination";
+import { formatCurrency } from "@/lib/currency";
 
 // Dummy project data (fallback)
 const dummyProjects = [
@@ -494,10 +495,10 @@ export default function BrowseProjectsPage() {
 
                     {/* Budget */}
                     <div className="flex items-center gap-2">
-                      <DollarSign className="h-4 w-4 text-accent" />
+                      <Banknote className="h-4 w-4 text-accent" />
                       <span className="text-sm text-muted-foreground">Budget:</span>
                       <span className="font-semibold text-foreground">
-                        ${project.budget.min.toLocaleString()} - ${project.budget.max.toLocaleString()}
+                        {formatCurrency(project.budget.min)} - {formatCurrency(project.budget.max)}
                       </span>
                     </div>
                     

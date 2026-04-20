@@ -7,20 +7,24 @@ import FileUpload from '@/components/files/FileUpload';
 export default function MilestoneSubmission({ milestone, onSubmitSuccess }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [notes, setNotes] = useState('');
-  const [attachments, setAttachments] = useState([]);
   const [error, setError] = useState('');
   const [deliverables, setDeliverables] = useState([]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+
+    if (deliverables.length === 0) {
+      setError('Please upload at least one deliverable file');
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
       const submissionData = {
         notes: notes.trim() || null,
-        attachments: attachments,
-        fileIds: deliverables.map(f => f.file.id) // Add file IDs
+        fileIds: deliverables.map(f => f.file.id)
       };
 
       const response = await submitMilestone(milestone.id, submissionData);
@@ -35,17 +39,6 @@ export default function MilestoneSubmission({ milestone, onSubmitSuccess }) {
     }
   };
 
-  const handleAddAttachment = () => {
-    const url = prompt('Enter attachment URL:');
-    if (url) {
-      setAttachments([...attachments, { url, name: url.split('/').pop() }]);
-    }
-  };
-
-  const handleRemoveAttachment = (index) => {
-    setAttachments(attachments.filter((_, i) => i !== index));
-  };
-
   if (milestone.status === 'completed') {
     return (
       <div className="bg-green-50 border border-green-200 rounded-lg p-4">
@@ -56,8 +49,8 @@ export default function MilestoneSubmission({ milestone, onSubmitSuccess }) {
 
   if (milestone.status === 'under_review') {
     return (
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-        <p className="text-blue-800">⏳ This milestone is currently under review</p>
+      <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+        <p className="text-amber-800">⏳ This milestone is currently under review</p>
       </div>
     );
   }
@@ -75,36 +68,9 @@ export default function MilestoneSubmission({ milestone, onSubmitSuccess }) {
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             placeholder="Describe what you've completed, any challenges faced, or additional information..."
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
             rows={4}
           />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Attachments
-          </label>
-          <div className="space-y-2">
-            {attachments.map((attachment, index) => (
-              <div key={index} className="flex items-center justify-between bg-gray-50 p-2 rounded">
-                <span className="text-sm text-gray-700 truncate">{attachment.name}</span>
-                <button
-                  type="button"
-                  onClick={() => handleRemoveAttachment(index)}
-                  className="text-red-600 hover:text-red-800 text-sm"
-                >
-                  Remove
-                </button>
-              </div>
-            ))}
-            <button
-              type="button"
-              onClick={handleAddAttachment}
-              className="text-blue-600 hover:text-blue-800 text-sm font-medium"
-            >
-              + Add Attachment
-            </button>
-          </div>
         </div>
 
         <div>
@@ -133,8 +99,8 @@ export default function MilestoneSubmission({ milestone, onSubmitSuccess }) {
         <div className="flex gap-3">
           <button
             type="submit"
-            disabled={isSubmitting}
-            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+            disabled={isSubmitting || deliverables.length === 0}
+            className="px-6 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
           >
             {isSubmitting ? 'Submitting...' : 'Submit for Review'}
           </button>

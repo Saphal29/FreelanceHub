@@ -248,7 +248,7 @@ const getAllTransactions = async (filters = {}) => {
     }
     const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
     const offset = (page - 1) * limit;
-    const countResult = await query(`SELECT COUNT(*) as total FROM payments ${whereClause}`, params);
+    const countResult = await query(`SELECT COUNT(*) as total FROM payments p ${whereClause}`, params);
     const total = parseInt(countResult.rows[0].total);
     const result = await query(
       `SELECT p.*, c.agreed_budget as contract_budget, proj.title as project_title, client.full_name as client_name, freelancer.full_name as freelancer_name

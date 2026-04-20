@@ -57,7 +57,7 @@ export default function ForgotPasswordPage() {
 
   if (success) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-purple-50 py-12 px-4 sm:px-6 lg:px-8">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-amber-50 via-white to-yellow-50 py-12 px-4 sm:px-6 lg:px-8">
         <Card className="w-full max-w-md shadow-xl border-0 bg-white/80 backdrop-blur-sm">
           <CardHeader className="text-center">
             <div className="flex justify-center mb-4">
@@ -92,13 +92,13 @@ export default function ForgotPasswordPage() {
                 <Button 
                   onClick={() => window.location.reload()}
                   variant="outline"
-                  className="w-full"
+                  className="w-full border-amber-200 hover:bg-amber-50 hover:text-amber-700"
                 >
                   Send Another Email
                 </Button>
                 
                 <Link href="/login">
-                  <Button variant="ghost" className="w-full">
+                  <Button variant="ghost" className="w-full hover:bg-amber-50 hover:text-amber-700">
                     <ArrowLeft className="mr-2 h-4 w-4" />
                     Back to Login
                   </Button>
@@ -115,14 +115,14 @@ export default function ForgotPasswordPage() {
                 <div className="flex justify-center space-x-4 text-xs">
                   <Link 
                     href="/contact" 
-                    className="text-primary hover:text-primary/80 transition-colors"
+                    className="text-amber-600 hover:text-amber-700 transition-colors"
                   >
                     Contact Support
                   </Link>
                   <span className="text-gray-300">•</span>
                   <Link 
                     href="/help" 
-                    className="text-primary hover:text-primary/80 transition-colors"
+                    className="text-amber-600 hover:text-amber-700 transition-colors"
                   >
                     Help Center
                   </Link>
@@ -136,15 +136,15 @@ export default function ForgotPasswordPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-purple-50 py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-amber-50 via-white to-yellow-50 py-12 px-4 sm:px-6 lg:px-8">
       <Card className="w-full max-w-md shadow-xl border-0 bg-white/80 backdrop-blur-sm">
         <CardHeader className="text-center">
           <div className="flex justify-center mb-4">
-            <div className="p-3 bg-primary/10 rounded-full">
-              <Mail className="h-8 w-8 text-primary" />
+            <div className="p-3 bg-amber-50 rounded-full">
+              <Mail className="h-8 w-8 text-amber-600" />
             </div>
           </div>
-          <CardTitle className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+          <CardTitle className="text-2xl font-bold bg-gradient-to-r from-amber-600 to-yellow-600 bg-clip-text text-transparent">
             Forgot Password?
           </CardTitle>
           <CardDescription className="text-gray-600">
@@ -172,7 +172,7 @@ export default function ForgotPasswordPage() {
                   type="email"
                   {...register('email')}
                   placeholder="Enter your email address"
-                  className="pl-10 h-11 border-gray-200 focus:border-primary focus:ring-primary"
+                  className="pl-10 h-11 border-gray-200 focus:border-amber-500 focus:ring-amber-500"
                   autoComplete="email"
                   autoFocus
                 />
@@ -187,7 +187,7 @@ export default function ForgotPasswordPage() {
             {/* Submit Button */}
             <Button 
               type="submit" 
-              className="w-full h-11 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-medium transition-all duration-200 transform hover:scale-[1.02]" 
+              className="w-full h-11 bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-600 hover:to-yellow-600 text-white font-medium transition-all duration-200 transform hover:scale-[1.02] shadow-md hover:shadow-lg" 
               disabled={loading}
             >
               {loading ? (
@@ -207,7 +207,7 @@ export default function ForgotPasswordPage() {
           {/* Back to Login */}
           <div className="text-center pt-4 border-t border-gray-100">
             <Link href="/login">
-              <Button variant="ghost" className="text-sm">
+              <Button variant="ghost" className="text-sm hover:bg-amber-50 hover:text-amber-700">
                 <ArrowLeft className="mr-2 h-4 w-4" />
                 Back to Login
               </Button>
@@ -215,12 +215,12 @@ export default function ForgotPasswordPage() {
           </div>
 
           {/* Additional Info */}
-          <div className="bg-blue-50 rounded-lg p-4 text-sm text-blue-800">
+          <div className="bg-amber-50 rounded-lg p-4 text-sm text-amber-900 border border-amber-100">
             <div className="flex items-start">
-              <Mail className="h-4 w-4 mt-0.5 mr-2 flex-shrink-0" />
+              <Mail className="h-4 w-4 mt-0.5 mr-2 flex-shrink-0 text-amber-600" />
               <div>
                 <p className="font-medium mb-1">Security Notice</p>
-                <p className="text-blue-700">
+                <p className="text-amber-800">
                   For security reasons, we'll send reset instructions to your email 
                   regardless of whether an account exists with that address.
                 </p>

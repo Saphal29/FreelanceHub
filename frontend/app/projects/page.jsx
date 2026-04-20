@@ -12,7 +12,6 @@ import { getProjects } from "@/lib/api";
 import {
   Briefcase,
   Clock,
-  DollarSign,
   CheckCircle,
   AlertCircle,
   XCircle,
@@ -21,7 +20,9 @@ import {
   FileText,
   Search,
   Filter,
+  Banknote,
 } from "lucide-react";
+import { formatCurrency } from "@/lib/currency";
 
 export default function MyProjectsPage() {
   const router = useRouter();
@@ -193,7 +194,7 @@ export default function MyProjectsPage() {
               <div>
                 <p className="text-xs text-muted-foreground">Budget</p>
                 <p className="mt-1 text-sm font-medium text-accent">
-                  ${project.budget.min.toLocaleString()} - ${project.budget.max.toLocaleString()}
+                  {formatCurrency(project.budget.min)} - {formatCurrency(project.budget.max)}
                 </p>
               </div>
               <div>
@@ -305,7 +306,7 @@ export default function MyProjectsPage() {
               <div>
                 <p className="text-xs text-muted-foreground">Earned</p>
                 <p className="mt-1 text-sm font-medium text-accent">
-                  ${project.budget.min.toLocaleString()} - ${project.budget.max.toLocaleString()}
+                  {formatCurrency(project.budget.min)} - {formatCurrency(project.budget.max)}
                 </p>
               </div>
             </div>
@@ -496,11 +497,11 @@ export default function MyProjectsPage() {
             <div className="rounded-xl border border-border bg-card p-4">
               <div className="flex items-center gap-3">
                 <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-accent/10">
-                  <DollarSign className="h-5 w-5 text-accent" />
+                  <Banknote className="h-5 w-5 text-accent" />
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Total Earned</p>
-                  <p className="font-display text-2xl font-bold text-foreground">$0</p>
+                  <p className="font-display text-2xl font-bold text-foreground">Rs. 0</p>
                 </div>
               </div>
             </div>

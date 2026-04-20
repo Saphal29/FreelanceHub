@@ -292,8 +292,28 @@ function ChatContent() {
     try {
       const res = await getConversations();
       const convs = res.conversations || [];
-      setConversations(convs);
-      return convs;
+      
+      // Deduplicate conversations by other user - keep the most recent one
+      const uniqueConvs = [];
+      const seenUsers = new Set();
+      
+      // Sort by last message time (most recent first)
+      const sortedConvs = [...convs].sort((a, b) => {
+        const timeA = a.last_message_at || a.created_at;
+        const timeB = b.last_message_at || b.created_at;
+        return new Date(timeB) - new Date(timeA);
+      });
+      
+      for (const conv of sortedConvs) {
+        const otherUserId = conv.other_user?.id || conv.other_user_id;
+        if (!seenUsers.has(otherUserId)) {
+          seenUsers.add(otherUserId);
+          uniqueConvs.push(conv);
+        }
+      }
+      
+      setConversations(uniqueConvs);
+      return uniqueConvs;
     } catch { return []; } finally {
       setLoading(false);
     }

@@ -154,8 +154,53 @@ const uploadChatFile = async (req, res) => {
   }
 };
 
+/**
+ * Send message via REST API (for testing purposes)
+ * In production, messages should be sent via WebSocket for real-time delivery
+ */
+const sendMessage = async (req, res) => {
+  try {
+    const { conversationId } = req.params;
+    const { content, messageType = 'text', fileData } = req.body;
+    
+    if (!content?.trim() && !fileData) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Message content required' 
+      });
+    }
+    
+    const message = await chatService.saveMessage(
+      conversationId, 
+      req.user.userId, 
+      content?.trim(), 
+      messageType, 
+      fileData
+    );
+    
+    // Emit via socket if available (for real-time delivery)
+    if (req.app.get('io')) {
+      req.app.get('io').to(`conv:${conversationId}`).emit('message:new', message);
+    }
+    
+    logger.info('Message sent via REST', {
+      userId: req.user.userId,
+      conversationId,
+      messageId: message.id
+    });
+    
+    res.status(201).json({ 
+      success: true, 
+      message 
+    });
+  } catch (err) {
+    logger.error('sendMessage error', { error: err.message });
+    res.status(400).json({ success: false, error: err.message });
+  }
+};
+
 module.exports = {
   getOrCreateConversation, getConversations, getMessages,
   markAsRead, deleteMessage, archiveConversation, searchMessages, getUnreadCount,
-  uploadChatFile
+  uploadChatFile, sendMessage
 };

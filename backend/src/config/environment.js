@@ -131,6 +131,29 @@ const config = {
     passwordReset: 60 * 60 * 1000, // 1 hour
     refreshToken: 30 * 24 * 60 * 60 * 1000, // 30 days
   },
+
+  // Payment Gateway Configuration
+  payment: {
+    khalti: {
+      secretKey: process.env.KHALTI_SECRET_KEY || '',
+      baseUrl: process.env.KHALTI_BASE_URL || 'https://dev.khalti.com/api/v2',
+    },
+    esewa: {
+      merchantCode: process.env.ESEWA_MERCHANT_CODE || 'EPAYTEST',
+      secretKey: process.env.ESEWA_SECRET_KEY || '',
+      baseUrl: process.env.ESEWA_BASE_URL || 'https://rc-epay.esewa.com.np',
+    },
+    stripe: {
+      secretKey: process.env.STRIPE_SECRET_KEY || '',
+      publishableKey: process.env.STRIPE_PUBLISHABLE_KEY || '',
+      webhookSecret: process.env.STRIPE_WEBHOOK_SECRET || '',
+      successUrl: process.env.STRIPE_SUCCESS_URL || 'http://localhost:3000/payment/success',
+      cancelUrl: process.env.STRIPE_CANCEL_URL || 'http://localhost:3000/payment/cancel',
+      currency: process.env.STRIPE_CURRENCY || 'usd', // Stripe currency
+      nprToUsdRate: parseFloat(process.env.NPR_TO_USD_RATE) || 0.0075, // 1 NPR = 0.0075 USD (update regularly)
+    },
+    platformFeePercent: parseFloat(process.env.PLATFORM_FEE_PERCENT) || 10,
+  },
 };
 
 // Helper functions

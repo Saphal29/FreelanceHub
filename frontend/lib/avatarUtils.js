@@ -4,7 +4,8 @@
  * @returns {string|null} - Full URL to the avatar image or null if no path
  */
 export const getAvatarUrl = (avatarPath) => {
-  if (!avatarPath) return null;
+  // Check if avatarPath is a valid string
+  if (!avatarPath || typeof avatarPath !== 'string') return null;
   
   // If it's already a full URL, return as-is
   if (avatarPath.startsWith('http://') || avatarPath.startsWith('https://')) {

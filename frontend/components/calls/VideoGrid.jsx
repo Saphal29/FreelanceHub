@@ -14,56 +14,91 @@ import { useEffect, useRef } from "react";
 export function VideoGrid({ localStream, remoteStreams, isAudioMuted, isVideoOff }) {
   const remoteEntries = remoteStreams ? Array.from(remoteStreams.entries()) : [];
   const hasRemoteStreams = remoteEntries.length > 0;
+  const totalParticipants = (localStream ? 1 : 0) + remoteEntries.length;
 
   console.log("[VideoGrid] Render:", {
     hasLocalStream: !!localStream,
     localStreamTracks: localStream?.getTracks()?.map(t => `${t.kind}: ${t.readyState}`),
     hasRemoteStreams,
     remoteCount: remoteEntries.length,
+    totalParticipants,
     isVideoOff
   });
 
+  // If we have both local and remote streams, show them in a grid layout
+  if (localStream && hasRemoteStreams) {
+    const allStreams = [
+      { userId: 'local', stream: localStream, isLocal: true },
+      ...remoteEntries.map(([userId, stream]) => ({ userId, stream, isLocal: false }))
+    ];
+
+    return (
+      <div className="absolute inset-0 bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 overflow-hidden">
+        <div className="absolute inset-0 p-4 md:p-6">
+          <div
+            className={`grid w-full h-full gap-4 ${
+              allStreams.length === 2 
+                ? "grid-cols-1 md:grid-cols-2" 
+                : allStreams.length === 3
+                ? "grid-cols-2 grid-rows-2"
+                : "grid-cols-2 grid-rows-2"
+            }`}
+          >
+            {allStreams.map(({ userId, stream, isLocal }) => {
+              // Check if this stream has video tracks that are enabled
+              const videoTracks = stream?.getVideoTracks() || [];
+              const hasActiveVideo = videoTracks.some(track => track.enabled && track.readyState === 'live');
+              const shouldShowAvatar = isLocal ? isVideoOff : !hasActiveVideo;
+              
+              // Get user initials (first 2 letters of userId or "You")
+              const userLabel = isLocal ? "You" : `User ${userId.slice(0, 8)}`;
+              const userInitials = isLocal ? "YO" : userId.slice(0, 2).toUpperCase();
+
+              return (
+                <div key={userId} className="relative overflow-hidden bg-gradient-to-br from-gray-800 to-gray-900 rounded-2xl shadow-xl border border-white/10">
+                  {shouldShowAvatar ? (
+                    <AvatarPlaceholder label={userLabel} initials={userInitials} small={false} />
+                  ) : (
+                    <VideoElement stream={stream} muted={isLocal} mirror={isLocal} userId={userId} />
+                  )}
+                  {/* User label */}
+                  <div className="absolute bottom-3 left-3 bg-black/60 backdrop-blur-sm text-white text-sm px-3 py-1.5 rounded-lg">
+                    {isLocal ? `You ${isAudioMuted ? "🔇" : ""}` : userLabel}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Original behavior when only local or only remote
   return (
     <div className="absolute inset-0 bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 overflow-hidden">
       {/* ── Remote streams (or empty state) ── */}
       <RemoteArea remoteEntries={remoteEntries} />
 
       {/* ── Local video ── */}
-      {localStream && (
-        <>
-          {hasRemoteStreams ? (
-            // Picture-in-picture when others are connected
-            <div className="absolute bottom-6 right-6 w-48 h-36 md:w-64 md:h-48 rounded-2xl overflow-hidden shadow-2xl border-2 border-white/10 z-10 transition-all hover:scale-105 hover:border-white/30">
-              {!isVideoOff ? (
-                <VideoElement stream={localStream} muted mirror userId="local" />
-              ) : (
-                <AvatarPlaceholder label="You" small />
-              )}
-              {/* Local video label */}
-              <div className="absolute bottom-2 left-2 bg-black/60 backdrop-blur-sm text-white text-xs px-2 py-1 rounded-lg">
-                You {isAudioMuted && "🔇"}
+      {localStream && !hasRemoteStreams && (
+        // Centered card when alone
+        <div className="absolute inset-0 flex items-center justify-center p-4 md:p-8">
+          <div className="w-full max-w-4xl aspect-video bg-gradient-to-br from-gray-800 to-gray-900 rounded-3xl shadow-2xl overflow-hidden border border-white/10">
+            {!isVideoOff ? (
+              <VideoElement stream={localStream} muted mirror userId="local" />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center">
+                <AvatarPlaceholder label="You" small={false} />
               </div>
+            )}
+            {/* Status indicator */}
+            <div className="absolute top-4 left-4 flex items-center gap-2 bg-black/60 backdrop-blur-sm text-white text-sm px-3 py-2 rounded-xl">
+              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+              <span>Waiting for others...</span>
             </div>
-          ) : (
-            // Centered card when alone
-            <div className="absolute inset-0 flex items-center justify-center p-4 md:p-8">
-              <div className="w-full max-w-4xl aspect-video bg-gradient-to-br from-gray-800 to-gray-900 rounded-3xl shadow-2xl overflow-hidden border border-white/10">
-                {!isVideoOff ? (
-                  <VideoElement stream={localStream} muted mirror userId="local" />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center">
-                    <AvatarPlaceholder label="You" small={false} />
-                  </div>
-                )}
-                {/* Status indicator */}
-                <div className="absolute top-4 left-4 flex items-center gap-2 bg-black/60 backdrop-blur-sm text-white text-sm px-3 py-2 rounded-xl">
-                  <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                  <span>Waiting for others...</span>
-                </div>
-              </div>
-            </div>
-          )}
-        </>
+          </div>
+        </div>
       )}
     </div>
   );
@@ -84,10 +119,25 @@ function RemoteArea({ remoteEntries }) {
 
   if (remoteEntries.length === 1) {
     const [userId, stream] = remoteEntries[0];
+    
+    // Check if this stream has active video
+    const videoTracks = stream?.getVideoTracks() || [];
+    const hasActiveVideo = videoTracks.some(track => track.enabled && track.readyState === 'live');
+    const userLabel = `User ${userId.slice(0, 8)}`;
+    const userInitials = userId.slice(0, 2).toUpperCase();
+    
     return (
       <div className="absolute inset-0 flex items-center justify-center p-4 md:p-8">
         <div className="w-full max-w-5xl aspect-video bg-gradient-to-br from-gray-800 to-gray-900 rounded-3xl shadow-2xl overflow-hidden border border-white/10">
-          <VideoElement stream={stream} userId={userId} />
+          {hasActiveVideo ? (
+            <VideoElement stream={stream} userId={userId} />
+          ) : (
+            <AvatarPlaceholder label={userLabel} initials={userInitials} small={false} />
+          )}
+          {/* User label */}
+          <div className="absolute bottom-4 left-4 bg-black/60 backdrop-blur-sm text-white text-sm px-3 py-1.5 rounded-lg">
+            {userLabel}
+          </div>
         </div>
       </div>
     );
@@ -105,11 +155,27 @@ function RemoteArea({ remoteEntries }) {
             : "grid-cols-2 grid-rows-2"
         }`}
       >
-        {remoteEntries.map(([userId, stream]) => (
-          <div key={userId} className="relative overflow-hidden bg-gradient-to-br from-gray-800 to-gray-900 rounded-2xl shadow-xl border border-white/10">
-            <VideoElement stream={stream} userId={userId} />
-          </div>
-        ))}
+        {remoteEntries.map(([userId, stream]) => {
+          // Check if this stream has active video
+          const videoTracks = stream?.getVideoTracks() || [];
+          const hasActiveVideo = videoTracks.some(track => track.enabled && track.readyState === 'live');
+          const userLabel = `User ${userId.slice(0, 8)}`;
+          const userInitials = userId.slice(0, 2).toUpperCase();
+          
+          return (
+            <div key={userId} className="relative overflow-hidden bg-gradient-to-br from-gray-800 to-gray-900 rounded-2xl shadow-xl border border-white/10">
+              {hasActiveVideo ? (
+                <VideoElement stream={stream} userId={userId} />
+              ) : (
+                <AvatarPlaceholder label={userLabel} initials={userInitials} small={false} />
+              )}
+              {/* User label */}
+              <div className="absolute bottom-3 left-3 bg-black/60 backdrop-blur-sm text-white text-sm px-3 py-1.5 rounded-lg">
+                {userLabel}
+              </div>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
@@ -174,8 +240,10 @@ function VideoElement({ stream, muted = false, mirror = false, userId }) {
 
 // ─── Avatar placeholder ───────────────────────────────────────────────────────
 
-function AvatarPlaceholder({ label, small = false }) {
-  const initial = label ? label.charAt(0).toUpperCase() : "?";
+function AvatarPlaceholder({ label, initials, small = false }) {
+  // Use provided initials or extract from label
+  const displayInitials = initials || (label ? label.slice(0, 2).toUpperCase() : "??");
+  
   return (
     <div className="flex items-center justify-center w-full h-full bg-gradient-to-br from-gray-700 to-gray-800">
       <div className="flex flex-col items-center gap-3">
@@ -184,7 +252,7 @@ function AvatarPlaceholder({ label, small = false }) {
             small ? "h-12 w-12 text-lg" : "h-24 w-24 text-4xl"
           }`}
         >
-          {initial}
+          {displayInitials}
         </div>
         {!small && (
           <p className="text-white/70 text-sm font-medium">{label}</p>

@@ -227,12 +227,17 @@ const signContract = async (contractId, userId) => {
     const result = await query(updateQuery, params);
     const updatedContract = result.rows[0];
     
+    // Check if both parties have now signed
     if (updatedContract.signed_by_client && updatedContract.signed_by_freelancer) {
-      await query(
-        'UPDATE contracts SET status = $1, started_at = CURRENT_TIMESTAMP WHERE id = $2',
+      // Update status to active
+      const activateResult = await query(
+        'UPDATE contracts SET status = $1, started_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING *',
         ['active', contractId]
       );
       logger.info('Contract fully signed and activated', { contractId });
+      
+      // Return the updated contract with active status
+      return formatContractResponse(activateResult.rows[0]);
     }
     
     logger.info('Contract signed successfully', { contractId, userId, isClient });

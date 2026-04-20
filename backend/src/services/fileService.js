@@ -22,7 +22,20 @@ const ALLOWED_MIME_TYPES = {
   profile_avatar: ['image/jpeg', 'image/png', 'image/webp', 'image/gif'],
   profile_document: ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
   project_attachment: ['image/jpeg', 'image/png', 'image/webp', 'application/pdf', 'application/zip', 'application/x-zip-compressed'],
-  milestone_attachment: ['image/jpeg', 'image/png', 'image/webp', 'application/pdf', 'application/zip', 'application/x-zip-compressed', 'video/mp4', 'video/quicktime'],
+  milestone_attachment: [
+    'image/jpeg', 'image/png', 'image/webp', 'image/gif', // Images
+    'application/pdf', // PDF
+    'application/msword', // .doc
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // .docx
+    'application/vnd.ms-excel', // .xls
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // .xlsx
+    'application/vnd.ms-powerpoint', // .ppt
+    'application/vnd.openxmlformats-officedocument.presentationml.presentation', // .pptx
+    'application/zip', 'application/x-zip-compressed', // ZIP files
+    'application/x-rar-compressed', // RAR files
+    'video/mp4', 'video/quicktime', 'video/x-msvideo', // Videos
+    'text/plain', 'text/csv' // Text files
+  ],
   proposal_attachment: [
     'image/jpeg', 'image/png', 'image/webp', 'image/gif', // Images for portfolio
     'application/pdf', // PDF documents

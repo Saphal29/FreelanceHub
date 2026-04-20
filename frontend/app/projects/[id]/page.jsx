@@ -13,7 +13,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { getProjectById, getUserRatingStats, getReceivedReviews } from "@/lib/api";
 import { 
   Clock,
-  DollarSign,
+  Banknote,
   MapPin,
   Briefcase,
   AlertCircle,
@@ -26,6 +26,7 @@ import {
   Award,
   FileText
 } from "lucide-react";
+import { formatCurrency } from "@/lib/currency";
 
 export default function ProjectDetailPage() {
   const router = useRouter();
@@ -281,7 +282,7 @@ export default function ProjectDetailPage() {
                           )}
                           <div className="flex items-center gap-4 mt-2 text-sm">
                             <span className="text-accent font-semibold">
-                              ${milestone.amount.toLocaleString()}
+                              {formatCurrency(milestone.amount)}
                             </span>
                             {milestone.dueDate && (
                               <span className="text-muted-foreground">
@@ -308,9 +309,9 @@ export default function ProjectDetailPage() {
                     <div>
                       <p className="text-sm text-muted-foreground mb-1">Budget</p>
                       <div className="flex items-center gap-2">
-                        <DollarSign className="h-5 w-5 text-accent" />
+                        <Banknote className="h-5 w-5 text-accent" />
                         <p className="font-semibold text-foreground">
-                          ${project.budget.min.toLocaleString()} - ${project.budget.max.toLocaleString()}
+                          {formatCurrency(project.budget.min)} - {formatCurrency(project.budget.max)}
                         </p>
                       </div>
                       <p className="text-xs text-muted-foreground mt-1">

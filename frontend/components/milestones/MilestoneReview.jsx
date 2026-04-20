@@ -128,6 +128,54 @@ export default function MilestoneReview({ milestone, onReviewComplete }) {
               </div>
             )}
 
+            {/* Deliverable Files */}
+            {selectedSubmission.deliverableFiles && selectedSubmission.deliverableFiles.length > 0 && (
+              <div>
+                <p className="text-sm text-gray-500 mb-2">Deliverable Files</p>
+                <div className="space-y-2">
+                  {selectedSubmission.deliverableFiles.map((file) => {
+                    const fileUrl = file.file_url || `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/files/${file.id}/download`;
+                    const fileSizeKB = (file.file_size / 1024).toFixed(2);
+                    const fileSizeMB = (file.file_size / (1024 * 1024)).toFixed(2);
+                    const displaySize = file.file_size > 1024 * 1024 ? `${fileSizeMB} MB` : `${fileSizeKB} KB`;
+                    
+                    // Get file icon based on mime type
+                    const getFileIcon = (mimeType) => {
+                      if (mimeType.startsWith('image/')) return '🖼️';
+                      if (mimeType.startsWith('video/')) return '🎥';
+                      if (mimeType.includes('pdf')) return '📄';
+                      if (mimeType.includes('word') || mimeType.includes('document')) return '📝';
+                      if (mimeType.includes('sheet') || mimeType.includes('excel')) return '📊';
+                      if (mimeType.includes('presentation') || mimeType.includes('powerpoint')) return '📽️';
+                      if (mimeType.includes('zip') || mimeType.includes('rar') || mimeType.includes('compressed')) return '📦';
+                      return '📎';
+                    };
+
+                    return (
+                      <div key={file.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200">
+                        <div className="flex items-center gap-3 flex-1 min-w-0">
+                          <span className="text-2xl">{getFileIcon(file.mime_type)}</span>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium text-gray-900 truncate">{file.original_name}</p>
+                            <p className="text-xs text-gray-500">
+                              {displaySize} • {new Date(file.created_at).toLocaleDateString()}
+                            </p>
+                          </div>
+                        </div>
+                        <a
+                          href={fileUrl}
+                          download
+                          className="ml-3 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium whitespace-nowrap"
+                        >
+                          Download
+                        </a>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
             {/* Time Tracking Summary */}
             <div className="bg-gray-50 rounded-lg p-4">
               <h4 className="font-medium mb-2">Time Tracking Summary</h4>

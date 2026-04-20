@@ -159,7 +159,7 @@ const resendOTP = async (req, res) => {
  * @param {Object} req - Express request object
  * @param {Object} res - Express response object
  */
-const register = async (req, res) => {
+const   register = async (req, res) => {
   try {
     const { email, password, confirmPassword, fullName, role, phone } = req.body;
 

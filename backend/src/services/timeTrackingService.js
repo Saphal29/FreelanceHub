@@ -4,7 +4,7 @@ const logger = require('../utils/logger');
 /**
  * Start a timer for a project
  */
-const startTimer = async (userId, { contractId, projectId, description, hourlyRate }) => {
+const startTimer = async (userId, { contractId, description, hourlyRate }) => {
   try {
     // Verify contract and get details
     const contractResult = await query(
@@ -19,6 +19,9 @@ const startTimer = async (userId, { contractId, projectId, description, hourlyRa
       throw new Error('Contract not found or not active');
     }
 
+    const contract = contractResult.rows[0];
+    const projectId = contract.project_id;
+
     // Check for existing active timer
     const activeTimer = await query(
       'SELECT id FROM time_entries WHERE freelancer_id = $1 AND end_time IS NULL AND is_manual = FALSE',
@@ -29,14 +32,14 @@ const startTimer = async (userId, { contractId, projectId, description, hourlyRa
       throw new Error('You already have an active timer running');
     }
 
-    // Create time entry
+    // Create time entry - hourly rate is optional
     const result = await query(
       `INSERT INTO time_entries (
         contract_id, freelancer_id, project_id,
         description, start_time, hourly_rate, is_manual
       ) VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP, $5, FALSE)
       RETURNING *`,
-      [contractId, userId, projectId, description || '', hourlyRate]
+      [contractId, userId, projectId, description || '', hourlyRate || null]
     );
 
     logger.info('Timer started', { timeEntryId: result.rows[0].id, userId });
@@ -93,11 +96,11 @@ const getActiveTimer = async (userId) => {
  */
 const createManualEntry = async (userId, entryData) => {
   try {
-    const { contractId, projectId, description, startTime, endTime, hourlyRate, isBillable } = entryData;
+    const { contractId, description, startTime, endTime, hourlyRate, isBillable } = entryData;
 
-    // Verify contract
+    // Verify contract and get project_id
     const contractResult = await query(
-      'SELECT id FROM contracts WHERE id = $1 AND freelancer_id = $2',
+      'SELECT c.id, c.project_id FROM contracts c WHERE c.id = $1 AND c.freelancer_id = $2',
       [contractId, userId]
     );
 
@@ -105,13 +108,16 @@ const createManualEntry = async (userId, entryData) => {
       throw new Error('Contract not found');
     }
 
+    const contract = contractResult.rows[0];
+    const projectId = contract.project_id;
+
     const result = await query(
       `INSERT INTO time_entries (
         contract_id, freelancer_id, project_id,
         description, start_time, end_time, hourly_rate, is_billable, is_manual
       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, TRUE)
       RETURNING *`,
-      [contractId, userId, projectId, description, startTime, endTime, hourlyRate, isBillable !== false]
+      [contractId, userId, projectId, description, startTime, endTime, hourlyRate || null, isBillable !== false]
     );
 
     logger.info('Manual time entry created', { timeEntryId: result.rows[0].id });
@@ -223,7 +229,7 @@ const getContractTimeEntries = async (userId, contractId, filters = {}) => {
   const result = await query(queryText, params);
   return result.rows.map(formatTimeEntry);
 };
-
+  
 /**
  * Submit time entries for approval
  */

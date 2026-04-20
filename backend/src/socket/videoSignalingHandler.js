@@ -1,54 +1,80 @@
 const jwt = require('jsonwebtoken');
-const callService = require('../services/callService');
 const roomService = require('../services/roomService');
 const { query } = require('../utils/dbQueries');
 const logger = require('../utils/logger');
-
-// In-memory rate limiting: userId -> { count, resetAt }
-const callRateLimits = new Map();
 
 // In-memory active call rooms: roomId -> Set<userId>
 const activeCallRooms = new Map();
 
 /**
- * Check and increment rate limit for call:initiate
- * Max 10 per 60s per user
+ * Get user's full name from users table
  */
-const checkCallRateLimit = (userId) => {
-  const now = Date.now();
-  const limit = callRateLimits.get(userId);
-
-  if (!limit || now > limit.resetAt) {
-    callRateLimits.set(userId, { count: 1, resetAt: now + 60_000 });
-    return true;
-  }
-
-  if (limit.count >= 10) return false;
-
-  limit.count += 1;
-  return true;
-};
-
-/**
- * Get caller's full name from users table
- */
-const getCallerName = async (userId) => {
+const getUserName = async (userId) => {
   const result = await query('SELECT full_name FROM users WHERE id = $1', [userId]);
   return result.rows[0]?.full_name || 'Unknown';
 };
 
 /**
- * Check if a user socket is connected to the /video namespace
+ * Get TURN server configuration
+ * @returns {Object} ICE servers configuration including TURN servers
  */
-const isUserConnected = (videoNs, userId) => {
-  const room = videoNs.adapter.rooms.get(`user:${userId}`);
-  return room && room.size > 0;
+const getIceServers = () => {
+  const iceServers = [
+    // Public STUN servers
+    { urls: 'stun:stun.l.google.com:19302' },
+    { urls: 'stun:stun1.l.google.com:19302' },
+  ];
+
+  // Add TURN server if configured
+  if (process.env.TURN_SERVER_URL && process.env.TURN_SERVER_USERNAME) {
+    const turnConfig = {
+      urls: process.env.TURN_SERVER_URL,
+      username: process.env.TURN_SERVER_USERNAME,
+      credential: process.env.TURN_SERVER_CREDENTIAL || process.env.TURN_SERVER_USERNAME
+    };
+    
+    iceServers.push(turnConfig);
+    
+    // For Metered, add additional TURN servers for redundancy
+    if (process.env.TURN_SERVER_URL.includes('metered.live') || process.env.TURN_SERVER_URL.includes('metered.ca')) {
+      // Extract the domain from the configured URL
+      const domain = process.env.TURN_SERVER_URL.match(/turn:([^:]+)/)?.[1] || 'a.relay.metered.ca';
+      
+      const meteredServers = [
+        `turn:${domain}:80`,
+        `turn:${domain}:80?transport=tcp`,
+        `turn:${domain}:443`,
+        `turn:${domain}:443?transport=tcp`,
+        `turns:${domain}:443`,
+        `turns:${domain}:443?transport=tcp`
+      ];
+      
+      meteredServers.forEach(url => {
+        if (url !== process.env.TURN_SERVER_URL) {
+          iceServers.push({
+            urls: url,
+            username: process.env.TURN_SERVER_USERNAME,
+            credential: process.env.TURN_SERVER_CREDENTIAL || process.env.TURN_SERVER_USERNAME
+          });
+        }
+      });
+    }
+    
+    logger.info('TURN server configured', { 
+      url: process.env.TURN_SERVER_URL,
+      totalServers: iceServers.length 
+    });
+  } else {
+    logger.info('Using STUN servers only (no TURN configured)');
+  }
+
+  return { iceServers };
 };
 
 const initVideoSignaling = (io) => {
   const videoNs = io.of('/video');
 
-  // JWT auth middleware — same pattern as socketHandler.js
+  // JWT auth middleware
   videoNs.use((socket, next) => {
     const token = socket.handshake.auth?.token;
     if (!token) return next(new Error('Authentication required'));
@@ -70,156 +96,8 @@ const initVideoSignaling = (io) => {
     // Join personal room for direct targeting
     socket.join(`user:${userId}`);
 
-    // ─── CALL:INITIATE ────────────────────────────────────────────────
-    socket.on('call:initiate', async ({ calleeId, callType = 'video' }) => {
-      try {
-        if (!checkCallRateLimit(userId)) {
-          return socket.emit('call:error', { message: 'Rate limit exceeded. Try again later.' });
-        }
-
-        const call = await callService.initiateCall(userId, calleeId, callType);
-        const callerName = await getCallerName(userId);
-
-        if (!isUserConnected(videoNs, calleeId)) {
-          // Callee offline — mark missed and notify caller
-          await query(
-            `UPDATE calls SET status = 'missed', updated_at = NOW() WHERE call_id = $1`,
-            [call.callId]
-          );
-          return socket.emit('call:unavailable', { callId: call.callId, calleeId });
-        }
-
-        videoNs.to(`user:${calleeId}`).emit('call:incoming', {
-          callId: call.callId,
-          callerId: userId,
-          callerName,
-          roomId: null,
-          callType,
-        });
-      } catch (err) {
-        logger.error('call:initiate error', { error: err.message, userId });
-        socket.emit('call:error', { message: err.message });
-      }
-    });
-
-    // ─── CALL:ACCEPT ──────────────────────────────────────────────────
-    socket.on('call:accept', async ({ callId }) => {
-      try {
-        const call = await callService.acceptCall(callId, userId);
-        videoNs.to(`user:${call.callerId}`).emit('call:accepted', { callId });
-      } catch (err) {
-        logger.error('call:accept error', { error: err.message, userId });
-        socket.emit('call:error', { message: err.message });
-      }
-    });
-
-    // ─── CALL:REJECT ──────────────────────────────────────────────────
-    socket.on('call:reject', async ({ callId }) => {
-      try {
-        const call = await callService.rejectCall(callId, userId);
-        videoNs.to(`user:${call.callerId}`).emit('call:rejected', { callId });
-      } catch (err) {
-        logger.error('call:reject error', { error: err.message, userId });
-        socket.emit('call:error', { message: err.message });
-      }
-    });
-
-    // ─── CALL:CANCEL ──────────────────────────────────────────────────
-    socket.on('call:cancel', async ({ callId }) => {
-      try {
-        const callResult = await query(
-          `UPDATE calls SET status = 'cancelled', updated_at = NOW()
-           WHERE call_id = $1 AND caller_id = $2 RETURNING *`,
-          [callId, userId]
-        );
-        if (callResult.rows.length === 0) return;
-        const calleeId = callResult.rows[0].receiver_id;
-        videoNs.to(`user:${calleeId}`).emit('call:cancelled', { callId });
-      } catch (err) {
-        logger.error('call:cancel error', { error: err.message, userId });
-        socket.emit('call:error', { message: err.message });
-      }
-    });
-
-    // ─── CALL:OFFER ───────────────────────────────────────────────────
-    socket.on('call:offer', async ({ callId, sdp }) => {
-      try {
-        const call = await callService.getCall(callId);
-        if (call.callerId !== userId && call.receiverId !== userId) return;
-        const targetId = call.callerId === userId ? call.receiverId : call.callerId;
-        videoNs.to(`user:${targetId}`).emit('call:offer', { callId, sdp });
-      } catch (err) {
-        logger.error('call:offer error', { error: err.message, userId });
-      }
-    });
-
-    // ─── CALL:ANSWER ──────────────────────────────────────────────────
-    socket.on('call:answer', async ({ callId, sdp }) => {
-      try {
-        const call = await callService.getCall(callId);
-        if (call.callerId !== userId && call.receiverId !== userId) return;
-        const targetId = call.callerId === userId ? call.receiverId : call.callerId;
-        videoNs.to(`user:${targetId}`).emit('call:answer', { callId, sdp });
-        await callService.setCallConnected(callId);
-      } catch (err) {
-        logger.error('call:answer error', { error: err.message, userId });
-      }
-    });
-
-    // ─── CALL:ICE-CANDIDATE ───────────────────────────────────────────
-    socket.on('call:ice-candidate', async ({ callId, candidate }) => {
-      try {
-        const call = await callService.getCall(callId);
-        if (call.callerId !== userId && call.receiverId !== userId) return;
-        const targetId = call.callerId === userId ? call.receiverId : call.callerId;
-        videoNs.to(`user:${targetId}`).emit('call:ice-candidate', { callId, candidate });
-      } catch (err) {
-        logger.error('call:ice-candidate error', { error: err.message, userId });
-      }
-    });
-
-    // ─── CALL:END ─────────────────────────────────────────────────────
-    socket.on('call:end', async ({ callId }) => {
-      try {
-        const callBefore = await callService.getCall(callId);
-        const call = await callService.endCall(callId, userId);
-        await callService.logCallEvent(callId, userId, 'ended');
-
-        videoNs.to(`user:${callBefore.callerId}`).emit('call:ended', { callId });
-        videoNs.to(`user:${callBefore.receiverId}`).emit('call:ended', { callId });
-      } catch (err) {
-        logger.error('call:end error', { error: err.message, userId });
-        socket.emit('call:error', { message: err.message });
-      }
-    });
-
-    // ─── MEDIA CONTROLS ───────────────────────────────────────────────
-    const relayMediaEvent = async (eventName, callId, payload) => {
-      try {
-        const call = await callService.getCall(callId);
-        if (call.callerId !== userId && call.receiverId !== userId) return;
-        const targetId = call.callerId === userId ? call.receiverId : call.callerId;
-        videoNs.to(`user:${targetId}`).emit(eventName, { callId, ...payload });
-      } catch (err) {
-        logger.error(`${eventName} relay error`, { error: err.message, userId });
-      }
-    };
-
-    socket.on('media:toggle-audio', ({ callId, muted }) => {
-      relayMediaEvent('media:toggle-audio', callId, { muted });
-    });
-
-    socket.on('media:toggle-video', ({ callId, videoOff }) => {
-      relayMediaEvent('media:toggle-video', callId, { videoOff });
-    });
-
-    socket.on('media:screen-share-started', ({ callId }) => {
-      relayMediaEvent('media:screen-share-started', callId, {});
-    });
-
-    socket.on('media:screen-share-stopped', ({ callId }) => {
-      relayMediaEvent('media:screen-share-stopped', callId, {});
-    });
+    // Send ICE server configuration to client
+    socket.emit('ice:config', getIceServers());
 
     // ─── ROOM:JOIN ────────────────────────────────────────────────────
     socket.on('room:join', async ({ roomId }) => {
@@ -232,12 +110,17 @@ const initVideoSignaling = (io) => {
         if (!activeCallRooms.has(roomId)) activeCallRooms.set(roomId, new Set());
         activeCallRooms.get(roomId).add(userId);
 
+        // Send ICE server configuration
+        socket.emit('ice:config', getIceServers());
+
         // Send current participants to the joining user (excluding themselves)
         const others = participants.filter(p => p.userId !== userId);
         socket.emit('room:participants', { participants: others });
 
         // Notify others in the room
         socket.to(`room:${roomId}`).emit('room:user-joined', { userId });
+        
+        logger.info('User joined room', { userId, roomId, participantCount: participants.length });
       } catch (err) {
         logger.error('room:join error', { error: err.message, userId });
         socket.emit('call:error', { message: err.message });

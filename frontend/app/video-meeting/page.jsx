@@ -1,100 +1,72 @@
 "use client";
 
-import { useState } from "react";
-import { usePathname } from "next/navigation";
+import { useState, useEffect } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { useAuth } from "@/contexts/AuthContext";
 import Navbar from "@/components/layout/Navbar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Video,
-  VideoOff,
-  Mic,
-  MicOff,
-  Monitor,
-  MonitorOff,
-  PhoneOff,
-  Settings,
-  Users,
-  MessageSquare,
-  MoreVertical,
-  Copy,
   Calendar,
   Clock,
-  User,
+  Users,
+  Copy,
+  MoreVertical,
 } from "lucide-react";
-
-// Dummy upcoming meetings
-const upcomingMeetings = [
-  {
-    id: 1,
-    title: "Project Kickoff Meeting",
-    participant: "Sarah Chen",
-    avatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&h=100&fit=crop",
-    date: "Today",
-    time: "2:00 PM",
-    duration: "30 min",
-  },
-  {
-    id: 2,
-    title: "Design Review",
-    participant: "Alex Morgan",
-    avatar: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop",
-    date: "Tomorrow",
-    time: "10:00 AM",
-    duration: "1 hour",
-  },
-  {
-    id: 3,
-    title: "Weekly Sync",
-    participant: "Emma Davis",
-    avatar: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100&h=100&fit=crop",
-    date: "Dec 15",
-    time: "3:30 PM",
-    duration: "45 min",
-  },
-];
-
-// Dummy recent meetings
-const recentMeetings = [
-  {
-    id: 1,
-    title: "Client Consultation",
-    participant: "Mike Johnson",
-    avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop",
-    date: "Yesterday",
-    duration: "45 min",
-  },
-  {
-    id: 2,
-    title: "Code Review Session",
-    participant: "Lisa Zhang",
-    avatar: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=100&h=100&fit=crop",
-    date: "Dec 10",
-    duration: "1 hour",
-  },
-];
+import { getAvatarUrl, getInitials, getAvatarColor } from "@/lib/avatarUtils";
+import api from "@/lib/api";
 
 export default function VideoMeetingPage() {
-  const [isInMeeting, setIsInMeeting] = useState(false);
-  const [isCameraOn, setIsCameraOn] = useState(true);
-  const [isMicOn, setIsMicOn] = useState(true);
-  const [isScreenSharing, setIsScreenSharing] = useState(false);
+  const { user } = useAuth();
   const [meetingLink, setMeetingLink] = useState("");
+  const [meetingCodeInput, setMeetingCodeInput] = useState("");
+  const [upcomingMeetings, setUpcomingMeetings] = useState([]);
+  const [recentMeetings, setRecentMeetings] = useState([]);
+  const [loading, setLoading] = useState(true);
   const pathname = usePathname();
+  const router = useRouter();
   
-  // Determine user type based on referrer or default to client
-  const isFreelancer = typeof window !== 'undefined' && 
-    (document.referrer.includes('/freelancer') || 
-     document.referrer.includes('/projects') || 
-     document.referrer.includes('/time-tracking') ||
-     sessionStorage.getItem('userType') === 'freelancer');
-  
+  const isFreelancer = user?.role === 'FREELANCER';
   const userType = isFreelancer ? 'freelancer' : 'client';
 
+  useEffect(() => {
+    if (user) {
+      fetchMeetings();
+    }
+  }, [user]);
+
+  const fetchMeetings = async () => {
+    try {
+      setLoading(true);
+      
+      // Fetch scheduled meetings
+      const scheduledRes = await api.get('/calls/scheduled');
+      if (scheduledRes.data.success) {
+        setUpcomingMeetings(scheduledRes.data.meetings || []);
+      }
+
+      // Fetch call history
+      const historyRes = await api.get('/calls/history');
+      if (historyRes.data.success) {
+        // Filter only completed calls
+        const completed = (historyRes.data.calls || [])
+          .filter(call => call.status === 'ended' || call.status === 'connected')
+          .slice(0, 5); // Show only last 5
+        setRecentMeetings(completed);
+      }
+    } catch (error) {
+      console.error('Error fetching meetings:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const generateMeetingLink = () => {
-    const randomId = Math.random().toString(36).substring(2, 15);
-    const link = `https://freelancehub.com/meet/${randomId}`;
+    const randomId = crypto.randomUUID();
+    const link = `${window.location.origin}/calls/join/${randomId}`;
     setMeetingLink(link);
   };
 
@@ -105,152 +77,39 @@ export default function VideoMeetingPage() {
   };
 
   const startMeeting = () => {
-    setIsInMeeting(true);
+    // Generate a new meeting ID and redirect to the meeting room
+    const randomId = crypto.randomUUID();
+    router.push(`/calls/join/${randomId}`);
   };
 
-  const endMeeting = () => {
-    setIsInMeeting(false);
-    setIsCameraOn(true);
-    setIsMicOn(true);
-    setIsScreenSharing(false);
+  const joinMeeting = () => {
+    if (!meetingCodeInput.trim()) {
+      alert("Please enter a meeting code or link");
+      return;
+    }
+
+    // Extract meeting ID from link or use code directly
+    let meetingId = meetingCodeInput.trim();
+    
+    // If it's a full URL, extract the meeting ID
+    if (meetingCodeInput.includes('/calls/join/')) {
+      const parts = meetingCodeInput.split('/calls/join/');
+      meetingId = parts[parts.length - 1];
+    } else if (meetingCodeInput.includes('/meet/')) {
+      // Support old format
+      const parts = meetingCodeInput.split('/meet/');
+      meetingId = parts[parts.length - 1];
+    }
+
+    // Validate meeting ID format (basic validation)
+    if (meetingId.length < 5) {
+      alert("Invalid meeting code or link");
+      return;
+    }
+
+    // Redirect to the meeting room
+    router.push(`/calls/join/${meetingId}`);
   };
-
-  if (isInMeeting) {
-    return (
-      <div className="min-h-screen bg-black">
-        {/* Meeting Room */}
-        <div className="relative h-screen">
-          {/* Main Video Area */}
-          <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-gray-900 to-black">
-            {isCameraOn ? (
-              <div className="relative h-full w-full">
-                {/* Placeholder for video stream */}
-                <div className="flex h-full w-full items-center justify-center">
-                  <div className="text-center">
-                    <div className="mx-auto mb-4 flex h-32 w-32 items-center justify-center rounded-full bg-accent">
-                      <User className="h-16 w-16 text-accent-foreground" />
-                    </div>
-                    <p className="text-xl font-semibold text-white">You</p>
-                    <p className="text-sm text-gray-400">Camera is on</p>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="text-center">
-                <div className="mx-auto mb-4 flex h-32 w-32 items-center justify-center rounded-full bg-gray-800">
-                  <VideoOff className="h-16 w-16 text-gray-400" />
-                </div>
-                <p className="text-xl font-semibold text-white">Camera is off</p>
-              </div>
-            )}
-
-            {/* Participant Thumbnails */}
-            <div className="absolute right-4 top-4 space-y-2">
-              <div className="relative h-32 w-24 overflow-hidden rounded-xl border-2 border-accent bg-gray-800">
-                <img
-                  src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&h=100&fit=crop"
-                  alt="Participant"
-                  className="h-full w-full object-cover"
-                />
-                <div className="absolute bottom-2 left-2 rounded bg-black/70 px-2 py-1 text-xs text-white">
-                  Sarah
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Meeting Controls */}
-          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black via-black/95 to-transparent p-6">
-            <div className="mx-auto flex max-w-2xl items-center justify-center gap-4">
-              {/* Camera Toggle */}
-              <button
-                onClick={() => setIsCameraOn(!isCameraOn)}
-                className={`flex h-14 w-14 items-center justify-center rounded-full transition-colors ${
-                  isCameraOn
-                    ? "bg-gray-700 text-white hover:bg-gray-600"
-                    : "bg-red-600 text-white hover:bg-red-700"
-                }`}
-              >
-                {isCameraOn ? (
-                  <Video className="h-6 w-6" />
-                ) : (
-                  <VideoOff className="h-6 w-6" />
-                )}
-              </button>
-
-              {/* Mic Toggle */}
-              <button
-                onClick={() => setIsMicOn(!isMicOn)}
-                className={`flex h-14 w-14 items-center justify-center rounded-full transition-colors ${
-                  isMicOn
-                    ? "bg-gray-700 text-white hover:bg-gray-600"
-                    : "bg-red-600 text-white hover:bg-red-700"
-                }`}
-              >
-                {isMicOn ? (
-                  <Mic className="h-6 w-6" />
-                ) : (
-                  <MicOff className="h-6 w-6" />
-                )}
-              </button>
-
-              {/* Screen Share Toggle */}
-              <button
-                onClick={() => setIsScreenSharing(!isScreenSharing)}
-                className={`flex h-14 w-14 items-center justify-center rounded-full transition-colors ${
-                  isScreenSharing
-                    ? "bg-amber-500 text-black hover:bg-amber-600"
-                    : "bg-gray-700 text-white hover:bg-gray-600"
-                }`}
-              >
-                {isScreenSharing ? (
-                  <MonitorOff className="h-6 w-6" />
-                ) : (
-                  <Monitor className="h-6 w-6" />
-                )}
-              </button>
-
-              {/* Chat */}
-              <button
-                className="flex h-14 w-14 items-center justify-center rounded-full bg-gray-700 text-white transition-colors hover:bg-gray-600"
-              >
-                <MessageSquare className="h-6 w-6" />
-              </button>
-
-              {/* Participants */}
-              <button
-                className="flex h-14 w-14 items-center justify-center rounded-full bg-gray-700 text-white transition-colors hover:bg-gray-600"
-              >
-                <Users className="h-6 w-6" />
-              </button>
-
-              {/* Settings */}
-              <button
-                className="flex h-14 w-14 items-center justify-center rounded-full bg-gray-700 text-white transition-colors hover:bg-gray-600"
-              >
-                <Settings className="h-6 w-6" />
-              </button>
-
-              {/* End Call */}
-              <button
-                onClick={endMeeting}
-                className="flex h-14 w-14 items-center justify-center rounded-full bg-red-600 text-white transition-colors hover:bg-red-700"
-              >
-                <PhoneOff className="h-6 w-6" />
-              </button>
-            </div>
-
-            {/* Meeting Info */}
-            <div className="mt-4 text-center">
-              <p className="text-sm text-gray-400">
-                Meeting with Sarah Chen • 00:15:32
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -349,8 +208,15 @@ export default function VideoMeetingPage() {
                   <Input
                     placeholder="Enter meeting code or link..."
                     className="flex-1 border-border bg-card"
+                    value={meetingCodeInput}
+                    onChange={(e) => setMeetingCodeInput(e.target.value)}
+                    onKeyPress={(e) => {
+                      if (e.key === 'Enter') {
+                        joinMeeting();
+                      }
+                    }}
                   />
-                  <Button variant="accent">Join</Button>
+                  <Button variant="accent" onClick={joinMeeting}>Join</Button>
                 </div>
               </CardContent>
             </Card>
@@ -364,33 +230,70 @@ export default function VideoMeetingPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="space-y-3">
-                  {recentMeetings.map((meeting) => (
-                    <div
-                      key={meeting.id}
-                      className="flex items-center justify-between rounded-xl border border-border bg-secondary p-4 transition-colors hover:bg-secondary/80"
-                    >
-                      <div className="flex items-center gap-3">
-                        <img
-                          src={meeting.avatar}
-                          alt={meeting.participant}
-                          className="h-10 w-10 rounded-full object-cover"
-                        />
-                        <div>
-                          <h4 className="font-semibold text-foreground">
-                            {meeting.title}
-                          </h4>
-                          <p className="text-sm text-muted-foreground">
-                            {meeting.participant} • {meeting.date} • {meeting.duration}
-                          </p>
+                {loading ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    Loading meetings...
+                  </div>
+                ) : recentMeetings.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    No recent meetings
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {recentMeetings.map((call) => {
+                      // Determine the other participant
+                      const otherUserId = call.callerId === user?.id ? call.receiverId : call.callerId;
+                      const isOutgoing = call.callerId === user?.id;
+                      
+                      // Format date and duration
+                      const callDate = new Date(call.createdAt);
+                      const dateStr = callDate.toLocaleDateString('en-US', { 
+                        month: 'short', 
+                        day: 'numeric',
+                        year: callDate.getFullYear() !== new Date().getFullYear() ? 'numeric' : undefined
+                      });
+                      const timeStr = callDate.toLocaleTimeString('en-US', { 
+                        hour: 'numeric', 
+                        minute: '2-digit',
+                        hour12: true 
+                      });
+                      
+                      // Format duration
+                      const durationMins = call.duration ? Math.floor(call.duration / 60) : 0;
+                      const durationSecs = call.duration ? call.duration % 60 : 0;
+                      const durationStr = durationMins > 0 
+                        ? `${durationMins}m ${durationSecs}s` 
+                        : `${durationSecs}s`;
+
+                      return (
+                        <div
+                          key={call.callId}
+                          className="flex items-center justify-between rounded-xl border border-border bg-secondary p-4 transition-colors hover:bg-secondary/80"
+                        >
+                          <div className="flex items-center gap-3">
+                            <Avatar className="h-10 w-10">
+                              <AvatarImage src={getAvatarUrl(null)} alt="User" />
+                              <AvatarFallback className={getAvatarColor(otherUserId)}>
+                                {getInitials('User')}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div>
+                              <h4 className="font-semibold text-foreground">
+                                {isOutgoing ? 'Outgoing' : 'Incoming'} {call.callType === 'video' ? 'Video' : 'Audio'} Call
+                              </h4>
+                              <p className="text-sm text-muted-foreground">
+                                {dateStr} at {timeStr} • {durationStr}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="text-xs text-muted-foreground capitalize">
+                            {call.status}
+                          </div>
                         </div>
-                      </div>
-                      <Button variant="ghost" size="icon">
-                        <MoreVertical className="h-5 w-5" />
-                      </Button>
-                    </div>
-                  ))}
-                </div>
+                      );
+                    })}
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>
@@ -405,49 +308,90 @@ export default function VideoMeetingPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="space-y-3">
-                  {upcomingMeetings.map((meeting) => (
-                    <div
-                      key={meeting.id}
-                      className="rounded-xl border border-border bg-secondary p-4"
-                    >
-                      <div className="mb-3 flex items-start justify-between">
-                        <div>
-                          <h4 className="font-semibold text-foreground">
-                            {meeting.title}
-                          </h4>
-                          <p className="text-sm text-muted-foreground">
-                            with {meeting.participant}
-                          </p>
+                {loading ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    Loading meetings...
+                  </div>
+                ) : upcomingMeetings.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    No upcoming meetings
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {upcomingMeetings.map((meeting) => {
+                      // Format scheduled date and time
+                      const scheduledDate = new Date(meeting.scheduledAt);
+                      const dateStr = scheduledDate.toLocaleDateString('en-US', { 
+                        month: 'short', 
+                        day: 'numeric',
+                        year: scheduledDate.getFullYear() !== new Date().getFullYear() ? 'numeric' : undefined
+                      });
+                      const timeStr = scheduledDate.toLocaleTimeString('en-US', { 
+                        hour: 'numeric', 
+                        minute: '2-digit',
+                        hour12: true 
+                      });
+
+                      // Get other participants (exclude current user)
+                      const otherParticipants = meeting.participants.filter(p => p.userId !== user?.id);
+                      const participantNames = otherParticipants.map(p => p.fullName).join(', ') || 'No other participants';
+
+                      return (
+                        <div
+                          key={meeting.meetingId}
+                          className="rounded-xl border border-border bg-secondary p-4"
+                        >
+                          <div className="mb-3 flex items-start justify-between">
+                            <div>
+                              <h4 className="font-semibold text-foreground">
+                                {meeting.title}
+                              </h4>
+                              <p className="text-sm text-muted-foreground">
+                                {otherParticipants.length > 0 ? `with ${participantNames}` : 'No participants yet'}
+                              </p>
+                            </div>
+                            {otherParticipants.length > 0 && (
+                              <div className="flex -space-x-2">
+                                {otherParticipants.slice(0, 3).map((participant) => (
+                                  <Avatar key={participant.userId} className="h-8 w-8 border-2 border-background">
+                                    <AvatarImage src={getAvatarUrl(participant.avatarUrl)} alt={participant.fullName} />
+                                    <AvatarFallback className={getAvatarColor(participant.userId)}>
+                                      {getInitials(participant.fullName)}
+                                    </AvatarFallback>
+                                  </Avatar>
+                                ))}
+                                {otherParticipants.length > 3 && (
+                                  <div className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-background bg-muted text-xs font-medium">
+                                    +{otherParticipants.length - 3}
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                          <div className="mb-3 flex items-center gap-4 text-sm text-muted-foreground">
+                            <div className="flex items-center gap-1">
+                              <Calendar className="h-4 w-4" />
+                              {dateStr}
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <Clock className="h-4 w-4" />
+                              {timeStr}
+                            </div>
+                          </div>
+                          <Button
+                            onClick={() => router.push(meeting.meetingUrl)}
+                            variant="accent"
+                            size="sm"
+                            className="w-full"
+                          >
+                            <Video className="mr-2 h-4 w-4" />
+                            Join Meeting
+                          </Button>
                         </div>
-                        <img
-                          src={meeting.avatar}
-                          alt={meeting.participant}
-                          className="h-8 w-8 rounded-full object-cover"
-                        />
-                      </div>
-                      <div className="mb-3 flex items-center gap-4 text-sm text-muted-foreground">
-                        <div className="flex items-center gap-1">
-                          <Calendar className="h-4 w-4" />
-                          {meeting.date}
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <Clock className="h-4 w-4" />
-                          {meeting.time}
-                        </div>
-                      </div>
-                      <Button
-                        onClick={startMeeting}
-                        variant="accent"
-                        size="sm"
-                        className="w-full"
-                      >
-                        <Video className="mr-2 h-4 w-4" />
-                        Join Meeting
-                      </Button>
-                    </div>
-                  ))}
-                </div>
+                      );
+                    })}
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>

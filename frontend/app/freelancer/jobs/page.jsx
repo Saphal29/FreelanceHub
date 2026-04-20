@@ -8,12 +8,13 @@ import { Input } from "@/components/ui/input";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import JobCard from "@/components/cards/JobCard";
 import { useAuth } from "@/contexts/AuthContext";
+import { useProtectedRoute } from "@/hooks/useProtectedRoute";
 import { getProjects, getProjectCategories } from "@/lib/api";
 import {
   Search,
   Filter,
   MapPin,
-  DollarSign,
+  Banknote,
   Clock,
   Briefcase,
   Star,
@@ -21,12 +22,14 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { Pagination } from "@/components/ui/pagination";
+import { formatCurrency } from "@/lib/currency";
 
 
 
 export default function FindWorkPage() {
   const router = useRouter();
   const { user, loading: authLoading } = useAuth();
+  const { isAuthorized, isLoading, UnauthorizedUI, LoadingUI } = useProtectedRoute('FREELANCER');
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All Jobs");
   const [projects, setProjects] = useState([]);
@@ -55,13 +58,6 @@ export default function FindWorkPage() {
       count: categoryCounts[cat.name] || 0
     }))
   ];
-
-  // Redirect if not authenticated or not a freelancer
-  useEffect(() => {
-    if (!authLoading && (!user || user.role !== "FREELANCER")) {
-      router.push("/login");
-    }
-  }, [user, authLoading, router]);
 
   // Load categories from database
   useEffect(() => {
@@ -115,19 +111,19 @@ export default function FindWorkPage() {
         let maxBudget = 0;
         
         filters.budgetRanges.forEach(range => {
-          if (range === "Under $1,000") {
+          if (range === "Under Rs. 1,000") {
             minBudget = Math.min(minBudget, 0);
             maxBudget = Math.max(maxBudget, 1000);
-          } else if (range === "$1,000 - $3,000") {
+          } else if (range === "Rs. 1,000 - Rs. 3,000") {
             minBudget = Math.min(minBudget, 1000);
             maxBudget = Math.max(maxBudget, 3000);
-          } else if (range === "$3,000 - $5,000") {
+          } else if (range === "Rs. 3,000 - Rs. 5,000") {
             minBudget = Math.min(minBudget, 3000);
             maxBudget = Math.max(maxBudget, 5000);
-          } else if (range === "$5,000 - $10,000") {
+          } else if (range === "Rs. 5,000 - Rs. 10,000") {
             minBudget = Math.min(minBudget, 5000);
             maxBudget = Math.max(maxBudget, 10000);
-          } else if (range === "Above $10,000") {
+          } else if (range === "Above Rs. 10,000") {
             minBudget = Math.min(minBudget, 10000);
             maxBudget = Math.max(maxBudget, 1000000);
           }
@@ -266,7 +262,7 @@ export default function FindWorkPage() {
   const jobs = projects.map((project) => ({
     title: project.title,
     description: project.description,
-    budget: `$${project.budget.min.toLocaleString()} - $${project.budget.max.toLocaleString()}`,
+    budget: project.budget || { min: project.budget_min || 0, max: project.budget_max || 0 },
     duration: project.duration || "Not specified",
     location: project.isRemote ? "Remote" : (project.location || "Not specified"),
     skills: project.skills || [],
@@ -311,8 +307,13 @@ export default function FindWorkPage() {
     );
   }
 
-  if (!user || user.role !== "FREELANCER") {
-    return null;
+  // Show loading or unauthorized UI after all hooks are called
+  if (isLoading) {
+    return <LoadingUI />;
+  }
+
+  if (!isAuthorized) {
+    return <UnauthorizedUI />;
   }
 
   return (
@@ -407,16 +408,16 @@ export default function FindWorkPage() {
               {/* Budget Filter */}
               <div className="rounded-2xl border border-border bg-card p-5">
                 <h3 className="mb-4 flex items-center font-display text-lg font-semibold text-foreground">
-                  <DollarSign className="mr-2 h-5 w-5 text-accent" />
+                  <Banknote className="mr-2 h-5 w-5 text-accent" />
                   Budget Range
                 </h3>
                 <div className="space-y-2">
                   {[
-                    "Under $1,000",
-                    "$1,000 - $3,000",
-                    "$3,000 - $5,000",
-                    "$5,000 - $10,000",
-                    "Above $10,000",
+                    "Under Rs. 1,000",
+                    "Rs. 1,000 - Rs. 3,000",
+                    "Rs. 3,000 - Rs. 5,000",
+                    "Rs. 5,000 - Rs. 10,000",
+                    "Above Rs. 10,000",
                   ].map((range) => (
                     <label
                       key={range}

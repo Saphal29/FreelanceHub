@@ -42,8 +42,10 @@ const ClientHome = () => {
   const [topFreelancers, setTopFreelancers] = useState([]);
   const [platformStats, setPlatformStats] = useState({
     totalFreelancers: 0,
-    totalCompletedProjects: 0,
-    averageRating: '0.0',
+    totalClients: 0,
+    totalProjects: 0,
+    averageRating: 0,
+    totalPaid: 0,
   });
   const [loading, setLoading] = useState(true);
 
@@ -132,19 +134,19 @@ const ClientHome = () => {
             <div className="flex items-center gap-2">
               <Users className="h-5 w-5 text-accent" />
               <span className="text-sm font-medium text-foreground">
-                {platformStats.totalFreelancers.toLocaleString()}+ Freelancers
+                {platformStats.totalFreelancers?.toLocaleString() || 0}+ Freelancers
               </span>
             </div>
             <div className="flex items-center gap-2">
               <Briefcase className="h-5 w-5 text-accent" />
               <span className="text-sm font-medium text-foreground">
-                {platformStats.totalCompletedProjects.toLocaleString()}+ Projects Completed
+                {platformStats.totalProjects?.toLocaleString() || 0}+ Projects Completed
               </span>
             </div>
             <div className="flex items-center gap-2">
               <Star className="h-5 w-5 text-accent" />
               <span className="text-sm font-medium text-foreground">
-                {platformStats.averageRating} Average Rating
+                {platformStats.averageRating ? platformStats.averageRating.toFixed(1) : '0.0'} Average Rating
               </span>
             </div>
             <div className="flex items-center gap-2">

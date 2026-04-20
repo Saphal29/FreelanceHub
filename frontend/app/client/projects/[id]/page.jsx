@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useRouter, useParams } from "next/navigation";
+import { useState, useEffect, useRef } from "react";
+import { useRouter, useParams, useSearchParams } from "next/navigation";
 import Navbar from "@/components/layout/Navbar";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -28,6 +28,7 @@ import Link from "next/link";
 export default function ProjectDetailsPage() {
   const router = useRouter();
   const params = useParams();
+  const searchParams = useSearchParams();
   const projectId = params.id;
   const { user, loading: authLoading } = useAuth();
   
@@ -35,6 +36,10 @@ export default function ProjectDetailsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [deleting, setDeleting] = useState(false);
+
+  // Refs for scrolling to sections
+  const proposalsRef = useRef(null);
+  const milestonesRef = useRef(null);
 
   useEffect(() => {
     if (!authLoading && (!user || user.role !== "CLIENT")) {
@@ -47,6 +52,21 @@ export default function ProjectDetailsPage() {
       fetchProject();
     }
   }, [projectId, user]);
+
+  // Handle scroll to section after page loads
+  useEffect(() => {
+    const scrollTo = searchParams.get('scrollTo');
+    if (scrollTo && !loading && project) {
+      // Small delay to ensure content is rendered
+      setTimeout(() => {
+        if (scrollTo === 'proposals' && proposalsRef.current) {
+          proposalsRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        } else if (scrollTo === 'milestones' && milestonesRef.current) {
+          milestonesRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      }, 300);
+    }
+  }, [searchParams, loading, project]);
 
   const fetchProject = async () => {
     try {
@@ -229,14 +249,18 @@ export default function ProjectDetailsPage() {
             </Card>
             
             {/* Milestones */}
-            <MilestoneManager projectId={projectId} isOwner={isOwner} />
+            <div ref={milestonesRef}>
+              <MilestoneManager projectId={projectId} isOwner={isOwner} />
+            </div>
             
             {/* Proposals */}
             {isOwner && (
-              <ProposalList 
-                projectId={projectId} 
-                onProposalAccepted={() => fetchProject()}
-              />
+              <div ref={proposalsRef}>
+                <ProposalList 
+                  projectId={projectId} 
+                  onProposalAccepted={() => fetchProject()}
+                />
+              </div>
             )}
           </div>
 

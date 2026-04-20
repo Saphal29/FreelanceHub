@@ -197,9 +197,9 @@ const cancelScheduledCall = async (req, res) => {
 const createRoom = async (req, res) => {
   try {
     const hostId = req.user.userId;
-    const { roomName, maxParticipants } = req.body;
+    const { roomName, maxParticipants, roomId } = req.body;
 
-    const room = await roomService.createRoom(hostId, roomName, maxParticipants);
+    const room = await roomService.createRoom(hostId, roomName, maxParticipants, roomId);
 
     logger.info('Room created', { roomId: room.roomId, hostId });
 

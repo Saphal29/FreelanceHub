@@ -4,11 +4,19 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { getProjectProposals, acceptProposal, rejectProposal, getProposalFiles, downloadFile } from "@/lib/api";
 import { getAbsoluteFileUrl, formatFileSize as formatSize } from "@/lib/fileUtils";
 import { 
   Users,
-  DollarSign,
+  Banknote,
   Clock,
   MapPin,
   Star,
@@ -21,6 +29,7 @@ import {
   File,
   Image as ImageIcon
 } from "lucide-react";
+import { formatCurrency } from "@/lib/currency";
 
 export default function ProposalList({ projectId, onProposalAccepted }) {
   const [proposals, setProposals] = useState([]);
@@ -31,6 +40,7 @@ export default function ProposalList({ projectId, onProposalAccepted }) {
   const [successMessage, setSuccessMessage] = useState("");
   const [expandedProposal, setExpandedProposal] = useState(null);
   const [proposalFiles, setProposalFiles] = useState({});
+  const [confirmDialog, setConfirmDialog] = useState({ open: false, type: null, proposalId: null });
 
   useEffect(() => {
     fetchProposals();
@@ -78,10 +88,25 @@ export default function ProposalList({ projectId, onProposalAccepted }) {
   };
 
   const handleAccept = async (proposalId) => {
-    if (!confirm("Are you sure you want to accept this proposal? This will start the project.")) {
-      return;
-    }
+    setConfirmDialog({ open: true, type: 'accept', proposalId });
+  };
 
+  const handleReject = async (proposalId) => {
+    setConfirmDialog({ open: true, type: 'reject', proposalId });
+  };
+
+  const confirmAction = async () => {
+    const { type, proposalId } = confirmDialog;
+    setConfirmDialog({ open: false, type: null, proposalId: null });
+
+    if (type === 'accept') {
+      await executeAccept(proposalId);
+    } else if (type === 'reject') {
+      await executeReject(proposalId);
+    }
+  };
+
+  const executeAccept = async (proposalId) => {
     try {
       setActionLoading({ ...actionLoading, [proposalId]: "accepting" });
       setError("");
@@ -111,11 +136,7 @@ export default function ProposalList({ projectId, onProposalAccepted }) {
     }
   };
 
-  const handleReject = async (proposalId) => {
-    if (!confirm("Are you sure you want to reject this proposal?")) {
-      return;
-    }
-
+  const executeReject = async (proposalId) => {
     try {
       setActionLoading({ ...actionLoading, [proposalId]: "rejecting" });
       setError("");
@@ -189,7 +210,48 @@ export default function ProposalList({ projectId, onProposalAccepted }) {
   };
 
   return (
-    <Card className="border-border">
+    <>
+      {/* Confirmation Dialog */}
+      <Dialog open={confirmDialog.open} onOpenChange={(open) => !open && setConfirmDialog({ open: false, type: null, proposalId: null })}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              {confirmDialog.type === 'accept' ? (
+                <>
+                  <CheckCircle className="h-5 w-5 text-green-600" />
+                  Accept Proposal
+                </>
+              ) : (
+                <>
+                  <XCircle className="h-5 w-5 text-red-600" />
+                  Reject Proposal
+                </>
+              )}
+            </DialogTitle>
+            <DialogDescription>
+              {confirmDialog.type === 'accept' 
+                ? "Are you sure you want to accept this proposal? This will start the project and create a contract with the freelancer."
+                : "Are you sure you want to reject this proposal? This action cannot be undone."}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setConfirmDialog({ open: false, type: null, proposalId: null })}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant={confirmDialog.type === 'accept' ? 'accent' : 'destructive'}
+              onClick={confirmAction}
+            >
+              {confirmDialog.type === 'accept' ? 'Accept Proposal' : 'Reject Proposal'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Card className="border-border">
       <CardHeader>
         <CardTitle className="flex items-center font-display text-xl">
           <Users className="h-5 w-5 mr-2 text-accent" />
@@ -318,10 +380,10 @@ export default function ProposalList({ projectId, onProposalAccepted }) {
               <div className="grid grid-cols-2 gap-4 mb-4">
                 {proposal.proposedBudget && (
                   <div className="flex items-center gap-2">
-                    <DollarSign className="h-4 w-4 text-accent" />
+                    <Banknote className="h-4 w-4 text-accent" />
                     <div>
                       <p className="text-xs text-muted-foreground">Proposed Budget</p>
-                      <p className="font-semibold text-foreground">${proposal.proposedBudget.toLocaleString()}</p>
+                      <p className="font-semibold text-foreground">{formatCurrency(proposal.proposedBudget)}</p>
                     </div>
                   </div>
                 )}
@@ -339,14 +401,14 @@ export default function ProposalList({ projectId, onProposalAccepted }) {
               {/* Cover Letter */}
               <div className="mb-4">
                 <p className="text-sm font-semibold text-foreground mb-2">Cover Letter:</p>
-                <div className="rounded-lg bg-card p-3">
-                  <p className={`text-sm text-muted-foreground ${expandedProposal === proposal.id ? '' : 'line-clamp-3'}`}>
+                <div className="rounded-lg bg-card p-4 border border-border">
+                  <p className={`text-sm text-foreground leading-relaxed whitespace-pre-wrap ${expandedProposal === proposal.id ? '' : 'line-clamp-6'}`}>
                     {proposal.coverLetter}
                   </p>
-                  {proposal.coverLetter.length > 200 && (
+                  {proposal.coverLetter.length > 300 && (
                     <button
                       onClick={() => setExpandedProposal(expandedProposal === proposal.id ? null : proposal.id)}
-                      className="text-xs text-accent hover:underline mt-2"
+                      className="text-sm text-accent hover:underline mt-3 font-medium"
                     >
                       {expandedProposal === proposal.id ? "Show less" : "Read more"}
                     </button>
@@ -444,5 +506,6 @@ export default function ProposalList({ projectId, onProposalAccepted }) {
         </div>
       </CardContent>
     </Card>
+    </>
   );
 }

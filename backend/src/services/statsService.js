@@ -19,9 +19,9 @@ const getPlatformStats = async () => {
       `SELECT COUNT(*) as total FROM users WHERE role = 'CLIENT'`
     );
 
-    // Get total completed projects
-    const completedProjectsResult = await query(
-      `SELECT COUNT(*) as total FROM projects WHERE status = 'completed'`
+    // Get total projects (all statuses)
+    const projectsResult = await query(
+      `SELECT COUNT(*) as total FROM projects`
     );
 
     // Get average rating across all reviews
@@ -29,17 +29,17 @@ const getPlatformStats = async () => {
       `SELECT COALESCE(AVG(overall_rating), 0) as avg_rating FROM reviews`
     );
 
-    // Get total contracts
-    const contractsResult = await query(
-      `SELECT COUNT(*) as total FROM contracts`
+    // Get total paid amount from completed payments
+    const totalPaidResult = await query(
+      `SELECT COALESCE(SUM(amount), 0) as total_paid FROM payments WHERE status = 'completed'`
     );
 
     const stats = {
       totalFreelancers: parseInt(freelancersResult.rows[0].total) || 0,
       totalClients: parseInt(clientsResult.rows[0].total) || 0,
-      totalCompletedProjects: parseInt(completedProjectsResult.rows[0].total) || 0,
-      averageRating: parseFloat(avgRatingResult.rows[0].avg_rating).toFixed(1) || '0.0',
-      totalContracts: parseInt(contractsResult.rows[0].total) || 0,
+      totalProjects: parseInt(projectsResult.rows[0].total) || 0,
+      averageRating: parseFloat(avgRatingResult.rows[0].avg_rating) || 0,
+      totalPaid: parseFloat(totalPaidResult.rows[0].total_paid) || 0,
     };
 
     logger.info('Platform statistics retrieved', stats);

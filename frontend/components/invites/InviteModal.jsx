@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { X, Send, AlertCircle, CheckCircle } from "lucide-react";
 import { getClientProjectsForInvite, sendInvitation } from "@/lib/api";
+import { formatCurrency } from "@/lib/currency";
 
 export default function InviteModal({ freelancer, onClose }) {
   const [projects, setProjects] = useState([]);

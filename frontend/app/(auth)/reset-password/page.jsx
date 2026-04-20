@@ -79,7 +79,11 @@ function ResetPasswordContent() {
       setError('');
       setSuccess(false);
 
-      const response = await resetPassword(token, data.newPassword);
+      const response = await resetPassword({
+        token: token,
+        newPassword: data.newPassword,
+        confirmPassword: data.confirmPassword
+      });
       
       if (response.success) {
         setSuccess(true);

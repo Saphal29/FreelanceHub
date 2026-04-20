@@ -100,8 +100,12 @@ function TimeTrackingContent() {
     if (selectedContract) {
       fetchTimeEntries();
       fetchSummary();
+      // Also refresh active timer when contract changes
+      if (isFreelancer) {
+        fetchActiveTimer();
+      }
     }
-  }, [selectedContract]);
+  }, [selectedContract, isFreelancer]);
 
   useEffect(() => {
     if (isFreelancer) fetchActiveTimer();
@@ -136,9 +140,18 @@ function TimeTrackingContent() {
 
   const fetchActiveTimer = async () => {
     try {
+      console.log('[TimeTracking] Fetching active timer...');
       const res = await getActiveTimer();
+      console.log('[TimeTracking] Active timer response:', res);
       setActiveTimer(res.activeTimer);
-    } catch {}
+      if (res.activeTimer) {
+        console.log('[TimeTracking] Active timer found:', res.activeTimer);
+      } else {
+        console.log('[TimeTracking] No active timer');
+      }
+    } catch (err) {
+      console.error('[TimeTracking] Error fetching active timer:', err);
+    }
   };
 
   const fetchTimeEntries = async () => {
@@ -176,10 +189,22 @@ function TimeTrackingContent() {
         setTimerRate("");
         showSuccess("Timer started!");
       } else {
-        setError(res.error);
+        // If there's an active timer error, fetch it to show details
+        if (res.error && res.error.includes("active timer")) {
+          await fetchActiveTimer();
+          setError("You already have an active timer running. Please stop it before starting a new one.");
+        } else {
+          setError(res.error);
+        }
       }
     } catch (err) {
-      setError(err.message);
+      // If there's an active timer error, fetch it to show details
+      if (err.message && err.message.includes("active timer")) {
+        await fetchActiveTimer();
+        setError("You already have an active timer running. Please stop it before starting a new one.");
+      } else {
+        setError(err.message);
+      }
     }
   };
 
@@ -323,6 +348,51 @@ function TimeTrackingContent() {
               <h1 className="font-display text-3xl font-bold text-foreground">Time Tracking</h1>
               <p className="text-muted-foreground mt-1">Track and manage billable hours</p>
             </div>
+            {isFreelancer && (
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    fetchActiveTimer();
+                    showSuccess("Refreshed active timer status");
+                  }}
+                >
+                  <Timer className="h-4 w-4 mr-2" />
+                  Refresh Timer
+                </Button>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={async () => {
+                    if (confirm("Stop ALL active timers? This will end any running timers.")) {
+                      try {
+                        const res = await fetch('/api/time/stop-all', {
+                          method: 'POST',
+                          headers: {
+                            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+                            'Content-Type': 'application/json'
+                          }
+                        });
+                        const data = await res.json();
+                        if (data.success) {
+                          showSuccess(data.message);
+                          setActiveTimer(null);
+                          fetchTimeEntries();
+                        } else {
+                          setError(data.error);
+                        }
+                      } catch (err) {
+                        setError("Failed to stop timers");
+                      }
+                    }
+                  }}
+                >
+                  <Square className="h-4 w-4 mr-2" />
+                  Stop All Timers
+                </Button>
+              </div>
+            )}
           </div>
 
           {success && (
@@ -334,7 +404,40 @@ function TimeTrackingContent() {
           {error && (
             <Alert className="mb-4 border-red-200 bg-red-50">
               <AlertCircle className="h-4 w-4 text-red-600" />
-              <AlertDescription className="text-red-800">{error}</AlertDescription>
+              <AlertDescription className="text-red-800">
+                {error}
+                {error.includes("active timer") && activeTimer && (
+                  <div className="mt-2">
+                    <p className="font-semibold">Active timer details:</p>
+                    <p className="text-sm">Project: {activeTimer.projectTitle}</p>
+                    <p className="text-sm">Description: {activeTimer.description || "No description"}</p>
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      className="mt-2"
+                      onClick={handleStopTimer}
+                    >
+                      Stop This Timer
+                    </Button>
+                  </div>
+                )}
+                {error.includes("active timer") && !activeTimer && (
+                  <div className="mt-2">
+                    <p className="text-sm">Click the "Refresh Timer" button above to load the active timer details.</p>
+                  </div>
+                )}
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {/* Debug info - remove in production */}
+          {isFreelancer && process.env.NODE_ENV === 'development' && (
+            <Alert className="mb-4 border-blue-200 bg-blue-50">
+              <AlertCircle className="h-4 w-4 text-blue-600" />
+              <AlertDescription className="text-blue-800 text-xs">
+                <strong>Debug:</strong> Active Timer State = {activeTimer ? 'EXISTS' : 'NULL'}
+                {activeTimer && ` (ID: ${activeTimer.id}, Project: ${activeTimer.projectTitle})`}
+              </AlertDescription>
             </Alert>
           )}
 
@@ -390,79 +493,96 @@ function TimeTrackingContent() {
                 </div>
               )}
 
-              {/* Active Timer (freelancer only) */}
-              {isFreelancer && (
+              {/* Active Timer (freelancer only) - Always show if exists */}
+              {isFreelancer && activeTimer && (
+                <Card className="border-2 border-accent bg-accent/5">
+                  <CardHeader>
+                    <CardTitle className="flex items-center font-display text-xl">
+                      <Timer className="h-5 w-5 mr-2 text-accent animate-pulse" />
+                      Active Timer
+                      {activeTimer.contractId !== selectedContract?.id && (
+                        <span className="ml-2 text-sm font-normal text-yellow-600">
+                          (Different Project)
+                        </span>
+                      )}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-4xl font-mono font-bold text-foreground">{elapsed}</p>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          {activeTimer.description || "No description"}
+                        </p>
+                        <p className="text-sm font-medium text-foreground mt-1">
+                          Project: {activeTimer.projectTitle}
+                        </p>
+                        {activeTimer.hourlyRate && (
+                          <p className="text-xs text-muted-foreground">
+                            NPR {activeTimer.hourlyRate}/hr
+                          </p>
+                        )}
+                      </div>
+                      <Button
+                        onClick={handleStopTimer}
+                        className="bg-red-600 hover:bg-red-700 text-white"
+                        size="lg"
+                      >
+                        <Square className="h-5 w-5 mr-2" />
+                        Stop Timer
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Start Timer Section (freelancer only) - Only show if no active timer */}
+              {isFreelancer && !activeTimer && (
                 <Card className="border-border">
                   <CardHeader>
                     <CardTitle className="flex items-center font-display text-xl">
                       <Timer className="h-5 w-5 mr-2 text-accent" />
-                      Timer
+                      Start Timer
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
-                    {activeTimer ? (
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="text-4xl font-mono font-bold text-foreground">{elapsed}</p>
-                          <p className="text-sm text-muted-foreground mt-1">
-                            {activeTimer.description || "No description"} — {activeTimer.projectTitle}
-                          </p>
-                          {activeTimer.hourlyRate && (
-                            <p className="text-xs text-muted-foreground">
-                              NPR {activeTimer.hourlyRate}/hr
-                            </p>
-                          )}
-                        </div>
-                        <Button
-                          onClick={handleStopTimer}
-                          className="bg-red-600 hover:bg-red-700 text-white"
-                          size="lg"
-                        >
-                          <Square className="h-5 w-5 mr-2" />
-                          Stop
+                    {!showStartForm ? (
+                      <div className="flex gap-3">
+                        <Button variant="accent" onClick={() => setShowStartForm(true)}>
+                          <Play className="h-4 w-4 mr-2" />
+                          Start Timer
+                        </Button>
+                        <Button variant="outline" onClick={() => setShowManualForm(true)}>
+                          <Plus className="h-4 w-4 mr-2" />
+                          Add Manual Entry
                         </Button>
                       </div>
                     ) : (
-                      <>
-                        {!showStartForm ? (
-                          <div className="flex gap-3">
-                            <Button variant="accent" onClick={() => setShowStartForm(true)}>
-                              <Play className="h-4 w-4 mr-2" />
-                              Start Timer
-                            </Button>
-                            <Button variant="outline" onClick={() => setShowManualForm(true)}>
-                              <Plus className="h-4 w-4 mr-2" />
-                              Add Manual Entry
-                            </Button>
-                          </div>
-                        ) : (
-                          <form onSubmit={handleStartTimer} className="space-y-3">
-                            <input
-                              type="text"
-                              placeholder="What are you working on?"
-                              value={timerDesc}
-                              onChange={e => setTimerDesc(e.target.value)}
-                              className="w-full border border-border rounded-xl px-3 py-2 text-sm bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-accent"
-                            />
-                            <input
-                              type="number"
-                              placeholder="Hourly rate (NPR, optional)"
-                              value={timerRate}
-                              onChange={e => setTimerRate(e.target.value)}
-                              className="w-full border border-border rounded-xl px-3 py-2 text-sm bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-accent"
-                            />
-                            <div className="flex gap-2">
-                              <Button type="submit" variant="accent">
-                                <Play className="h-4 w-4 mr-2" />
-                                Start
-                              </Button>
-                              <Button type="button" variant="outline" onClick={() => setShowStartForm(false)}>
-                                Cancel
-                              </Button>
-                            </div>
-                          </form>
-                        )}
-                      </>
+                      <form onSubmit={handleStartTimer} className="space-y-3">
+                        <input
+                          type="text"
+                          placeholder="What are you working on?"
+                          value={timerDesc}
+                          onChange={e => setTimerDesc(e.target.value)}
+                          className="w-full border border-border rounded-xl px-3 py-2 text-sm bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-accent"
+                        />
+                        <input
+                          type="number"
+                          placeholder="Hourly rate (NPR, optional)"
+                          value={timerRate}
+                          onChange={e => setTimerRate(e.target.value)}
+                          className="w-full border border-border rounded-xl px-3 py-2 text-sm bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-accent"
+                        />
+                        <div className="flex gap-2">
+                          <Button type="submit" variant="accent">
+                            <Play className="h-4 w-4 mr-2" />
+                            Start
+                          </Button>
+                          <Button type="button" variant="outline" onClick={() => setShowStartForm(false)}>
+                            Cancel
+                          </Button>
+                        </div>
+                      </form>
                     )}
                   </CardContent>
                 </Card>

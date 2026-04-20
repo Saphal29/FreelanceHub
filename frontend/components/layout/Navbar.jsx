@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { 
   Bell, Settings, LogOut, Menu, X, ChevronDown,
   Search, Briefcase, FileText, Scale,
-  MessageSquare, Users
+  MessageSquare, Users, DollarSign
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -15,6 +15,7 @@ import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/contexts/AuthContext';
 import { getInitials, getAvatarColor } from '@/lib/utils';
 import { getAvatarUrl } from '@/lib/avatarUtils';
+import api from '@/lib/api';
 
 export default function Navbar() {
   const router = useRouter();
@@ -22,6 +23,7 @@ export default function Navbar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [workDropdownOpen, setWorkDropdownOpen] = useState(false);
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
   const workDropdownRef = useRef(null);
   const profileDropdownRef = useRef(null);
 
@@ -49,6 +51,30 @@ export default function Navbar() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  // Fetch unread notification count
+  useEffect(() => {
+    if (!user) return;
+
+    const fetchUnreadCount = async () => {
+      try {
+        const response = await api.get('/notifications/unread-count');
+        if (response.data.success) {
+          setUnreadCount(response.data.count);
+        }
+      } catch (error) {
+        console.error('Failed to fetch unread count:', error);
+      }
+    };
+
+    // Fetch immediately
+    fetchUnreadCount();
+
+    // Poll every 30 seconds
+    const interval = setInterval(fetchUnreadCount, 30000);
+
+    return () => clearInterval(interval);
+  }, [user]);
+
   if (!user) return null;
 
   const userRole = user?.role?.toLowerCase();
@@ -62,7 +88,7 @@ export default function Navbar() {
           {/* Logo */}
           <div className="flex items-center">
             <Link
-              href="/dashboard"
+              href={isFreelancer ? '/freelancer' : isClient ? '/client' : '/dashboard'}
               className="text-xl font-bold hover:opacity-80 transition-opacity"
             >
               <span className="text-black">Freelance</span>
@@ -229,20 +255,6 @@ export default function Navbar() {
             )}
           </div>
 
-          {/* Search Bar (Client only) */}
-          {isClient && (
-            <div className="hidden md:flex flex-1 max-w-md mx-4">
-              <div className="relative w-full">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                <input
-                  type="text"
-                  placeholder="Search freelancers, projects..."
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-                />
-              </div>
-            </div>
-          )}
-
           {/* Desktop Right Side */}
           <div className="hidden md:flex items-center space-x-4">
             {/* Notifications */}
@@ -253,12 +265,12 @@ export default function Navbar() {
               onClick={() => router.push('/notifications')}
             >
               <Bell className="h-5 w-5" />
-              {user?.unreadNotifications > 0 && (
+              {unreadCount > 0 && (
                 <Badge
                   variant="destructive"
                   className="absolute -top-1 -right-1 h-5 w-5 p-0 flex items-center justify-center text-xs"
                 >
-                  {user.unreadNotifications}
+                  {unreadCount}
                 </Badge>
               )}
             </Button>
@@ -292,6 +304,16 @@ export default function Navbar() {
                 <div className="absolute top-full right-0 mt-1 w-56 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50">
                   <button
                     onClick={() => {
+                      router.push(isFreelancer ? '/freelancer' : isClient ? '/client' : '/dashboard');
+                      setProfileDropdownOpen(false);
+                    }}
+                    className="w-full px-4 py-2 text-left hover:bg-gray-100 flex items-center text-sm text-gray-700"
+                  >
+                    <Briefcase className="h-4 w-4 mr-3 text-gray-500" />
+                    Dashboard
+                  </button>
+                  <button
+                    onClick={() => {
                       router.push('/profile');
                       setProfileDropdownOpen(false);
                     }}
@@ -299,6 +321,16 @@ export default function Navbar() {
                   >
                     <Settings className="h-4 w-4 mr-3 text-gray-500" />
                     Profile Settings
+                  </button>
+                  <button
+                    onClick={() => {
+                      router.push('/payment-summary');
+                      setProfileDropdownOpen(false);
+                    }}
+                    className="w-full px-4 py-2 text-left hover:bg-gray-100 flex items-center text-sm text-gray-700"
+                  >
+                    <DollarSign className="h-4 w-4 mr-3 text-gray-500" />
+                    Payment Summary
                   </button>
                   <div className="border-t border-gray-200 my-1"></div>
                   <button
@@ -515,6 +547,18 @@ export default function Navbar() {
 
               <Button
                 variant="ghost"
+                className="w-full justify-start"
+                onClick={() => {
+                  router.push('/payment-summary');
+                  setMobileMenuOpen(false);
+                }}
+              >
+                <DollarSign className="h-4 w-4 mr-3" />
+                Payment Summary
+              </Button>
+
+              <Button
+                variant="ghost"
                 className="w-full justify-start relative"
                 onClick={() => {
                   router.push('/notifications');
@@ -523,12 +567,12 @@ export default function Navbar() {
               >
                 <Bell className="h-4 w-4 mr-3" />
                 Notifications
-                {user?.unreadNotifications > 0 && (
+                {unreadCount > 0 && (
                   <Badge
                     variant="destructive"
                     className="ml-auto h-5 w-5 p-0 flex items-center justify-center text-xs"
                   >
-                    {user.unreadNotifications}
+                    {unreadCount}
                   </Badge>
                 )}
               </Button>

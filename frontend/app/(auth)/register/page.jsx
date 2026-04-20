@@ -17,7 +17,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { register as registerUser } from '@/lib/api';
 import { validatePassword, getPasswordStrength } from '@/lib/utils';
 
-// Validation schema
+// Validation schema  
 const registerSchema = z.object({
   fullName: z.string()
     .min(2, 'Name must be at least 2 characters')

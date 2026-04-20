@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,7 +14,7 @@ import {
   CheckCircle,
   Clock,
   AlertCircle,
-  DollarSign,
+  Banknote,
   Calendar,
   Save,
   X,
@@ -24,6 +24,7 @@ import {
   ThumbsDown,
   MessageSquare,
 } from "lucide-react";
+import { formatCurrency } from "@/lib/currency";
 
 const STATUS_OPTIONS = [
   { value: "pending", label: "Pending", icon: Clock, color: "text-gray-500" },
@@ -46,6 +47,10 @@ export default function MilestoneManager({ projectId, isOwner = false }) {
   const [reviewingSubmission, setReviewingSubmission] = useState(null);
   const [reviewNotes, setReviewNotes] = useState("");
   
+  // Ref to track if we're already fetching to prevent duplicate calls
+  const fetchingRef = useRef(false);
+  const hasFetchedRef = useRef(false);
+  
   // Debug logging
   console.log('MilestoneManager props:', { projectId, isOwner, showAddForm, editingId });
   
@@ -58,13 +63,21 @@ export default function MilestoneManager({ projectId, isOwner = false }) {
   });
 
   useEffect(() => {
-    if (projectId) {
+    if (projectId && !hasFetchedRef.current) {
       fetchMilestones();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId]);
 
   const fetchMilestones = async () => {
+    // Prevent duplicate fetches
+    if (fetchingRef.current) {
+      console.log('Already fetching milestones, skipping...');
+      return;
+    }
+    
     try {
+      fetchingRef.current = true;
       setLoading(true);
       setError("");
       
@@ -73,8 +86,13 @@ export default function MilestoneManager({ projectId, isOwner = false }) {
       console.log('Milestones response:', response);
       
       if (response.success) {
-        setMilestones(response.milestones || []);
-        console.log('Milestones loaded:', response.milestones?.length || 0);
+        // Deduplicate milestones by ID to prevent duplicate key errors
+        const uniqueMilestones = Array.from(
+          new Map((response.milestones || []).map(m => [m.id, m])).values()
+        );
+        setMilestones(uniqueMilestones);
+        hasFetchedRef.current = true;
+        console.log('Milestones loaded:', uniqueMilestones.length);
       } else {
         setError(response.error || "Failed to load milestones");
       }
@@ -83,6 +101,7 @@ export default function MilestoneManager({ projectId, isOwner = false }) {
       setError(err.message || "Failed to load milestones");
     } finally {
       setLoading(false);
+      fetchingRef.current = false;
     }
   };
 
@@ -156,6 +175,7 @@ export default function MilestoneManager({ projectId, isOwner = false }) {
       if (response.success) {
         setSuccess(editingId ? "Milestone updated successfully" : "Milestone created successfully");
         resetForm();
+        hasFetchedRef.current = false; // Reset to allow refetch
         fetchMilestones();
         
         setTimeout(() => setSuccess(""), 3000);
@@ -181,6 +201,7 @@ export default function MilestoneManager({ projectId, isOwner = false }) {
       
       if (response.success) {
         setSuccess("Milestone deleted successfully");
+        hasFetchedRef.current = false; // Reset to allow refetch
         fetchMilestones();
         
         setTimeout(() => setSuccess(""), 3000);
@@ -229,6 +250,7 @@ export default function MilestoneManager({ projectId, isOwner = false }) {
         setReviewingSubmission(null);
         setReviewNotes("");
         setViewingSubmissions(null);
+        hasFetchedRef.current = false; // Reset to allow refetch
         fetchMilestones();
         
         setTimeout(() => setSuccess(""), 3000);
@@ -314,11 +336,11 @@ export default function MilestoneManager({ projectId, isOwner = false }) {
             </div>
             <div className="rounded-lg bg-secondary/30 p-3">
               <p className="text-xs text-muted-foreground">Total Amount</p>
-              <p className="text-2xl font-bold text-foreground">${calculateTotalAmount().toLocaleString()}</p>
+              <p className="text-2xl font-bold text-foreground">{formatCurrency(calculateTotalAmount())}</p>
             </div>
             <div className="rounded-lg bg-secondary/30 p-3">
               <p className="text-xs text-muted-foreground">Completed</p>
-              <p className="text-2xl font-bold text-green-600">${calculateCompletedAmount().toLocaleString()}</p>
+              <p className="text-2xl font-bold text-green-600">{formatCurrency(calculateCompletedAmount())}</p>
             </div>
           </div>
         )}
@@ -378,9 +400,9 @@ export default function MilestoneManager({ projectId, isOwner = false }) {
             
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="amount">Amount (USD) *</Label>
+                <Label htmlFor="amount">Amount (NPR) *</Label>
                 <div className="relative">
-                  <DollarSign className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                  <Banknote className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                   <Input
                     id="amount"
                     name="amount"
@@ -479,8 +501,8 @@ export default function MilestoneManager({ projectId, isOwner = false }) {
                       
                       <div className="flex flex-wrap items-center gap-4 ml-11 text-sm">
                         <div className="flex items-center gap-1 text-foreground">
-                          <DollarSign className="h-4 w-4 text-accent" />
-                          <span className="font-semibold">${milestone.amount.toLocaleString()}</span>
+                          <Banknote className="h-4 w-4 text-accent" />
+                          <span className="font-semibold">{formatCurrency(milestone.amount)}</span>
                         </div>
                         
                         {milestone.dueDate && (
@@ -537,9 +559,55 @@ export default function MilestoneManager({ projectId, isOwner = false }) {
                                         </p>
                                       )}
                                       
+                                      {/* Deliverable Files */}
+                                      {submission.deliverableFiles && submission.deliverableFiles.length > 0 && (
+                                        <div className="mb-3">
+                                          <p className="text-sm font-medium text-foreground mb-2">Deliverable Files:</p>
+                                          <div className="space-y-2">
+                                            {submission.deliverableFiles.map((file) => {
+                                              const fileUrl = file.file_url || `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/files/${file.id}/download`;
+                                              const fileSizeKB = (parseInt(file.file_size) / 1024).toFixed(2);
+                                              const fileSizeMB = (parseInt(file.file_size) / (1024 * 1024)).toFixed(2);
+                                              const displaySize = parseInt(file.file_size) > 1024 * 1024 ? `${fileSizeMB} MB` : `${fileSizeKB} KB`;
+                                              
+                                              // Get file icon based on mime type
+                                              const getFileIcon = (mimeType) => {
+                                                if (mimeType.startsWith('image/')) return '🖼️';
+                                                if (mimeType.startsWith('video/')) return '🎥';
+                                                if (mimeType.includes('pdf')) return '📄';
+                                                if (mimeType.includes('word') || mimeType.includes('document')) return '📝';
+                                                if (mimeType.includes('sheet') || mimeType.includes('excel')) return '📊';
+                                                if (mimeType.includes('presentation') || mimeType.includes('powerpoint')) return '📽️';
+                                                if (mimeType.includes('zip') || mimeType.includes('rar') || mimeType.includes('compressed')) return '📦';
+                                                return '📎';
+                                              };
+
+                                              return (
+                                                <div key={file.id} className="flex items-center justify-between p-2 bg-background rounded border border-border">
+                                                  <div className="flex items-center gap-2 flex-1 min-w-0">
+                                                    <span className="text-lg">{getFileIcon(file.mime_type)}</span>
+                                                    <div className="flex-1 min-w-0">
+                                                      <p className="text-sm font-medium text-foreground truncate">{file.original_name}</p>
+                                                      <p className="text-xs text-muted-foreground">{displaySize}</p>
+                                                    </div>
+                                                  </div>
+                                                  <a
+                                                    href={fileUrl}
+                                                    download
+                                                    className="ml-2 px-3 py-1 bg-accent text-white rounded hover:bg-accent/90 transition-colors text-xs font-medium whitespace-nowrap"
+                                                  >
+                                                    Download
+                                                  </a>
+                                                </div>
+                                              );
+                                            })}
+                                          </div>
+                                        </div>
+                                      )}
+                                      
                                       <div className="flex gap-4 text-xs text-muted-foreground">
                                         <span>Hours: {submission.totalHours.toFixed(1)}</span>
-                                        <span>Amount: ${submission.totalAmount.toFixed(2)}</span>
+                                        <span>Amount: {formatCurrency(submission.totalAmount)}</span>
                                         <span>Submitted: {new Date(submission.createdAt).toLocaleDateString()}</span>
                                       </div>
                                     </div>

@@ -6,7 +6,7 @@ const { authMiddleware } = require('../middlewares/authMiddleware');
 const {
   getOrCreateConversation, getConversations, getMessages,
   markAsRead, deleteMessage, archiveConversation, searchMessages, getUnreadCount,
-  uploadChatFile
+  uploadChatFile, sendMessage
 } = require('../controllers/chatController');
 
 // Configure multer for chat file uploads (memory storage for centralized file service)
@@ -42,6 +42,7 @@ router.use(authMiddleware);
 router.post('/conversations', getOrCreateConversation);
 router.get('/conversations', getConversations);
 router.get('/conversations/:conversationId/messages', getMessages);
+router.post('/conversations/:conversationId/messages', sendMessage); // Send message via REST
 router.put('/conversations/:conversationId/read', markAsRead);
 router.put('/conversations/:conversationId/archive', archiveConversation);
 router.get('/conversations/:conversationId/search', searchMessages);

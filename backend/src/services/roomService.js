@@ -31,13 +31,41 @@ const formatParticipant = (row) => ({
 
 /**
  * Create a new call room
+ * @param {string} hostId - The user ID of the host
+ * @param {string} roomName - Name of the room
+ * @param {number} maxParticipants - Maximum number of participants (default: 4)
+ * @param {string} roomId - Optional custom room ID (for scheduled meetings)
  */
-const createRoom = async (hostId, roomName, maxParticipants = 4) => {
-  const result = await query(
-    `INSERT INTO call_rooms (host_id, room_name, max_participants)
-     VALUES ($1, $2, $3) RETURNING *`,
-    [hostId, roomName, maxParticipants]
-  );
+const createRoom = async (hostId, roomName, maxParticipants = 4, roomId = null) => {
+  let result;
+  
+  if (roomId) {
+    // Check if room already exists
+    const existing = await query(
+      `SELECT * FROM call_rooms WHERE room_id = $1`,
+      [roomId]
+    );
+    
+    if (existing.rows.length > 0) {
+      // Room already exists, return it
+      return formatRoom(existing.rows[0]);
+    }
+    
+    // Create room with custom ID
+    result = await query(
+      `INSERT INTO call_rooms (room_id, host_id, room_name, max_participants)
+       VALUES ($1, $2, $3, $4) RETURNING *`,
+      [roomId, hostId, roomName, maxParticipants]
+    );
+  } else {
+    // Create room with auto-generated ID
+    result = await query(
+      `INSERT INTO call_rooms (host_id, room_name, max_participants)
+       VALUES ($1, $2, $3) RETURNING *`,
+      [hostId, roomName, maxParticipants]
+    );
+  }
+  
   return formatRoom(result.rows[0]);
 };
 

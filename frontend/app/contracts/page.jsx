@@ -10,7 +10,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { getUserContracts } from "@/lib/api";
 import {
   FileText,
-  DollarSign,
+  Banknote,
   Clock,
   CheckCircle,
   XCircle,
@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { Pagination } from "@/components/ui/pagination";
+import { formatCurrency } from "@/lib/currency";
 
 export default function ContractsPage() {
   const router = useRouter();
@@ -195,10 +196,10 @@ export default function ContractsPage() {
                   <CardContent>
                     <div className="space-y-3">
                       <div className="flex items-center gap-2">
-                        <DollarSign className="h-4 w-4 text-accent" />
+                        <Banknote className="h-4 w-4 text-accent" />
                         <span className="text-sm text-muted-foreground">Budget:</span>
                         <span className="font-semibold text-foreground">
-                          ${parseFloat(contract.agreedBudget).toLocaleString()}
+                          {formatCurrency(contract.agreedBudget)}
                         </span>
                       </div>
                       

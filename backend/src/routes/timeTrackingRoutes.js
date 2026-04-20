@@ -6,7 +6,8 @@ const {
   startTimer, stopTimer, getActiveTimer,
   createManualEntry, updateTimeEntry, deleteTimeEntry,
   getContractTimeEntries, submitForApproval,
-  approveTimeEntry, rejectTimeEntry, getTimeSummary
+  approveTimeEntry, rejectTimeEntry, getTimeSummary,
+  stopAllActiveTimers
 } = require('../controllers/timeTrackingController');
 
 router.use(authMiddleware);
@@ -15,6 +16,7 @@ router.use(authMiddleware);
 router.post('/start', roleMiddleware(['FREELANCER']), startTimer);
 router.put('/:id/stop', roleMiddleware(['FREELANCER']), stopTimer);
 router.get('/active', roleMiddleware(['FREELANCER']), getActiveTimer);
+router.post('/stop-all', roleMiddleware(['FREELANCER']), stopAllActiveTimers); // Debug endpoint
 
 // Time entries CRUD
 router.post('/manual', roleMiddleware(['FREELANCER']), createManualEntry);

@@ -108,3 +108,61 @@ const getContractEscrow = async (req, res) => {
 };
 
 module.exports = { initiatePayment, verifyPayment, initiateEsewaPayment, verifyEsewaPayment, releaseEscrow, refundEscrow, getContractPayments, getContractEscrow };
+
+// Stripe Payment Controllers
+const initiateStripePayment = async (req, res) => {
+  try {
+    const { contractId, milestoneId, amount, description } = req.body;
+    if (!contractId || !amount) {
+      return res.status(400).json({ success: false, error: 'contractId and amount are required' });
+    }
+    const result = await paymentService.initiateStripePayment(req.user.userId, {
+      contractId, milestoneId, amount: parseFloat(amount), description
+    });
+    res.json({ success: true, payment: result });
+  } catch (error) {
+    logger.error('initiateStripePayment error', { error: error.message });
+    res.status(400).json({ success: false, error: error.message });
+  }
+};
+
+const verifyStripePayment = async (req, res) => {
+  try {
+    const { session_id } = req.query;
+    if (!session_id) {
+      return res.status(400).json({ success: false, error: 'Missing session_id parameter from Stripe' });
+    }
+    const result = await paymentService.verifyStripePayment(session_id);
+    res.json({ success: true, payment: result });
+  } catch (error) {
+    logger.error('verifyStripePayment error', { error: error.message });
+    res.status(400).json({ success: false, error: error.message });
+  }
+};
+
+const handleStripeWebhook = async (req, res) => {
+  try {
+    const sig = req.headers['stripe-signature'];
+    const result = await paymentService.handleStripeWebhook(req.body, sig);
+    res.json({ success: true, received: true });
+  } catch (error) {
+    logger.error('handleStripeWebhook error', { error: error.message });
+    res.status(400).json({ success: false, error: error.message });
+  }
+};
+
+const getMyPayments = async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const result = await paymentService.getMyPayments(userId);
+    res.json({ success: true, payments: result });
+  } catch (error) {
+    logger.error('getMyPayments error', { error: error.message });
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+module.exports.initiateStripePayment = initiateStripePayment;
+module.exports.verifyStripePayment = verifyStripePayment;
+module.exports.handleStripeWebhook = handleStripeWebhook;
+module.exports.getMyPayments = getMyPayments;

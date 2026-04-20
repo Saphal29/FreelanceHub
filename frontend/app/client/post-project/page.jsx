@@ -16,7 +16,7 @@ import { createProject, getProjectCategories, getProjectById, updateProject } fr
 import FileUpload from "@/components/files/FileUpload";
 import {
   Briefcase,
-  DollarSign,
+  Banknote,
   Calendar,
   MapPin,
   FileText,
@@ -31,6 +31,7 @@ import {
   Send,
 } from "lucide-react";
 import Link from "next/link";
+import { formatCurrency } from "@/lib/currency";
 
 // Validation schema
 const projectSchema = z.object({
@@ -484,7 +485,7 @@ function PostProjectContent() {
             <Card className="border-border">
               <CardHeader>
                 <CardTitle className="flex items-center font-display text-xl">
-                  <DollarSign className="h-5 w-5 mr-2 text-accent" />
+                  <Banknote className="h-5 w-5 mr-2 text-accent" />
                   Budget & Timeline
                 </CardTitle>
                 <CardDescription className="text-muted-foreground">
@@ -535,10 +536,10 @@ function PostProjectContent() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="budgetMin" className="text-foreground font-medium">
-                      Minimum Budget (USD) *
+                      Minimum Budget (NPR) *
                     </Label>
                     <div className="relative">
-                      <DollarSign className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                      <Banknote className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                       <Input
                         id="budgetMin"
                         type="number"
@@ -555,10 +556,10 @@ function PostProjectContent() {
 
                   <div className="space-y-2">
                     <Label htmlFor="budgetMax" className="text-foreground font-medium">
-                      Maximum Budget (USD) *
+                      Maximum Budget (NPR) *
                     </Label>
                     <div className="relative">
-                      <DollarSign className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                      <Banknote className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                       <Input
                         id="budgetMax"
                         type="number"
@@ -650,7 +651,7 @@ function PostProjectContent() {
                           )}
                           <div className="flex items-center gap-4 ml-8 text-sm">
                             <span className="text-foreground font-semibold">
-                              ${milestone.amount.toLocaleString()}
+                              {formatCurrency(milestone.amount)}
                             </span>
                             {milestone.dueDate && (
                               <span className="text-muted-foreground">
@@ -673,7 +674,7 @@ function PostProjectContent() {
                       </div>
                     ))}
                     <div className="text-sm text-muted-foreground">
-                      Total: ${milestones.reduce((sum, m) => sum + m.amount, 0).toLocaleString()}
+                      Total: {formatCurrency(milestones.reduce((sum, m) => sum + m.amount, 0))}
                     </div>
                   </div>
                 )}
@@ -709,9 +710,9 @@ function PostProjectContent() {
                     
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="space-y-2">
-                        <Label htmlFor="milestoneAmount">Amount (USD) *</Label>
+                        <Label htmlFor="milestoneAmount">Amount (NPR) *</Label>
                         <div className="relative">
-                          <DollarSign className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                          <Banknote className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                           <Input
                             id="milestoneAmount"
                             type="number"
