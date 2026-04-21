@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { verifyStripePayment } from "@/lib/api";
 import { CheckCircle, Loader2 } from "lucide-react";
 import Link from "next/link";
 
-export default function PaymentSuccessPage() {
+function PaymentSuccessContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [verifying, setVerifying] = useState(true);
@@ -113,5 +113,20 @@ export default function PaymentSuccessPage() {
         </Link>
       </div>
     </div>
+  );
+}
+
+export default function PaymentSuccessPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-center">
+          <Loader2 className="h-16 w-16 animate-spin text-accent mx-auto mb-4" />
+          <p className="text-lg text-foreground">Loading...</p>
+        </div>
+      </div>
+    }>
+      <PaymentSuccessContent />
+    </Suspense>
   );
 }

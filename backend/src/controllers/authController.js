@@ -159,7 +159,7 @@ const resendOTP = async (req, res) => {
  * @param {Object} req - Express request object
  * @param {Object} res - Express response object
  */
-const   register = async (req, res) => {
+const register = async (req, res) => {
   try {
     const { email, password, confirmPassword, fullName, role, phone } = req.body;
 
@@ -194,7 +194,13 @@ const   register = async (req, res) => {
     }
 
     // Create user
-    const { user } = await authService.createUser(validation.sanitizedData);
+    const { user, verificationToken } = await authService.createUser(validation.sanitizedData);
+
+    // Log verification link for development/testing
+    const verificationLink = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/verify-email?token=${verificationToken}`;
+    console.log('\n📧 VERIFICATION LINK:');
+    console.log(verificationLink);
+    console.log('\n');
 
     logger.auth('Registration successful', { 
       userId: user.id, 
@@ -229,7 +235,7 @@ const   register = async (req, res) => {
 };
 
 /**
- * Email verification controller (legacy token-based)
+ * Email verification controller
  * @param {Object} req - Express request object
  * @param {Object} res - Express response object
  */

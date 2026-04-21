@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, Suspense } from "react";
 import { useRouter, useParams, useSearchParams } from "next/navigation";
 import Navbar from "@/components/layout/Navbar";
 import { Button } from "@/components/ui/button";
@@ -25,7 +25,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 
-export default function ProjectDetailsPage() {
+function ProjectDetailsContent() {
   const router = useRouter();
   const params = useParams();
   const searchParams = useSearchParams();
@@ -373,5 +373,17 @@ export default function ProjectDetailsPage() {
         </div>
       </main>
     </div>
+  );
+}
+
+export default function ProjectDetailsPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-primary"></div>
+      </div>
+    }>
+      <ProjectDetailsContent />
+    </Suspense>
   );
 }

@@ -1,771 +1,402 @@
-"use client";
+'use client';
 
-import { useState, useEffect, useRef } from "react";
-import { useRouter, useParams } from "next/navigation";
-import Navbar from "@/components/layout/Navbar";
-import { Button } from "@/components/ui/button";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import MilestoneCard from "@/components/milestones/MilestoneCard";
-import { useAuth } from "@/contexts/AuthContext";
-import { getProjectById, getMilestones, startTimer, stopTimer, getContractTimeEntries, getUserContracts, createManualTimeEntry } from "@/lib/api";
+import { useState, useEffect } from 'react';
+import { useParams, useRouter } from 'next/navigation';
+import { useAuth } from '@/contexts/AuthContext';
+import { getProjectWorkspace } from '@/lib/api';
+import Navbar from '@/components/layout/Navbar';
+import { Button } from '@/components/ui/button';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import MilestoneCard from '@/components/milestones/MilestoneCard';
 import {
-  ArrowLeft,
-  Briefcase,
-  DollarSign,
-  Calendar,
-  MapPin,
-  AlertCircle,
-  FileText,
-  MessageSquare,
-  Video,
-  CheckCircle,
-  Clock,
-  Play,
-  Square,
-  Timer,
-  Plus,
-  Edit,
-} from "lucide-react";
-import Link from "next/link";
-import { formatCurrency } from "@/lib/currency";
+  ArrowLeft, User, Briefcase, Clock, DollarSign, CheckCircle, 
+  AlertCircle, Star, MessageSquare, Video, FileText
+} from 'lucide-react';
+import Link from 'next/link';
 
-export default function FreelancerProjectWorkspacePage() {
-  const router = useRouter();
+export default function ProjectWorkspace() {
   const params = useParams();
-  const projectId = params.projectId;
-  const { user, loading: authLoading } = useAuth();
-  
-  const [project, setProject] = useState(null);
-  const [milestones, setMilestones] = useState([]);
+  const router = useRouter();
+  const { user } = useAuth();
+  const [workspace, setWorkspace] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [contract, setContract] = useState(null);
-  
-  // Time tracking state
-  const [activeTimer, setActiveTimer] = useState(null);
-  const [elapsedTime, setElapsedTime] = useState(0);
-  const [timeEntries, setTimeEntries] = useState([]);
-  const [timerDescription, setTimerDescription] = useState("");
-  const [showTimeTracking, setShowTimeTracking] = useState(false);
-  const [showManualEntry, setShowManualEntry] = useState(false);
-  const [manualEntry, setManualEntry] = useState({
-    description: "",
-    startDate: "",
-    startTime: "",
-    endDate: "",
-    endTime: "",
-  });
-  const timerIntervalRef = useRef(null);
+  const [error, setError] = useState('');
 
   useEffect(() => {
-    if (!authLoading && (!user || user.role !== "FREELANCER")) {
-      router.push("/login");
+    if (user?.role === 'FREELANCER' && params.projectId) {
+      loadWorkspace();
     }
-  }, [user, authLoading, router]);
+  }, [user, params.projectId]);
 
-  useEffect(() => {
-    if (projectId && user) {
-      fetchProjectData();
-    }
-  }, [projectId, user]);
-
-  // Fetch time entries when contract is loaded
-  useEffect(() => {
-    if (contract) {
-      fetchTimeEntries();
-    }
-  }, [contract]);
-
-  // Timer effect
-  useEffect(() => {
-    if (activeTimer) {
-      console.log('Active timer data:', activeTimer);
-      const startTime = new Date(activeTimer.start_time || activeTimer.startTime).getTime();
-      console.log('Start time:', startTime, new Date(activeTimer.start_time || activeTimer.startTime));
-      
-      timerIntervalRef.current = setInterval(() => {
-        const now = Date.now();
-        const elapsed = Math.floor((now - startTime) / 1000);
-        setElapsedTime(elapsed);
-      }, 1000);
-    } else {
-      if (timerIntervalRef.current) {
-        clearInterval(timerIntervalRef.current);
-      }
-      setElapsedTime(0);
-    }
-
-    return () => {
-      if (timerIntervalRef.current) {
-        clearInterval(timerIntervalRef.current);
-      }
-    };
-  }, [activeTimer]);
-
-  const fetchProjectData = async () => {
+  const loadWorkspace = async () => {
     try {
       setLoading(true);
-      setError("");
-      
-      const [projectResponse, milestonesResponse, contractsResponse] = await Promise.all([
-        getProjectById(projectId),
-        getMilestones(projectId),
-        getUserContracts({ project_id: projectId })
-      ]);
-      
-      if (projectResponse.success) {
-        setProject(projectResponse.project);
-      } else {
-        setError(projectResponse.error || "Failed to load project");
-      }
-
-      if (milestonesResponse.success) {
-        setMilestones(milestonesResponse.milestones || []);
-      }
-
-      // Find active contract for this project
-      if (contractsResponse.success && contractsResponse.contracts) {
-        const activeContract = contractsResponse.contracts.find(
-          c => (c.project_id === projectId || c.projectId === projectId) && 
-               (c.status === 'active' || c.status === 'ACTIVE')
-        );
-        console.log('Found contracts:', contractsResponse.contracts);
-        console.log('Looking for projectId:', projectId);
-        console.log('Active contract:', activeContract);
-        setContract(activeContract || null);
+      setError('');
+      const response = await getProjectWorkspace(params.projectId);
+      if (response.success) {
+        setWorkspace(response);
       }
     } catch (err) {
-      console.error("Error fetching project:", err);
-      setError(err.message || "Failed to load project");
+      setError(err.message || 'Failed to load workspace');
     } finally {
       setLoading(false);
     }
   };
 
-  const fetchTimeEntries = async () => {
-    try {
-      // If no contract, can't fetch time entries
-      if (!contract) {
-        setTimeEntries([]);
-        return;
-      }
+  if (!user || user.role !== 'FREELANCER') {
+    return null;
+  }
 
-      const response = await getContractTimeEntries(contract.id);
-      console.log('Time entries response:', response);
-      
-      if (response.success) {
-        setTimeEntries(response.timeEntries || []);
-        
-        // Check for active timer (entry without end_time or endTime)
-        const active = response.timeEntries?.find(entry => !entry.end_time && !entry.endTime);
-        console.log('Active timer found:', active);
-        
-        if (active) {
-          setActiveTimer(active);
-          setTimerDescription(active.description || "");
-        }
-      }
-    } catch (err) {
-      console.error("Error fetching time entries:", err);
-    }
-  };
-
-  const handleStartTimer = async () => {
-    if (!contract) {
-      setError("No active contract found for this project. You need an active contract to track time.");
-      return;
-    }
-
-    try {
-      setError("");
-      console.log('Starting timer with contract:', contract.id);
-      const response = await startTimer({
-        contractId: contract.id,
-        description: timerDescription || "Working on project"
-      });
-      
-      console.log('Start timer response:', response);
-      
-      if (response.success) {
-        setActiveTimer(response.timeEntry);
-        await fetchTimeEntries();
-      } else {
-        setError(response.error || "Failed to start timer");
-      }
-    } catch (err) {
-      console.error("Error starting timer:", err);
-      setError(err.message || "Failed to start timer");
-    }
-  };
-
-  const handleStopTimer = async () => {
-    if (!activeTimer) return;
-    
-    try {
-      setError("");
-      console.log('Stopping timer:', activeTimer.id);
-      const response = await stopTimer(activeTimer.id);
-      
-      console.log('Stop timer response:', response);
-      
-      if (response.success) {
-        setActiveTimer(null);
-        setTimerDescription("");
-        await fetchTimeEntries();
-      } else {
-        setError(response.error || "Failed to stop timer");
-      }
-    } catch (err) {
-      console.error("Error stopping timer:", err);
-      setError(err.message || "Failed to stop timer");
-    }
-  };
-
-  const formatTime = (seconds) => {
-    const hours = Math.floor(seconds / 3600);
-    const minutes = Math.floor((seconds % 3600) / 60);
-    const secs = seconds % 60;
-    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-  };
-
-  const formatDuration = (startTime, endTime) => {
-    const start = new Date(startTime).getTime();
-    const end = endTime ? new Date(endTime).getTime() : Date.now();
-    const duration = Math.floor((end - start) / 1000);
-    return formatTime(duration);
-  };
-
-  const calculateTotalHours = () => {
-    const total = timeEntries.reduce((sum, entry) => {
-      const endTime = entry.end_time || entry.endTime;
-      if (endTime) {
-        const start = new Date(entry.start_time || entry.startTime).getTime();
-        const end = new Date(endTime).getTime();
-        return sum + (end - start) / 1000;
-      }
-      return sum;
-    }, 0);
-    return (total / 3600).toFixed(2);
-  };
-
-  const handleManualEntrySubmit = async () => {
-    if (!contract) {
-      setError("No active contract found for this project.");
-      return;
-    }
-
-    const { description, startDate, startTime, endDate, endTime } = manualEntry;
-
-    if (!startDate || !startTime || !endDate || !endTime) {
-      setError("Please fill in all date and time fields");
-      return;
-    }
-
-    try {
-      setError("");
-      const startDateTime = new Date(`${startDate}T${startTime}`);
-      const endDateTime = new Date(`${endDate}T${endTime}`);
-
-      if (endDateTime <= startDateTime) {
-        setError("End time must be after start time");
-        return;
-      }
-
-      const response = await createManualTimeEntry({
-        contractId: contract.id,
-        description: description || "Manual time entry",
-        startTime: startDateTime.toISOString(),
-        endTime: endDateTime.toISOString(),
-      });
-
-      if (response.success) {
-        setShowManualEntry(false);
-        setManualEntry({
-          description: "",
-          startDate: "",
-          startTime: "",
-          endDate: "",
-          endTime: "",
-        });
-        await fetchTimeEntries();
-      } else {
-        setError(response.error || "Failed to create manual entry");
-      }
-    } catch (err) {
-      console.error("Error creating manual entry:", err);
-      setError(err.message || "Failed to create manual entry");
-    }
-  };
-
-  if (authLoading || loading) {
+  if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-accent mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Loading project workspace...</p>
-        </div>
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
       </div>
     );
   }
 
-  if (!user || !project) {
+  if (error) {
     return (
       <div className="min-h-screen bg-background">
         <Navbar userType="freelancer" />
         <div className="container mx-auto px-4 py-8">
           <Alert className="border-2 border-red-200 bg-red-50">
             <AlertCircle className="h-5 w-5 text-red-600" />
-            <AlertDescription className="text-red-800 font-semibold">
-              {error || "Project not found"}
-            </AlertDescription>
+            <AlertDescription className="text-red-800 font-semibold">{error}</AlertDescription>
           </Alert>
-          <Link href="/freelancer/my-projects">
-            <Button variant="outline" className="mt-6">
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Back to My Projects
-            </Button>
-          </Link>
         </div>
       </div>
     );
   }
 
+  if (!workspace) return null;
+
+  const { project, milestones, recentTimeEntries, pendingRevisions } = workspace;
+
+  const completedMilestones = milestones.filter(m => m.status === 'completed').length;
+  const progressPercentage = milestones.length > 0 
+    ? Math.round((completedMilestones / milestones.length) * 100) 
+    : 0;
+
+  const getStatusBadge = (status) => {
+    const badges = {
+      active: { bg: "bg-green-100", text: "text-green-700", label: "Active" },
+      in_progress: { bg: "bg-blue-100", text: "text-blue-700", label: "In Progress" },
+      completed: { bg: "bg-gray-100", text: "text-gray-700", label: "Completed" },
+      on_hold: { bg: "bg-yellow-100", text: "text-yellow-700", label: "On Hold" }
+    };
+    const badge = badges[status] || badges.active;
+    return (
+      <span className={`rounded-full px-3 py-1 text-sm font-medium ${badge.bg} ${badge.text}`}>
+        {badge.label}
+      </span>
+    );
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <Navbar userType="freelancer" />
-      
       <main className="container mx-auto px-4 py-8">
-        <div className="max-w-6xl mx-auto">
-          {/* Header */}
-          <div className="mb-6">
-            <Link href="/freelancer/my-projects">
-              <Button variant="outline" size="sm" className="mb-4">
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Back to My Projects
-              </Button>
-            </Link>
-            
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <h1 className="font-display text-3xl font-bold text-foreground mb-2">
-                  {project.title}
-                </h1>
-                <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
-                  <span className="flex items-center gap-1">
-                    <Briefcase className="h-4 w-4" />
-                    {project.category}
-                  </span>
-                  {project.location && (
-                    <span className="flex items-center gap-1">
-                      <MapPin className="h-4 w-4" />
-                      {project.location}
-                    </span>
-                  )}
-                </div>
-              </div>
-              
-              <div className="flex gap-2">
-                <Link href={`/chat?userId=${project.client?.id}&projectId=${projectId}`}>
-                  <Button variant="outline" size="sm" className="gap-2">
-                    <MessageSquare className="h-4 w-4" />
-                    Message Client
-                  </Button>
-                </Link>
-                <Link href={`/video-meeting?projectId=${projectId}&userId=${project.client?.id}`}>
-                  <Button variant="outline" size="sm" className="gap-2">
-                    <Video className="h-4 w-4" />
-                    Schedule Meeting
-                  </Button>
-                </Link>
-              </div>
+        <div className="max-w-4xl mx-auto">
+          <Link href="/freelancer/my-projects" className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors mb-6">
+            <ArrowLeft className="h-4 w-4" />
+            <span>Back to My Projects</span>
+          </Link>
+
+          {/* Alerts */}
+          {pendingRevisions.length > 0 && (
+            <Alert className="mb-6 border-2 border-yellow-200 bg-yellow-50">
+              <AlertCircle className="h-5 w-5 text-yellow-600" />
+              <AlertDescription className="text-yellow-800">
+                {pendingRevisions.length} Revision Request{pendingRevisions.length > 1 ? 's' : ''} Pending - Please address the feedback and resubmit
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {project.contractStatus === 'completed' && (
+            <Alert className="mb-6 border-2 border-green-200 bg-green-50">
+              <CheckCircle className="h-5 w-5 text-green-600" />
+              <AlertDescription className="text-green-800 font-semibold">
+                🎉 Project Completed! All milestones have been approved.
+              </AlertDescription>
+            </Alert>
+          )}
+
+          <div className="flex items-start justify-between mb-6">
+            <div>
+              <h1 className="font-display text-3xl font-bold text-foreground">{project.title}</h1>
+              <p className="text-muted-foreground mt-1">Project #{params.projectId.slice(0, 8)}</p>
             </div>
+            {getStatusBadge(project.contractStatus)}
           </div>
 
-          {/* Project Info Card */}
-          <Card className="border-border mb-6">
-            <CardHeader>
-              <CardTitle className="flex items-center font-display text-xl">
-                <FileText className="h-5 w-5 mr-2 text-accent" />
-                Project Details
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <p className="text-sm text-muted-foreground mb-1">Budget</p>
-                  <div className="flex items-center gap-2">
-                    <DollarSign className="h-4 w-4 text-accent" />
-                    <p className="font-semibold text-foreground">
-                      {formatCurrency(project.budget?.min)} - {formatCurrency(project.budget?.max)}
-                    </p>
-                  </div>
-                </div>
-                {project.duration && (
-                  <div>
-                    <p className="text-sm text-muted-foreground mb-1">Duration</p>
-                    <div className="flex items-center gap-2">
-                      <Calendar className="h-4 w-4 text-accent" />
-                      <p className="font-semibold text-foreground">{project.duration}</p>
-                    </div>
-                  </div>
-                )}
-                {project.deadline && (
-                  <div>
-                    <p className="text-sm text-muted-foreground mb-1">Deadline</p>
-                    <div className="flex items-center gap-2">
-                      <Calendar className="h-4 w-4 text-accent" />
-                      <p className="font-semibold text-foreground">
-                        {new Date(project.deadline).toLocaleDateString()}
-                      </p>
-                    </div>
-                  </div>
-                )}
-              </div>
-              
-              {project.description && (
-                <div className="mt-4 pt-4 border-t border-border">
-                  <p className="text-sm text-muted-foreground mb-2">Description</p>
-                  <p className="text-foreground whitespace-pre-wrap">{project.description}</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Time Tracking Section */}
-          <Card className="border-border mb-6">
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle className="flex items-center font-display text-xl">
-                  <Clock className="h-5 w-5 mr-2 text-accent" />
-                  Time Tracking
-                </CardTitle>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setShowTimeTracking(!showTimeTracking)}
-                >
-                  {showTimeTracking ? "Hide" : "Show"}
+          {/* Quick Actions */}
+          <div className="flex flex-wrap gap-2 mb-6">
+            <Link href={`/chat?userId=${project.client.id}&contractId=${project.contractId}`}>
+              <Button variant="outline" size="sm" className="gap-2">
+                <MessageSquare className="h-4 w-4" />
+                Message Client
+              </Button>
+            </Link>
+            {project.contractStatus === 'active' && (
+              <Link href={`/calls?calleeId=${project.client.id}`}>
+                <Button variant="outline" size="sm" className="gap-2">
+                  <Video className="h-4 w-4" />
+                  Video Call
                 </Button>
-              </div>
-            </CardHeader>
-            
-            {showTimeTracking && (
-              <CardContent>
-                {/* Error Display */}
-                {error && (
-                  <Alert className="mb-4 border-red-200 bg-red-50">
-                    <AlertCircle className="h-5 w-5 text-red-600" />
-                    <AlertDescription className="text-red-800">{error}</AlertDescription>
-                  </Alert>
-                )}
+              </Link>
+            )}
+            {project.contractId && (
+              <Link href={`/contracts/${project.contractId}`}>
+                <Button variant="outline" size="sm" className="gap-2">
+                  <FileText className="h-4 w-4" />
+                  View Contract
+                </Button>
+              </Link>
+            )}
+            {project.contractStatus === 'completed' && (
+              <Link href={`/contracts/${project.contractId}/review`}>
+                <Button variant="accent" size="sm" className="gap-2">
+                  <Star className="h-4 w-4" />
+                  Leave Review
+                </Button>
+              </Link>
+            )}
+          </div>
 
-                {/* No Contract Warning */}
-                {!contract && (
-                  <Alert className="mb-6 border-yellow-200 bg-yellow-50">
-                    <AlertCircle className="h-5 w-5 text-yellow-600" />
-                    <AlertDescription className="text-yellow-800">
-                      You need an active contract for this project to track time. Please ensure you have an accepted proposal and signed contract.
-                    </AlertDescription>
-                  </Alert>
-                )}
-
-                {/* Contract Info */}
-                {contract && (
-                  <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg">
-                    <p className="text-sm text-green-800">
-                      ✓ Active contract found - Time tracking enabled
-                    </p>
+          <div className="grid gap-6 lg:grid-cols-3">
+            <div className="lg:col-span-2 space-y-6">
+              {/* Project Overview */}
+              <Card className="border-border">
+                <CardHeader>
+                  <CardTitle className="flex items-center font-display text-xl">
+                    <Briefcase className="h-5 w-5 mr-2 text-accent" />
+                    Project Overview
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div>
+                    <h4 className="text-sm font-semibold text-foreground mb-2">Description</h4>
+                    <p className="text-muted-foreground whitespace-pre-wrap">{project.description}</p>
                   </div>
-                )}
-
-                {/* Active Timer */}
-                <div className="bg-accent/5 border border-accent/20 rounded-lg p-6 mb-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-3">
-                      <div className={`p-2 rounded-full ${activeTimer ? 'bg-green-100' : contract ? 'bg-gray-100' : 'bg-yellow-100'}`}>
-                        <Timer className={`h-6 w-6 ${activeTimer ? 'text-green-600' : contract ? 'text-gray-400' : 'text-yellow-600'}`} />
-                      </div>
-                      <div>
-                        <h3 className="font-semibold text-foreground">
-                          {activeTimer ? "Timer Running" : contract ? "Start Tracking Time" : "Contract Required"}
-                        </h3>
-                        <p className="text-sm text-muted-foreground">
-                          {activeTimer ? "Working on this project" : contract ? "Track your work hours" : "Active contract needed"}
-                        </p>
-                      </div>
+                  <div>
+                    <h4 className="text-sm font-semibold text-foreground mb-2">Contract Value</h4>
+                    <div className="flex items-center gap-2">
+                      <DollarSign className="h-5 w-5 text-accent" />
+                      <span className="text-2xl font-bold text-foreground">
+                        NPR {project.totalAmount?.toFixed(2)}
+                      </span>
                     </div>
-                    
-                    {activeTimer && (
-                      <div className="text-right">
-                        <div className="text-3xl font-bold text-accent font-mono">
-                          {formatTime(elapsedTime)}
-                        </div>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          Started {new Date(activeTimer.start_time || activeTimer.startTime).toLocaleTimeString()}
-                        </p>
-                      </div>
+                    {project.hourlyRate && (
+                      <p className="text-sm text-muted-foreground mt-1">NPR {project.hourlyRate}/hr</p>
                     )}
                   </div>
-
-                  {!activeTimer && contract && (
-                    <div className="mb-4">
-                      <input
-                        type="text"
-                        placeholder="What are you working on?"
-                        value={timerDescription}
-                        onChange={(e) => setTimerDescription(e.target.value)}
-                        className="w-full px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-accent"
+                  {project.skills && project.skills.length > 0 && (
+                    <div>
+                      <h4 className="text-sm font-semibold text-foreground mb-2">Skills Required</h4>
+                      <div className="flex flex-wrap gap-2">
+                        {project.skills.map((skill, index) => (
+                          <span
+                            key={index}
+                            className="px-3 py-1 bg-accent text-foreground text-sm rounded-full"
+                          >
+                            {skill}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  <div>
+                    <h4 className="text-sm font-semibold text-foreground mb-2">Progress</h4>
+                    <div className="flex justify-between text-xs text-muted-foreground mb-1">
+                      <span>{progressPercentage}% Complete</span>
+                      <span>{completedMilestones}/{milestones.length} Milestones</span>
+                    </div>
+                    <div className="w-full bg-secondary rounded-full h-2">
+                      <div
+                        className="bg-accent h-2 rounded-full transition-all"
+                        style={{ width: `${progressPercentage}%` }}
                       />
                     </div>
-                  )}
-
-                  {activeTimer && activeTimer.description && (
-                    <div className="mb-4 p-3 bg-background rounded-lg">
-                      <p className="text-sm text-muted-foreground mb-1">Description:</p>
-                      <p className="text-foreground">{activeTimer.description}</p>
-                    </div>
-                  )}
-
-                  <div className="flex gap-3">
-                    {!activeTimer ? (
-                      <>
-                        <Button
-                          onClick={handleStartTimer}
-                          disabled={!contract}
-                          className="flex-1 bg-accent hover:bg-accent/90 text-white gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          <Play className="h-4 w-4" />
-                          {contract ? "Start Timer" : "Contract Required"}
-                        </Button>
-                        <Button
-                          onClick={() => setShowManualEntry(!showManualEntry)}
-                          disabled={!contract}
-                          variant="outline"
-                          className="gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          <Plus className="h-4 w-4" />
-                          Manual Entry
-                        </Button>
-                      </>
-                    ) : (
-                      <Button
-                        onClick={handleStopTimer}
-                        variant="destructive"
-                        className="flex-1 gap-2"
-                      >
-                        <Square className="h-4 w-4" />
-                        Stop Timer
-                      </Button>
-                    )}
                   </div>
-                </div>
+                </CardContent>
+              </Card>
 
-                {/* Manual Entry Form */}
-                {showManualEntry && contract && (
-                  <div className="bg-background border border-border rounded-lg p-6 mb-6">
-                    <div className="flex items-center justify-between mb-4">
-                      <h4 className="font-semibold text-foreground flex items-center gap-2">
-                        <Edit className="h-5 w-5 text-accent" />
-                        Add Manual Time Entry
-                      </h4>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setShowManualEntry(false)}
-                      >
-                        Cancel
-                      </Button>
-                    </div>
-
-                    <div className="space-y-4">
-                      <div>
-                        <label className="block text-sm font-medium text-foreground mb-2">
-                          Description
-                        </label>
-                        <input
-                          type="text"
-                          placeholder="What did you work on?"
-                          value={manualEntry.description}
-                          onChange={(e) => setManualEntry({ ...manualEntry, description: e.target.value })}
-                          className="w-full px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-accent"
-                        />
-                      </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-sm font-medium text-foreground mb-2">
-                            Start Date
-                          </label>
-                          <input
-                            type="date"
-                            value={manualEntry.startDate}
-                            onChange={(e) => setManualEntry({ ...manualEntry, startDate: e.target.value })}
-                            className="w-full px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-accent"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-foreground mb-2">
-                            Start Time
-                          </label>
-                          <input
-                            type="time"
-                            value={manualEntry.startTime}
-                            onChange={(e) => setManualEntry({ ...manualEntry, startTime: e.target.value })}
-                            className="w-full px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-accent"
-                          />
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-sm font-medium text-foreground mb-2">
-                            End Date
-                          </label>
-                          <input
-                            type="date"
-                            value={manualEntry.endDate}
-                            onChange={(e) => setManualEntry({ ...manualEntry, endDate: e.target.value })}
-                            className="w-full px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-accent"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-foreground mb-2">
-                            End Time
-                          </label>
-                          <input
-                            type="time"
-                            value={manualEntry.endTime}
-                            onChange={(e) => setManualEntry({ ...manualEntry, endTime: e.target.value })}
-                            className="w-full px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-accent"
-                          />
-                        </div>
-                      </div>
-
-                      <Button
-                        onClick={handleManualEntrySubmit}
-                        className="w-full bg-accent hover:bg-accent/90 text-white"
-                      >
-                        Add Time Entry
-                      </Button>
-                    </div>
-                  </div>
-                )}
-
-                {/* Time Summary */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                  <div className="bg-background border border-border rounded-lg p-4">
-                    <p className="text-sm text-muted-foreground mb-1">Total Hours</p>
-                    <p className="text-2xl font-bold text-foreground">{calculateTotalHours()}h</p>
-                  </div>
-                  <div className="bg-background border border-border rounded-lg p-4">
-                    <p className="text-sm text-muted-foreground mb-1">Total Entries</p>
-                    <p className="text-2xl font-bold text-foreground">{timeEntries.length}</p>
-                  </div>
-                  <div className="bg-background border border-border rounded-lg p-4">
-                    <p className="text-sm text-muted-foreground mb-1">This Week</p>
-                    <p className="text-2xl font-bold text-foreground">
-                      {timeEntries.filter(entry => {
-                        const entryDate = new Date(entry.start_time || entry.startTime);
-                        const weekAgo = new Date();
-                        weekAgo.setDate(weekAgo.getDate() - 7);
-                        return entryDate >= weekAgo;
-                      }).length}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Recent Time Entries */}
-                <div>
-                  <h4 className="font-semibold text-foreground mb-3 flex items-center gap-2">
-                    <Clock className="h-4 w-4 text-accent" />
-                    Recent Time Entries
-                  </h4>
-                  
-                  {timeEntries.length === 0 ? (
-                    <div className="text-center py-8 bg-background border border-border rounded-lg">
-                      <Clock className="mx-auto h-12 w-12 text-muted-foreground mb-3" />
-                      <p className="text-muted-foreground">No time entries yet</p>
-                      <p className="text-sm text-muted-foreground mt-1">
-                        Start the timer to track your work
-                      </p>
-                    </div>
+              {/* Milestones */}
+              <Card className="border-border">
+                <CardHeader>
+                  <CardTitle className="flex items-center font-display text-xl">
+                    <CheckCircle className="h-5 w-5 mr-2 text-accent" />
+                    Milestones ({milestones.length})
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {milestones.length === 0 ? (
+                    <p className="text-muted-foreground text-center py-8">No milestones defined for this project</p>
                   ) : (
-                    <div className="space-y-2">
-                      {timeEntries.slice(0, 5).map((entry) => (
-                        <div
-                          key={entry.id}
-                          className="flex items-center justify-between p-4 bg-background border border-border rounded-lg hover:border-accent/50 transition-colors"
-                        >
-                          <div className="flex-1">
-                            <p className="font-medium text-foreground">
-                              {entry.description || "No description"}
+                    <div className="space-y-4">
+                      {milestones.map((milestone) => (
+                        <MilestoneCard
+                          key={milestone.id}
+                          milestone={milestone}
+                          userRole="freelancer"
+                          onUpdate={loadWorkspace}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Time Tracking */}
+              <Card className="border-border">
+                <CardHeader>
+                  <CardTitle className="flex items-center font-display text-xl">
+                    <Clock className="h-5 w-5 mr-2 text-accent" />
+                    Recent Time Entries
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {recentTimeEntries.length === 0 ? (
+                    <p className="text-muted-foreground text-center py-8">No time entries yet</p>
+                  ) : (
+                    <div className="space-y-3">
+                      {recentTimeEntries.map((entry) => (
+                        <div key={entry.id} className="flex items-center justify-between p-3 bg-muted rounded-xl">
+                          <div>
+                            <p className="font-semibold text-foreground text-sm">
+                              {entry.description || 'No description'}
                             </p>
-                            <p className="text-sm text-muted-foreground mt-1">
-                              {new Date(entry.start_time || entry.startTime).toLocaleDateString()} at{" "}
-                              {new Date(entry.start_time || entry.startTime).toLocaleTimeString()}
+                            <p className="text-xs text-muted-foreground">
+                              {new Date(entry.start_time).toLocaleString()} - 
+                              {entry.end_time ? new Date(entry.end_time).toLocaleString() : 'Running'}
                             </p>
                           </div>
                           <div className="text-right">
-                            <div className="font-semibold text-foreground font-mono">
-                              {(entry.end_time || entry.endTime) ? formatDuration(entry.start_time || entry.startTime, entry.end_time || entry.endTime) : (
-                                <span className="text-green-600">Running...</span>
-                              )}
-                            </div>
-                            {(entry.end_time || entry.endTime) && (
-                              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 mt-1">
-                                Completed
-                              </span>
+                            <p className="font-bold text-foreground">
+                              {entry.duration_minutes ? (entry.duration_minutes / 60).toFixed(2) : '0.00'} hrs
+                            </p>
+                            {entry.total_amount && (
+                              <p className="text-sm text-green-600">
+                                NPR {parseFloat(entry.total_amount).toFixed(2)}
+                              </p>
                             )}
                           </div>
                         </div>
                       ))}
-                      
-                      {timeEntries.length > 5 && (
-                        <Button variant="outline" className="w-full mt-2">
-                          View All {timeEntries.length} Entries
-                        </Button>
-                      )}
                     </div>
                   )}
-                </div>
-              </CardContent>
-            )}
-          </Card>
+                </CardContent>
+              </Card>
 
-          {/* Milestones Section */}
-          <Card className="border-border">
-            <CardHeader>
-              <CardTitle className="flex items-center font-display text-xl">
-                <CheckCircle className="h-5 w-5 mr-2 text-accent" />
-                Project Milestones
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {milestones.length === 0 ? (
-                <div className="text-center py-8">
-                  <CheckCircle className="mx-auto h-12 w-12 text-muted-foreground" />
-                  <h3 className="mt-4 font-display text-lg font-semibold text-foreground">
-                    No milestones yet
-                  </h3>
-                  <p className="mt-2 text-muted-foreground">
-                    This project doesn't have any milestones
-                  </p>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {milestones.map((milestone) => (
-                    <MilestoneCard
-                      key={milestone.id}
-                      milestone={milestone}
-                      userRole="freelancer"
-                      onUpdate={fetchProjectData}
-                    />
-                  ))}
-                </div>
+              {/* Pending Revisions */}
+              {pendingRevisions.length > 0 && (
+                <Card className="border-border border-yellow-200">
+                  <CardHeader>
+                    <CardTitle className="flex items-center font-display text-xl">
+                      <AlertCircle className="h-5 w-5 mr-2 text-yellow-600" />
+                      Pending Revisions ({pendingRevisions.length})
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    {pendingRevisions.map((revision) => (
+                      <div key={revision.id} className="p-3 bg-yellow-50 border border-yellow-200 rounded-xl">
+                        <div className="flex items-start justify-between mb-2">
+                          <div>
+                            <p className="font-semibold text-foreground text-sm">{revision.milestone_title}</p>
+                            <p className="text-xs text-muted-foreground">
+                              Requested on {new Date(revision.created_at).toLocaleDateString()}
+                            </p>
+                          </div>
+                          <span className="px-2 py-0.5 bg-yellow-100 text-yellow-800 text-xs font-medium rounded-full">
+                            Pending
+                          </span>
+                        </div>
+                        <p className="text-sm text-foreground">{revision.revision_notes}</p>
+                      </div>
+                    ))}
+                  </CardContent>
+                </Card>
               )}
-            </CardContent>
-          </Card>
+            </div>
+
+            {/* Sidebar */}
+            <div className="lg:col-span-1">
+              <div className="sticky top-20 space-y-6">
+                {/* Client Info */}
+                <Card className="border-border">
+                  <CardHeader>
+                    <CardTitle className="font-display text-lg">Client</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-accent">
+                        {project.client.avatar ? (
+                          <img 
+                            src={project.client.avatar} 
+                            alt={project.client.name} 
+                            className="h-12 w-12 rounded-full object-cover" 
+                          />
+                        ) : (
+                          <User className="h-6 w-6" />
+                        )}
+                      </div>
+                      <div>
+                        <p className="font-semibold text-foreground">{project.client.name}</p>
+                        {project.client.company && (
+                          <p className="text-sm text-muted-foreground">{project.client.company}</p>
+                        )}
+                      </div>
+                    </div>
+                    <div className="space-y-2 text-sm">
+                      <p className="text-muted-foreground">
+                        <span className="font-medium">Email:</span> {project.client.email}
+                      </p>
+                      {project.client.phone && (
+                        <p className="text-muted-foreground">
+                          <span className="font-medium">Phone:</span> {project.client.phone}
+                        </p>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Project Details */}
+                <Card className="border-border">
+                  <CardHeader>
+                    <CardTitle className="font-display text-lg">Details</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3 text-sm">
+                    <div>
+                      <p className="text-muted-foreground">Category</p>
+                      <p className="font-semibold text-foreground">{project.category}</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground">Project Type</p>
+                      <p className="font-semibold text-foreground">{project.projectType}</p>
+                    </div>
+                    {project.startDate && (
+                      <div>
+                        <p className="text-muted-foreground">Start Date</p>
+                        <p className="font-semibold text-foreground">
+                          {new Date(project.startDate).toLocaleDateString()}
+                        </p>
+                      </div>
+                    )}
+                    {project.deadline && (
+                      <div>
+                        <p className="text-muted-foreground">Deadline</p>
+                        <p className="font-semibold text-foreground">
+                          {new Date(project.deadline).toLocaleDateString()}
+                        </p>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
+          </div>
         </div>
       </main>
     </div>

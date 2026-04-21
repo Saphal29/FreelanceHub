@@ -1,13 +1,13 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { ShieldAlert, Lock, ArrowRight, Home } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
-export default function UnauthorizedPage() {
+function UnauthorizedContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [countdown, setCountdown] = useState(5);
@@ -112,5 +112,17 @@ export default function UnauthorizedPage() {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+export default function UnauthorizedPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-red-50 via-white to-orange-50">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-500"></div>
+      </div>
+    }>
+      <UnauthorizedContent />
+    </Suspense>
   );
 }
