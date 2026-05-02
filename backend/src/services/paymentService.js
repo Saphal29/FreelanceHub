@@ -170,6 +170,8 @@ const verifyPayment = async (pidx, purchaseOrderId) => {
 
 /**
  * Create escrow record after successful payment
+ * If milestone_id is provided, creates escrow for that specific milestone
+ * If no milestone_id, divides amount equally among all pending milestones
  */
 const createEscrow = async (payment) => {
   const contractResult = await query(
@@ -177,19 +179,172 @@ const createEscrow = async (payment) => {
     [payment.contract_id]
   );
 
-  await query(
-    `INSERT INTO escrow (
-      contract_id, milestone_id, payment_id,
-      client_id, freelancer_id,
-      amount, platform_fee, net_amount,
-      status, held_at
-    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'held', CURRENT_TIMESTAMP)`,
-    [
-      payment.contract_id, payment.milestone_id, payment.id,
-      payment.payer_id, contractResult.rows[0].freelancer_id,
-      payment.amount, payment.platform_fee, payment.net_amount
-    ]
-  );
+  const freelancerId = contractResult.rows[0].freelancer_id;
+
+  // If payment is for a specific milestone, create single escrow entry
+  if (payment.milestone_id) {
+    await query(
+      `INSERT INTO escrow (
+        contract_id, milestone_id, payment_id,
+        client_id, freelancer_id,
+        amount, platform_fee, net_amount,
+        status, held_at
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'held', CURRENT_TIMESTAMP)`,
+      [
+        payment.contract_id, payment.milestone_id, payment.id,
+        payment.payer_id, freelancerId,
+        payment.amount, payment.platform_fee, payment.net_amount
+      ]
+    );
+    
+    logger.info('Escrow created for specific milestone', {
+      paymentId: payment.id,
+      milestoneId: payment.milestone_id,
+      amount: payment.amount
+    });
+  } else {
+    // Payment is for entire contract - divide among all pending/active milestones
+    // First get the project_id from the contract
+    const contractResult = await query(
+      'SELECT project_id FROM contracts WHERE id = $1',
+      [payment.contract_id]
+    );
+    
+    if (contractResult.rows.length === 0) {
+      throw new Error('Contract not found');
+    }
+    
+    const projectId = contractResult.rows[0].project_id;
+    
+    const milestonesResult = await query(
+      `SELECT id, title, amount, status FROM project_milestones 
+       WHERE project_id = $1 AND status IN ('pending', 'in_progress', 'under_review')
+       ORDER BY created_at ASC`,
+      [projectId]
+    );
+
+    const milestones = milestonesResult.rows;
+    
+    logger.info('Found milestones for escrow distribution', {
+      contractId: payment.contract_id,
+      projectId: projectId,
+      milestoneCount: milestones.length,
+      milestones: milestones.map(m => ({ id: m.id, title: m.title, amount: m.amount, status: m.status }))
+    });
+    
+    if (milestones.length === 0) {
+      throw new Error('No pending milestones found for this contract. Please create milestones before depositing funds.');
+    }
+
+    // Calculate total milestone amount
+    const totalMilestoneAmount = milestones.reduce((sum, m) => sum + parseFloat(m.amount || 0), 0);
+    
+    // If milestones don't have amounts set, divide equally
+    const shouldDivideEqually = totalMilestoneAmount === 0;
+    
+    logger.info('Escrow distribution strategy', {
+      totalMilestoneAmount,
+      shouldDivideEqually,
+      paymentAmount: payment.amount,
+      paymentPlatformFee: payment.platform_fee,
+      paymentNetAmount: payment.net_amount
+    });
+    
+    if (shouldDivideEqually) {
+      // Divide payment amount equally among milestones
+      const amountPerMilestone = payment.amount / milestones.length;
+      const platformFeePerMilestone = payment.platform_fee / milestones.length;
+      const netAmountPerMilestone = payment.net_amount / milestones.length;
+
+      logger.info('Dividing equally', {
+        amountPerMilestone,
+        platformFeePerMilestone,
+        netAmountPerMilestone
+      });
+
+      for (const milestone of milestones) {
+        await query(
+          `INSERT INTO escrow (
+            contract_id, milestone_id, payment_id,
+            client_id, freelancer_id,
+            amount, platform_fee, net_amount,
+            status, held_at
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'held', CURRENT_TIMESTAMP)
+          RETURNING id`,
+          [
+            payment.contract_id, milestone.id, payment.id,
+            payment.payer_id, freelancerId,
+            amountPerMilestone, platformFeePerMilestone, netAmountPerMilestone
+          ]
+        );
+        
+        logger.info('Created escrow entry for milestone', {
+          milestoneId: milestone.id,
+          milestoneTitle: milestone.title,
+          amount: amountPerMilestone,
+          netAmount: netAmountPerMilestone
+        });
+      }
+
+      logger.info('Escrow divided equally among milestones', {
+        paymentId: payment.id,
+        totalAmount: payment.amount,
+        milestoneCount: milestones.length,
+        amountPerMilestone
+      });
+    } else {
+      // Divide proportionally based on milestone amounts
+      logger.info('Dividing proportionally based on milestone amounts');
+      
+      for (const milestone of milestones) {
+        const milestoneAmount = parseFloat(milestone.amount);
+        const proportion = milestoneAmount / totalMilestoneAmount;
+        
+        const escrowAmount = payment.amount * proportion;
+        const escrowPlatformFee = payment.platform_fee * proportion;
+        const escrowNetAmount = payment.net_amount * proportion;
+
+        logger.info('Calculating proportional escrow', {
+          milestoneId: milestone.id,
+          milestoneTitle: milestone.title,
+          milestoneAmount,
+          proportion: (proportion * 100).toFixed(2) + '%',
+          escrowAmount,
+          escrowPlatformFee,
+          escrowNetAmount
+        });
+
+        await query(
+          `INSERT INTO escrow (
+            contract_id, milestone_id, payment_id,
+            client_id, freelancer_id,
+            amount, platform_fee, net_amount,
+            status, held_at
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'held', CURRENT_TIMESTAMP)
+          RETURNING id`,
+          [
+            payment.contract_id, milestone.id, payment.id,
+            payment.payer_id, freelancerId,
+            escrowAmount, escrowPlatformFee, escrowNetAmount
+          ]
+        );
+        
+        logger.info('Created proportional escrow entry for milestone', {
+          milestoneId: milestone.id,
+          milestoneTitle: milestone.title,
+          amount: escrowAmount,
+          netAmount: escrowNetAmount
+        });
+      }
+
+      logger.info('Escrow divided proportionally among milestones', {
+        paymentId: payment.id,
+        totalAmount: payment.amount,
+        milestoneCount: milestones.length,
+        totalMilestoneAmount
+      });
+    }
+  }
 };
 
 /**
@@ -264,13 +419,12 @@ const refundEscrow = async (escrowId, clientId, reason) => {
  */
 const getContractPayments = async (contractId, userId) => {
   const result = await query(
-    `SELECT p.*, e.status as escrow_status, e.id as escrow_id,
+    `SELECT DISTINCT ON (p.id) p.*, 
             pm.title as milestone_title
      FROM payments p
-     LEFT JOIN escrow e ON e.payment_id = p.id
      LEFT JOIN project_milestones pm ON p.milestone_id = pm.id
      WHERE p.contract_id = $1 AND (p.payer_id = $2 OR p.payee_id = $2)
-     ORDER BY p.created_at DESC`,
+     ORDER BY p.id, p.created_at DESC`,
     [contractId, userId]
   );
   return result.rows.map(formatPaymentResponse);
@@ -309,8 +463,6 @@ const formatPaymentResponse = (p) => ({
   transactionId: p.transaction_id,
   paymentUrl: p.payment_url,
   description: p.description,
-  escrowStatus: p.escrow_status,
-  escrowId: p.escrow_id,
   createdAt: p.created_at,
   completedAt: p.completed_at
 });
@@ -671,24 +823,8 @@ const verifyStripePayment = async (sessionId) => {
         ['completed', payment.id]
       );
       
-      // Create escrow entry (only if it doesn't exist)
-      await query(
-        `INSERT INTO escrow (
-          contract_id, milestone_id, client_id, freelancer_id,
-          amount, net_amount, platform_fee, status, payment_id, held_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, CURRENT_TIMESTAMP)`,
-        [
-          payment.contract_id,
-          payment.milestone_id,
-          payment.payer_id,
-          payment.payee_id,
-          payment.amount,
-          payment.net_amount,
-          payment.platform_fee,
-          'held',
-          payment.id
-        ]
-      );
+      // Create escrow using the createEscrow function to properly divide among milestones
+      await createEscrow(payment);
       
       logger.info('Stripe payment verified and escrow created', { paymentId: payment.id });
       

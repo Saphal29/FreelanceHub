@@ -362,16 +362,69 @@ export function useWebRTC() {
 
   const stopScreenShare = useCallback(() => {
     const cameraTrack = cameraTrackRef.current;
-    for (const [, pc] of peerConnections.current) {
-      const sender = pc.getSenders().find((s) => s.track?.kind === "video");
-      if (sender && cameraTrack) {
-        sender.replaceTrack(cameraTrack);
+    const stream = localStreamRef.current;
+    
+    // Replace screen track with camera track in local stream first
+    if (stream) {
+      const screenTrack = screenTrackRef.current;
+      if (screenTrack) {
+        stream.removeTrack(screenTrack);
+        screenTrack.stop();
+      }
+      if (cameraTrack && !stream.getVideoTracks().includes(cameraTrack)) {
+        stream.addTrack(cameraTrack);
+      }
+      // Trigger re-render by creating new stream reference
+      setLocalStream(new MediaStream(stream.getTracks()));
+    }
+    
+    // Replace screen track with camera track in all peer connections and renegotiate
+    for (const [userId, pc] of peerConnections.current) {
+      try {
+        const sender = pc.getSenders().find((s) => s.track?.kind === "video");
+        if (sender && cameraTrack) {
+          sender.replaceTrack(cameraTrack).then(() => {
+            console.log(`[useWebRTC] Replaced screen track with camera for ${userId}`);
+            
+            // Trigger renegotiation so remote peer gets the camera track
+            if (pc.signalingState === "stable") {
+              pc.createOffer()
+                .then(offer => pc.setLocalDescription(offer))
+                .then(() => {
+                  const socket = socketRef.current;
+                  const roomId = roomIdRef.current;
+                  if (socket && roomId) {
+                    socket.emit("peer:offer", {
+                      roomId,
+                      targetUserId: userId,
+                      sdp: pc.localDescription,
+                    });
+                    console.log(`[useWebRTC] Sent renegotiation offer to ${userId} after stopping screen share`);
+                  }
+                })
+                .catch(err => {
+                  console.error(`[useWebRTC] Error creating renegotiation offer for ${userId}:`, err);
+                });
+            }
+          }).catch(err => {
+            console.error(`[useWebRTC] Error replacing screen track with camera for ${userId}:`, err);
+          });
+        }
+      } catch (err) {
+        console.error(`[useWebRTC] Error in stopScreenShare for ${userId}:`, err);
       }
     }
+    
     setIsScreenSharing(false);
     const socket = socketRef.current;
     if (socket) {
-      socket.emit("media:screen-share-stopped", { callId: callIdRef.current });
+      const roomId = roomIdRef.current;
+      const callId = callIdRef.current;
+      if (roomId) {
+        socket.emit("media:screen-share-stopped", { roomId });
+      } else if (callId) {
+        socket.emit("media:screen-share-stopped", { callId });
+      }
     }
     screenTrackRef.current = null;
   }, []);
@@ -379,7 +432,12 @@ export function useWebRTC() {
   const startScreenShare = useCallback(async () => {
     let screenStream;
     try {
-      screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
+      screenStream = await navigator.mediaDevices.getDisplayMedia({ 
+        video: {
+          cursor: "always",
+          displaySurface: "monitor"
+        }
+      });
     } catch (err) {
       setCallError(err.message || "Screen share permission denied.");
       return;
@@ -389,21 +447,84 @@ export function useWebRTC() {
     const stream = localStreamRef.current;
     const cameraTrack = stream ? stream.getVideoTracks()[0] : null;
 
-    // Replace video sender on all peer connections
-    for (const [, pc] of peerConnections.current) {
-      const sender = pc.getSenders().find((s) => s.track?.kind === "video");
-      if (sender) {
-        await sender.replaceTrack(screenTrack);
+    // Save camera track for later restoration
+    if (cameraTrack) {
+      cameraTrackRef.current = cameraTrack;
+    }
+
+    // Replace video track in local stream first
+    if (stream) {
+      if (cameraTrack) {
+        stream.removeTrack(cameraTrack);
+      }
+      stream.addTrack(screenTrack);
+      // Trigger re-render by creating new stream reference
+      setLocalStream(new MediaStream(stream.getTracks()));
+    }
+
+    // Replace video sender on all peer connections and renegotiate
+    for (const [userId, pc] of peerConnections.current) {
+      try {
+        const sender = pc.getSenders().find((s) => s.track?.kind === "video");
+        if (sender) {
+          await sender.replaceTrack(screenTrack);
+          console.log(`[useWebRTC] Replaced video track with screen share for ${userId}`);
+          
+          // Trigger renegotiation so remote peer gets the new track
+          if (pc.signalingState === "stable") {
+            const offer = await pc.createOffer();
+            await pc.setLocalDescription(offer);
+            
+            const socket = socketRef.current;
+            const roomId = roomIdRef.current;
+            if (socket && roomId) {
+              socket.emit("peer:offer", {
+                roomId,
+                targetUserId: userId,
+                sdp: offer,
+              });
+              console.log(`[useWebRTC] Sent renegotiation offer to ${userId} for screen share`);
+            }
+          }
+        } else {
+          // If no video sender exists, add the screen track
+          pc.addTrack(screenTrack, stream);
+          console.log(`[useWebRTC] Added screen share track for ${userId}`);
+          
+          // Trigger renegotiation
+          if (pc.signalingState === "stable") {
+            const offer = await pc.createOffer();
+            await pc.setLocalDescription(offer);
+            
+            const socket = socketRef.current;
+            const roomId = roomIdRef.current;
+            if (socket && roomId) {
+              socket.emit("peer:offer", {
+                roomId,
+                targetUserId: userId,
+                sdp: offer,
+              });
+              console.log(`[useWebRTC] Sent renegotiation offer to ${userId} after adding screen track`);
+            }
+          }
+        }
+      } catch (err) {
+        console.error(`[useWebRTC] Error updating screen share for ${userId}:`, err);
       }
     }
 
     setIsScreenSharing(true);
     screenTrackRef.current = screenTrack;
-    cameraTrackRef.current = cameraTrack;
 
     const socket = socketRef.current;
     if (socket) {
-      socket.emit("media:screen-share-started", { callId: callIdRef.current });
+      const roomId = roomIdRef.current;
+      const callId = callIdRef.current;
+      if (roomId) {
+        socket.emit("media:screen-share-started", { roomId });
+      } else if (callId) {
+        socket.emit("media:screen-share-started", { callId });
+      }
     }
 
     // Auto-stop when user clicks browser's "Stop sharing" button
@@ -855,8 +976,48 @@ export function useWebRTC() {
       closePeerConnection(userId);
     };
 
-    const onRoomUserJoined = () => {
-      // New user will initiate the offer to us via peer:offer — nothing to do here
+    const onRoomUserJoined = ({ userId: newUserId }) => {
+      const currentUserId = user?.id;
+      console.log(`[useWebRTC] New user ${newUserId} joined room (I am ${currentUserId})`);
+      
+      if (!newUserId || !currentUserId || newUserId === currentUserId) {
+        return;
+      }
+      
+      // Skip if we already have a peer connection for this user
+      if (peerConnections.current.has(newUserId)) {
+        console.log(`[useWebRTC] Skipping ${newUserId} - peer connection already exists`);
+        return;
+      }
+      
+      // Only create offer if our userId is lexicographically smaller
+      // This prevents both sides from creating offers simultaneously (offer collision)
+      if (currentUserId < newUserId) {
+        console.log(`[useWebRTC] Creating offer to new user ${newUserId} (I am ${currentUserId})`);
+        const pc = createPeerConnection(newUserId);
+        
+        // Create and send offer to the new user
+        pc.createOffer()
+          .then(offer => pc.setLocalDescription(offer))
+          .then(() => {
+            const socket = socketRef.current;
+            if (socket && roomIdRef.current) {
+              socket.emit("peer:offer", {
+                roomId: roomIdRef.current,
+                targetUserId: newUserId,
+                sdp: pc.localDescription,
+              });
+              console.log(`[useWebRTC] Sent offer to new user ${newUserId}`);
+            }
+          })
+          .catch(err => {
+            console.error(`[useWebRTC] Error creating offer for new user ${newUserId}:`, err);
+          });
+      } else {
+        // Just create the peer connection, wait for the other side to offer
+        console.log(`[useWebRTC] Waiting for offer from new user ${newUserId} (I am ${currentUserId})`);
+        createPeerConnection(newUserId);
+      }
     };
 
     socket.on("call:incoming", onCallIncoming);

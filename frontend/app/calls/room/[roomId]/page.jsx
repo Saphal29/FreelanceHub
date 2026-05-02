@@ -86,7 +86,17 @@ export default function RoomCallPage() {
 
   const handleLeave = () => {
     leaveRoom(roomId);
-    router.push("/calls");
+    
+    // Check if we came from a contract page by looking at the meeting metadata
+    // or check if there's a returnUrl in sessionStorage
+    const returnUrl = sessionStorage.getItem(`meeting_${roomId}_returnUrl`);
+    
+    if (returnUrl) {
+      sessionStorage.removeItem(`meeting_${roomId}_returnUrl`);
+      router.push(returnUrl);
+    } else {
+      router.push("/calls");
+    }
   };
 
   if (authLoading || joining) {
@@ -201,6 +211,7 @@ export default function RoomCallPage() {
           remoteStreams={remoteStreams}
           isAudioMuted={isAudioMuted}
           isVideoOff={isVideoOff}
+          isScreenSharing={isScreenSharing}
         />
 
         {/* Show "Waiting for others" only when no local stream and no remote streams */}

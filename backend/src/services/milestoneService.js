@@ -234,6 +234,33 @@ const reviewMilestoneSubmission = async (submissionId, clientId, reviewData) => 
     
     // Handle different actions
     if (action === 'approve') {
+      // CRITICAL: Check if escrow funds are available before approving
+      const escrowResult = await query(
+        `SELECT id, amount, net_amount, platform_fee FROM escrow 
+         WHERE milestone_id = $1 AND status = 'held'
+         LIMIT 1`,
+        [submission.milestone_id]
+      );
+      
+      if (escrowResult.rows.length === 0) {
+        // No escrow found - client hasn't deposited funds
+        logger.error('No escrow found for milestone approval', { 
+          milestoneId: submission.milestone_id,
+          submissionId 
+        });
+        throw new Error('Cannot approve milestone: No funds have been deposited to escrow for this milestone. Please deposit funds first.');
+      }
+      
+      const escrow = escrowResult.rows[0];
+      
+      logger.info('Approving milestone with escrow', {
+        milestoneId: submission.milestone_id,
+        escrowId: escrow.id,
+        escrowAmount: escrow.amount,
+        escrowNetAmount: escrow.net_amount,
+        escrowPlatformFee: escrow.platform_fee
+      });
+      
       // Update milestone status to completed
       await query(
         `UPDATE project_milestones
@@ -242,77 +269,87 @@ const reviewMilestoneSubmission = async (submissionId, clientId, reviewData) => 
         [submission.milestone_id]
       );
       
-      // Find and release escrow for this milestone
-      const escrowResult = await query(
-        `SELECT id, amount, net_amount FROM escrow 
-         WHERE milestone_id = $1 AND status = 'held'
-         LIMIT 1`,
-        [submission.milestone_id]
+      // Automatically release escrow to freelancer (ONLY for this specific milestone)
+      await query(
+        `UPDATE escrow 
+         SET status = 'released', 
+             released_at = CURRENT_TIMESTAMP,
+             release_note = $1
+         WHERE id = $2`,
+        [`Milestone approved and completed - automatic payment release`, escrow.id]
       );
       
-      if (escrowResult.rows.length > 0) {
-        const escrow = escrowResult.rows[0];
-        
-        // Release escrow to freelancer
-        await query(
-          `UPDATE escrow 
-           SET status = 'released', 
-               released_at = CURRENT_TIMESTAMP,
-               release_note = $1
-           WHERE id = $2`,
-          [`Milestone "${submission.milestone_id}" approved and completed`, escrow.id]
-        );
-        
-        logger.info('Escrow automatically released for approved milestone', { 
-          milestoneId: submission.milestone_id, 
-          escrowId: escrow.id 
-        });
-        
-        // Send payment received notification to freelancer
-        try {
-          await query(
-            `INSERT INTO notifications (user_id, type, title, message, project_id, contract_id)
-             VALUES ($1, $2, $3, $4, $5, $6)`,
-            [
-              submission.freelancer_id,
-              'payment_received',
-              'Payment Received!',
-              `You received ${formatCurrency(escrow.net_amount)} for completing the milestone. Funds have been released to your account.`,
-              submission.project_id,
-              submission.contract_id
-            ]
-          );
-          logger.info('Payment notification sent to freelancer', { 
-            freelancerId: submission.freelancer_id,
-            amount: escrow.net_amount
-          });
-        } catch (notifError) {
-          logger.error('Failed to create payment notification', { error: notifError.message });
-        }
-      } else {
-        logger.warn('No held escrow found for milestone', { milestoneId: submission.milestone_id });
-      }
+      logger.info('Escrow automatically released for approved milestone', { 
+        milestoneId: submission.milestone_id, 
+        escrowId: escrow.id,
+        amount: escrow.amount,
+        netAmount: escrow.net_amount,
+        platformFee: escrow.platform_fee
+      });
       
-      // Send milestone approved notification to freelancer
+      // Send payment received notification to freelancer with amount details
+      logger.info('Creating payment notification for freelancer', {
+        freelancerId: submission.freelancer_id,
+        projectId: submission.project_id,
+        contractId: submission.contract_id,
+        netAmount: escrow.net_amount
+      });
+      
       try {
-        await query(
+        const notifResult = await query(
           `INSERT INTO notifications (user_id, type, title, message, project_id, contract_id)
-           VALUES ($1, $2, $3, $4, $5, $6)`,
+           VALUES ($1, $2, $3, $4, $5, $6)
+           RETURNING id`,
           [
             submission.freelancer_id,
-            'milestone_approved',
-            'Milestone Approved!',
-            `Your milestone submission has been approved by the client. Great work!`,
+            'payment_received',
+            'Payment Received!',
+            `You received ${formatCurrency(escrow.net_amount)} for completing the milestone (${formatCurrency(escrow.amount)} - ${formatCurrency(escrow.platform_fee)} platform fee). Funds have been released to your account.`,
             submission.project_id,
             submission.contract_id
           ]
         );
-        logger.info('Milestone approved notification sent to freelancer', { 
+        logger.info('Payment notification created successfully', { 
+          notificationId: notifResult.rows[0].id,
+          freelancerId: submission.freelancer_id,
+          grossAmount: escrow.amount,
+          netAmount: escrow.net_amount,
+          platformFee: escrow.platform_fee
+        });
+      } catch (notifError) {
+        logger.error('Failed to create payment notification', { 
+          error: notifError.message,
+          stack: notifError.stack,
+          freelancerId: submission.freelancer_id
+        });
+      }
+      
+      // Send milestone approved notification to freelancer
+      try {
+        const approvalNotifResult = await query(
+          `INSERT INTO notifications (user_id, type, title, message, project_id, contract_id)
+           VALUES ($1, $2, $3, $4, $5, $6)
+           RETURNING id`,
+          [
+            submission.freelancer_id,
+            'milestone_approved',
+            'Milestone Approved!',
+            `Your milestone submission has been approved by the client. Payment of ${formatCurrency(escrow.net_amount)} has been released to your account.`,
+            submission.project_id,
+            submission.contract_id
+          ]
+        );
+        logger.info('Milestone approved notification created successfully', { 
+          notificationId: approvalNotifResult.rows[0].id,
           freelancerId: submission.freelancer_id,
           milestoneId: submission.milestone_id
         });
       } catch (notifError) {
-        logger.error('Failed to create milestone approved notification', { error: notifError.message });
+        logger.error('Failed to create milestone approved notification', { 
+          error: notifError.message,
+          stack: notifError.stack,
+          freelancerId: submission.freelancer_id
+        });
       }
       
       // Check if all milestones are completed

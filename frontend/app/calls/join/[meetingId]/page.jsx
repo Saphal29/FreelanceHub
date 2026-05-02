@@ -40,6 +40,13 @@ export default function JoinMeetingPage() {
       // Use the meetingId as the roomId so all participants join the same room
       const roomId = params.meetingId;
       
+      // Store return URL if we have contract context
+      const urlParams = new URLSearchParams(window.location.search);
+      const contractId = urlParams.get('contractId');
+      if (contractId) {
+        sessionStorage.setItem(`meeting_${roomId}_returnUrl`, `/contracts/${contractId}`);
+      }
+      
       // Try to create or join the room
       try {
         await createRoom({ roomName: meeting?.title || 'Meeting', roomId });

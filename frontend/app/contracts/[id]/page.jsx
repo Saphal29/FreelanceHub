@@ -497,8 +497,8 @@ export default function ContractDetailPage() {
                 </Card>
               )}
 
-              {/* Escrow / Payment Section - only when contract is active */}
-              {isActive && (
+              {/* Escrow / Payment Section - show for active and completed contracts */}
+              {(isActive || contract.status === 'completed') && (
                 <>
                   {/* Payment Summary */}
                   {milestones.length > 0 && (

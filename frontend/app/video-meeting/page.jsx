@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { useState, useEffect, Suspense } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import Navbar from "@/components/layout/Navbar";
 import { Button } from "@/components/ui/button";
@@ -19,8 +19,9 @@ import {
 import { getAvatarUrl, getInitials, getAvatarColor } from "@/lib/avatarUtils";
 import api from "@/lib/api";
 
-export default function VideoMeetingPage() {
+function VideoMeetingContent() {
   const { user } = useAuth();
+  const searchParams = useSearchParams();
   const [meetingLink, setMeetingLink] = useState("");
   const [meetingCodeInput, setMeetingCodeInput] = useState("");
   const [upcomingMeetings, setUpcomingMeetings] = useState([]);
@@ -31,6 +32,9 @@ export default function VideoMeetingPage() {
   
   const isFreelancer = user?.role === 'FREELANCER';
   const userType = isFreelancer ? 'freelancer' : 'client';
+  
+  // Get contractId from URL if present
+  const contractId = searchParams.get('contractId');
 
   useEffect(() => {
     if (user) {
@@ -66,20 +70,26 @@ export default function VideoMeetingPage() {
 
   const generateMeetingLink = () => {
     const randomId = crypto.randomUUID();
-    const link = `${window.location.origin}/calls/join/${randomId}`;
+    let link = `${window.location.origin}/calls/join/${randomId}`;
+    if (contractId) {
+      link += `?contractId=${contractId}`;
+    }
     setMeetingLink(link);
   };
 
   const copyMeetingLink = () => {
     navigator.clipboard.writeText(meetingLink);
-    // You could add a toast notification here
     alert("Meeting link copied to clipboard!");
   };
 
   const startMeeting = () => {
     // Generate a new meeting ID and redirect to the meeting room
     const randomId = crypto.randomUUID();
-    router.push(`/calls/join/${randomId}`);
+    let url = `/calls/join/${randomId}`;
+    if (contractId) {
+      url += `?contractId=${contractId}`;
+    }
+    router.push(url);
   };
 
   const joinMeeting = () => {
@@ -398,5 +408,17 @@ export default function VideoMeetingPage() {
         </div>
       </main>
     </div>
+  );
+}
+
+export default function VideoMeetingPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-primary"></div>
+      </div>
+    }>
+      <VideoMeetingContent />
+    </Suspense>
   );
 }
