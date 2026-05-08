@@ -280,7 +280,7 @@ function ProjectDetailsContent() {
                     <div>
                       <p className="text-xs text-muted-foreground">Budget</p>
                       <p className="font-semibold text-foreground">
-                        ${project.budget.min.toLocaleString()} - ${project.budget.max.toLocaleString()}
+                        Rs. {project.budget.min.toLocaleString()} - Rs. {project.budget.max.toLocaleString()}
                       </p>
                     </div>
                   </div>

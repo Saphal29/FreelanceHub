@@ -193,7 +193,7 @@ const CategoryPage = () => {
                         <span className="text-xs text-muted-foreground">No reviews yet</span>
                       )}
                       <p className="text-sm font-semibold text-foreground">
-                        ${project.budget?.min || 0} - ${project.budget?.max || 0}
+                        Rs. {project.budget?.min || 0} - Rs. {project.budget?.max || 0}
                       </p>
                     </div>
                   </div>

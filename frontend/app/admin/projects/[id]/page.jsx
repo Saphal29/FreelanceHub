@@ -230,7 +230,7 @@ export default function AdminProjectDetail() {
                   <div className="flex items-center gap-2 mt-1">
                     <DollarSign className="h-4 w-4 text-accent" />
                     <span className="font-semibold">
-                      ${project.budget_min?.toLocaleString()} - ${project.budget_max?.toLocaleString()}
+                      Rs. {project.budget_min?.toLocaleString()} - Rs. {project.budget_max?.toLocaleString()}
                     </span>
                   </div>
                 </div>

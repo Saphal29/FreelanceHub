@@ -25,6 +25,7 @@ export default function RoomCallPage() {
 
   const [joining, setJoining] = useState(true);
   const [joinError, setJoinError] = useState("");
+  const [hasChosenMedia, setHasChosenMedia] = useState(false); // Track if user has made a media choice
 
   // Debug logging
   useEffect(() => {
@@ -226,8 +227,8 @@ export default function RoomCallPage() {
           </div>
         )}
 
-        {/* Enable Camera Button - Show when no local stream */}
-        {!localStream && (
+        {/* Enable Camera Button - Show only when no local stream AND user hasn't chosen yet */}
+        {!localStream && !hasChosenMedia && (
           <div className="absolute inset-0 flex items-center justify-center z-20 p-4">
             <div className="bg-black/60 backdrop-blur-2xl border border-white/10 rounded-3xl p-8 md:p-10 text-center text-white max-w-md w-full shadow-2xl">
               <div className="mb-6">
@@ -247,6 +248,7 @@ export default function RoomCallPage() {
                 <button
                   onClick={async () => {
                     console.log("[RoomCallPage] Requesting video + audio access");
+                    setHasChosenMedia(true); // Mark that user has made a choice
                     try {
                       await requestMediaAccess(true, true);
                       console.log("[RoomCallPage] Media access granted, localStream should be set");
@@ -264,6 +266,7 @@ export default function RoomCallPage() {
                 <button
                   onClick={async () => {
                     console.log("[RoomCallPage] Requesting audio only access");
+                    setHasChosenMedia(true); // Mark that user has made a choice
                     try {
                       await requestMediaAccess(false, true);
                       console.log("[RoomCallPage] Audio access granted, localStream should be set");
@@ -278,8 +281,17 @@ export default function RoomCallPage() {
                   </svg>
                   Audio Only
                 </button>
+                <button
+                  onClick={() => {
+                    console.log("[RoomCallPage] User chose to join without media");
+                    setHasChosenMedia(true); // Mark that user has made a choice to skip
+                  }}
+                  className="text-gray-400 hover:text-white text-sm mt-2 transition-colors"
+                >
+                  Skip for now
+                </button>
                 <p className="text-xs text-gray-400 mt-2">
-                  You can join without camera/microphone, but others won't see or hear you
+                  You can enable camera/microphone later using the controls below
                 </p>
               </div>
             </div>

@@ -127,6 +127,15 @@ const reviewSubmission = async (req, res) => {
       });
     }
     
+    // Check for escrow-related errors
+    if (error.message.includes('escrow') || error.message.includes('deposit')) {
+      return res.status(400).json({
+        success: false,
+        error: error.message,
+        code: 'ESCROW_REQUIRED'
+      });
+    }
+    
     res.status(500).json({
       success: false,
       error: 'Failed to review submission',

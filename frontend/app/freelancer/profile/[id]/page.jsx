@@ -239,7 +239,7 @@ export default function FreelancerProfilePage() {
                             <span>Completed: {new Date(project.completedAt).toLocaleDateString()}</span>
                             {project.budget && (
                               <span className="font-semibold text-foreground">
-                                ${parseFloat(project.budget).toLocaleString()}
+                                Rs. {parseFloat(project.budget).toLocaleString()}
                               </span>
                             )}
                           </div>

@@ -80,7 +80,7 @@ const getProjects = async (filters = {}, pagination = {}, userId = null) => {
       experienceLevel,
       location,
       isRemote,
-      status = 'active',
+      status,
       clientId
     } = filters;
 
@@ -104,8 +104,8 @@ const getProjects = async (filters = {}, pagination = {}, userId = null) => {
       params.push(clientId);
       paramIndex++;
       
-      // Apply status filter for client's own projects
-      if (status) {
+      // Apply status filter for client's own projects (only if status is provided and not 'all')
+      if (status && status !== 'all') {
         whereConditions.push(`p.status = $${paramIndex}`);
         params.push(status);
         paramIndex++;

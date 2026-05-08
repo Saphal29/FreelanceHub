@@ -4,7 +4,6 @@ import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { 
   Search, 
   Menu, 
@@ -16,7 +15,6 @@ import {
   Clock,
   AlertCircle,
   LogOut,
-  Settings,
   Users
 } from "lucide-react";
 import NotificationBell from "@/components/notifications/NotificationBell";
@@ -28,7 +26,8 @@ const Navbar = ({ userType = "client" }) => {
   const pathname = usePathname();
   const router = useRouter();
   const { user, logout } = useAuth();
-  const dropdownRef = useRef(null);
+  const navDropdownRef = useRef(null);
+  const profileDropdownRef = useRef(null);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -38,7 +37,8 @@ const Navbar = ({ userType = "client" }) => {
 
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+      if (navDropdownRef.current && !navDropdownRef.current.contains(event.target) &&
+          profileDropdownRef.current && !profileDropdownRef.current.contains(event.target)) {
         setOpenDropdown(null);
       }
     };
@@ -93,9 +93,7 @@ const Navbar = ({ userType = "client" }) => {
 
   const profileMenuItems = [
     { label: "View Profile", href: "/profile", icon: User },
-    { label: "Settings", href: "/settings", icon: Settings },
-    { label: "My Earnings", href: "/earnings", icon: Clock },
-    { label: "Help & Support", href: "/support", icon: AlertCircle },
+    { label: "Payment Summary", href: "/payment-summary", icon: Clock },
   ];
 
   const isActive = (item) => {
@@ -123,7 +121,7 @@ const Navbar = ({ userType = "client" }) => {
           </Link>
 
           {/* Desktop Navigation */}
-          <div className="hidden items-center gap-1 lg:flex" ref={dropdownRef}>
+          <div className="hidden items-center gap-1 lg:flex" ref={navDropdownRef}>
             {navItems.map((item, index) => (
               item.dropdown ? (
                 <div key={index} className="relative">
@@ -169,61 +167,67 @@ const Navbar = ({ userType = "client" }) => {
             ))}
           </div>
 
-          {/* Search Bar - Desktop */}
-          <div className="hidden flex-1 max-w-md lg:block">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                type="search"
-                placeholder={userType === "client" ? "Search for services..." : userType === "admin" ? "Search..." : "Search for jobs..."}
-                className="h-10 w-full rounded-full border-border bg-secondary pl-10 pr-4 text-sm placeholder:text-muted-foreground focus-visible:ring-primary"
-              />
-            </div>
-          </div>
-
           {/* Right Side Actions */}
           <div className="flex items-center gap-2">
             {/* Notifications */}
             <NotificationBell />
 
             {/* User Menu */}
-            <div className="relative">
+            <div className="relative" ref={profileDropdownRef}>
               <button
                 onClick={() => setOpenDropdown(openDropdown === 'profile' ? null : 'profile')}
-                className="hidden items-center gap-2 rounded-lg px-2 py-1.5 transition-colors hover:bg-accent sm:flex"
+                className="flex items-center gap-2 rounded-lg px-3 py-2 transition-colors hover:bg-accent/50"
               >
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-primary-foreground">
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-accent text-accent-foreground">
                   <User className="h-4 w-4" />
                 </div>
-                <ChevronDown className={`h-4 w-4 transition-transform ${openDropdown === 'profile' ? 'rotate-180' : ''}`} />
+                <div className="hidden flex-col items-start sm:flex">
+                  <span className="text-sm font-medium text-foreground leading-tight">
+                    {user?.fullName || 'User'}
+                  </span>
+                  <span className="text-xs text-muted-foreground leading-tight">
+                    {userType === 'client' ? 'Client' : userType === 'admin' ? 'Admin' : 'Freelancer'}
+                  </span>
+                </div>
+                <ChevronDown className={`hidden h-4 w-4 text-muted-foreground transition-transform sm:block ${openDropdown === 'profile' ? 'rotate-180' : ''}`} />
               </button>
               {openDropdown === 'profile' && (
-                <div className="absolute right-0 top-full mt-1 w-56 rounded-lg border border-border bg-background shadow-lg">
+                <div className="absolute right-0 top-full mt-2 w-56 rounded-lg border border-border bg-background shadow-lg z-50">
                   <div className="border-b border-border px-4 py-3">
-                    <p className="text-sm font-medium text-foreground">{user?.fullName || 'User'}</p>
+                    <p className="text-sm font-semibold text-foreground">{user?.fullName || 'User'}</p>
                     <p className="text-xs text-muted-foreground">{user?.email}</p>
                   </div>
-                  {profileMenuItems.map((item) => (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      onClick={() => setOpenDropdown(null)}
-                      className="flex items-center gap-2 px-4 py-2 text-sm text-foreground transition-colors hover:bg-accent"
+                  <div className="py-1">
+                    {profileMenuItems.map((item) => (
+                      <a
+                        key={item.href}
+                        href={item.href}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          setOpenDropdown(null);
+                          router.push(item.href);
+                        }}
+                        className="flex items-center gap-3 px-4 py-2.5 text-sm text-foreground transition-colors hover:bg-accent cursor-pointer"
+                      >
+                        <item.icon className="h-4 w-4 text-muted-foreground" />
+                        {item.label}
+                      </a>
+                    ))}
+                  </div>
+                  <div className="border-t border-border">
+                    <button
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setOpenDropdown(null);
+                        handleLogout();
+                      }}
+                      className="flex w-full items-center gap-3 rounded-b-lg px-4 py-2.5 text-sm text-destructive transition-colors hover:bg-accent cursor-pointer"
                     >
-                      <item.icon className="h-4 w-4" />
-                      {item.label}
-                    </Link>
-                  ))}
-                  <button
-                    onClick={() => {
-                      setOpenDropdown(null);
-                      handleLogout();
-                    }}
-                    className="flex w-full items-center gap-2 rounded-b-lg px-4 py-2 text-sm text-destructive transition-colors hover:bg-accent"
-                  >
-                    <LogOut className="h-4 w-4" />
-                    Logout
-                  </button>
+                      <LogOut className="h-4 w-4" />
+                      Logout
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
@@ -247,16 +251,6 @@ const Navbar = ({ userType = "client" }) => {
           }`}
         >
           <div className="border-t border-border py-4">
-            {/* Mobile Search */}
-            <div className="relative mb-4">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                type="search"
-                placeholder={userType === "client" ? "Search for services..." : "Search for jobs..."}
-                className="h-10 w-full rounded-full border-border bg-secondary pl-10 pr-4"
-              />
-            </div>
-
             {/* Mobile Links */}
             <div className="flex flex-col gap-1">
               {navItems.map((item, index) => (

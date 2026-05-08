@@ -470,7 +470,7 @@ const FreelancerHome = () => {
                   <JobCard 
                     title={job.title}
                     description={job.description}
-                    budget={`$${job.budget_min} - $${job.budget_max}`}
+                    budget={{ min: job.budget_min, max: job.budget_max }}
                     duration={job.duration_estimate || 'Not specified'}
                     location={job.location || 'Remote'}
                     skills={job.skills || []}

@@ -79,7 +79,7 @@ function VideoMeetingContent() {
 
   const copyMeetingLink = () => {
     navigator.clipboard.writeText(meetingLink);
-    alert("Meeting link copied to clipboard!");
+    // Silently copy without alert
   };
 
   const startMeeting = () => {

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { getMilestoneSubmissions, reviewMilestoneSubmission } from '@/lib/api';
+import { AlertCircle } from 'lucide-react';
 
 export default function MilestoneReview({ milestone, onReviewComplete }) {
   const [submissions, setSubmissions] = useState([]);
@@ -56,7 +57,17 @@ export default function MilestoneReview({ milestone, onReviewComplete }) {
         setReviewAction('');
       }
     } catch (err) {
-      setError(err.message || 'Failed to submit review');
+      console.error('Review error:', err); // Debug log
+      
+      // Extract error message from different possible formats
+      const errorMessage = err.message || err.error || err.toString() || 'Failed to submit review';
+      
+      // Check if error is about missing escrow
+      if (errorMessage.toLowerCase().includes('escrow') || errorMessage.toLowerCase().includes('deposit')) {
+        setError(errorMessage);
+      } else {
+        setError(errorMessage);
+      }
     } finally {
       setReviewing(false);
     }
@@ -233,8 +244,31 @@ export default function MilestoneReview({ milestone, onReviewComplete }) {
             </div>
 
             {error && (
-              <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-                <p className="text-red-800 text-sm">{error}</p>
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                <div className="flex items-start gap-3">
+                  <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
+                  <div className="flex-1">
+                    <p className="text-red-800 text-sm font-semibold mb-1">
+                      {error.toLowerCase().includes('escrow') || error.toLowerCase().includes('deposit') 
+                        ? '⚠️ Payment Required' 
+                        : 'Error'}
+                    </p>
+                    <p className="text-red-700 text-sm">{error}</p>
+                    {(error.toLowerCase().includes('escrow') || error.toLowerCase().includes('deposit')) && (
+                      <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                        <p className="text-blue-800 text-xs font-medium">
+                          💡 <strong>What to do next:</strong>
+                        </p>
+                        <ol className="text-blue-700 text-xs mt-2 ml-4 list-decimal space-y-1">
+                          <li>Go to the Contract or Payments page</li>
+                          <li>Click "Deposit to Escrow" or "Make Payment"</li>
+                          <li>Complete the payment process</li>
+                          <li>Return here to approve the milestone</li>
+                        </ol>
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
             )}
 

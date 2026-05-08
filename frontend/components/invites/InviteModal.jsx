@@ -138,9 +138,9 @@ export default function InviteModal({ freelancer, onClose }) {
                   const budgetDisplay = project.project_type === 'hourly' 
                     ? `Hourly` 
                     : project.budget_min && project.budget_max
-                      ? `$${project.budget_min} - $${project.budget_max}`
+                      ? `${formatCurrency(project.budget_min)} - ${formatCurrency(project.budget_max)}`
                       : project.budget_min
-                        ? `$${project.budget_min}+`
+                        ? `${formatCurrency(project.budget_min)}+`
                         : 'Budget TBD';
                   
                   return (
@@ -162,9 +162,9 @@ export default function InviteModal({ freelancer, onClose }) {
                   const budgetDisplay = project.project_type === 'hourly' 
                     ? 'Hourly Rate Project' 
                     : project.budget_min && project.budget_max
-                      ? `$${project.budget_min} - $${project.budget_max}`
+                      ? `${formatCurrency(project.budget_min)} - ${formatCurrency(project.budget_max)}`
                       : project.budget_min
-                        ? `$${project.budget_min}+`
+                        ? `${formatCurrency(project.budget_min)}+`
                         : 'Budget TBD';
                   
                   return (

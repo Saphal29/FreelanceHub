@@ -258,7 +258,7 @@ const ClientHome = () => {
                         )}
                       </div>
                       <p className="text-sm font-semibold text-foreground">
-                        ${project.budget?.min || 0}
+                        Rs. {project.budget?.min || 0}
                       </p>
                     </div>
                   </div>

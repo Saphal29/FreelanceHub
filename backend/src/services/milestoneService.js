@@ -217,6 +217,52 @@ const reviewMilestoneSubmission = async (submissionId, clientId, reviewData) => 
       throw new Error('Invalid action. Must be approve, reject, or request_revision');
     }
     
+    // CRITICAL: For approval, check escrow BEFORE updating submission status
+    if (action === 'approve') {
+      // CRITICAL: Check if escrow funds are available before approving
+      logger.info('Checking escrow before approval', {
+        milestoneId: submission.milestone_id,
+        submissionId,
+        contractId: submission.contract_id
+      });
+      
+      const escrowResult = await query(
+        `SELECT id, amount, net_amount, platform_fee, status FROM escrow 
+         WHERE milestone_id = $1 AND status = 'held'
+         LIMIT 1`,
+        [submission.milestone_id]
+      );
+      
+      logger.info('Escrow check result', {
+        milestoneId: submission.milestone_id,
+        escrowFound: escrowResult.rows.length > 0,
+        escrowData: escrowResult.rows.length > 0 ? escrowResult.rows[0] : null
+      });
+      
+      if (escrowResult.rows.length === 0) {
+        // No escrow found - client hasn't deposited funds
+        logger.error('ESCROW VALIDATION FAILED: No escrow found for milestone approval', { 
+          milestoneId: submission.milestone_id,
+          submissionId,
+          contractId: submission.contract_id,
+          clientId: submission.client_id
+        });
+        
+        throw new Error('Cannot approve milestone: No funds have been deposited to escrow for this milestone. Please deposit funds first.');
+      }
+      
+      const escrow = escrowResult.rows[0];
+      
+      logger.info('Escrow validation passed, proceeding with approval', {
+        milestoneId: submission.milestone_id,
+        escrowId: escrow.id,
+        escrowAmount: escrow.amount,
+        escrowNetAmount: escrow.net_amount,
+        escrowPlatformFee: escrow.platform_fee
+      });
+    }
+    
+    // Now update submission status after all validations pass
     let newStatus = action === 'approve' ? 'approved' : 
                     action === 'reject' ? 'rejected' : 'revision_requested';
     
@@ -234,7 +280,7 @@ const reviewMilestoneSubmission = async (submissionId, clientId, reviewData) => 
     
     // Handle different actions
     if (action === 'approve') {
-      // CRITICAL: Check if escrow funds are available before approving
+      // Re-fetch escrow (already validated above)
       const escrowResult = await query(
         `SELECT id, amount, net_amount, platform_fee FROM escrow 
          WHERE milestone_id = $1 AND status = 'held'
@@ -242,24 +288,7 @@ const reviewMilestoneSubmission = async (submissionId, clientId, reviewData) => 
         [submission.milestone_id]
       );
       
-      if (escrowResult.rows.length === 0) {
-        // No escrow found - client hasn't deposited funds
-        logger.error('No escrow found for milestone approval', { 
-          milestoneId: submission.milestone_id,
-          submissionId 
-        });
-        throw new Error('Cannot approve milestone: No funds have been deposited to escrow for this milestone. Please deposit funds first.');
-      }
-      
       const escrow = escrowResult.rows[0];
-      
-      logger.info('Approving milestone with escrow', {
-        milestoneId: submission.milestone_id,
-        escrowId: escrow.id,
-        escrowAmount: escrow.amount,
-        escrowNetAmount: escrow.net_amount,
-        escrowPlatformFee: escrow.platform_fee
-      });
       
       // Update milestone status to completed
       await query(

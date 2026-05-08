@@ -222,7 +222,7 @@ function FileDisputeContent() {
                     <option value="">Select a contract</option>
                     {contracts.map((contract) => (
                       <option key={contract.id} value={contract.id}>
-                        {contract.projectTitle} - ${contract.agreedBudget}
+                        {contract.projectTitle} - Rs. {contract.agreedBudget}
                       </option>
                     ))}
                   </select>

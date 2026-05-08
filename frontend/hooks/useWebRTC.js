@@ -603,32 +603,34 @@ export function useWebRTC() {
       // Add tracks to existing peer connections
       const tracks = stream.getTracks();
       for (const [userId, pc] of peerConnections.current) {
-        console.log(`[useWebRTC] Adding tracks to existing peer connection for ${userId}`);
+        console.log(`[useWebRTC] Adding tracks to existing peer connection for ${userId}, current senders:`, pc.getSenders().length);
         
         // Get existing senders to check if tracks are already added
         const existingSenders = pc.getSenders();
+        let needsRenegotiation = false;
         
         for (const track of tracks) {
           try {
             // Check if this track kind is already being sent
             const existingSender = existingSenders.find(s => s.track?.kind === track.kind);
             
-            if (existingSender) {
+            if (existingSender && existingSender.track) {
               // Replace the existing track
               console.log(`[useWebRTC] Replacing ${track.kind} track for ${userId}`);
               await existingSender.replaceTrack(track);
             } else {
-              // Add new track
-              console.log(`[useWebRTC] Adding ${track.kind} track to peer connection for ${userId}`);
+              // Add new track - this requires renegotiation
+              console.log(`[useWebRTC] Adding new ${track.kind} track to peer connection for ${userId}`);
               pc.addTrack(track, stream);
+              needsRenegotiation = true;
             }
           } catch (err) {
             console.warn(`[useWebRTC] Failed to add/replace ${track.kind} track for ${userId}:`, err.message);
           }
         }
         
-        // Renegotiate the connection to include the new tracks
-        if (pc.signalingState === "stable") {
+        // Renegotiate the connection if we added new tracks
+        if (needsRenegotiation && pc.signalingState === "stable") {
           try {
             console.log(`[useWebRTC] Renegotiating connection with ${userId} to include new tracks`);
             const offer = await pc.createOffer();
@@ -646,8 +648,32 @@ export function useWebRTC() {
           } catch (err) {
             console.error(`[useWebRTC] Failed to renegotiate with ${userId}:`, err);
           }
-        } else {
-          console.warn(`[useWebRTC] Cannot renegotiate with ${userId} - signaling state is ${pc.signalingState}`);
+        } else if (needsRenegotiation) {
+          console.warn(`[useWebRTC] Cannot renegotiate with ${userId} - signaling state is ${pc.signalingState}, will retry when stable`);
+          // Queue renegotiation for when signaling state becomes stable
+          const checkAndRenegotiate = async () => {
+            if (pc.signalingState === "stable") {
+              try {
+                console.log(`[useWebRTC] Retrying renegotiation with ${userId}`);
+                const offer = await pc.createOffer();
+                await pc.setLocalDescription(offer);
+                
+                const socket = socketRef.current;
+                const roomId = roomIdRef.current;
+                if (socket && roomId) {
+                  socket.emit("peer:offer", {
+                    roomId,
+                    targetUserId: userId,
+                    sdp: offer,
+                  });
+                }
+              } catch (err) {
+                console.error(`[useWebRTC] Failed to retry renegotiation with ${userId}:`, err);
+              }
+            }
+          };
+          // Wait a bit and retry
+          setTimeout(checkAndRenegotiate, 1000);
         }
       }
       
