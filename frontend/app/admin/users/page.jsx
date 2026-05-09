@@ -38,6 +38,14 @@ export default function AdminUsers() {
   });
   const [pagination, setPagination] = useState(null);
   const [message, setMessage] = useState({ type: '', text: '' });
+  const [confirmDialog, setConfirmDialog] = useState({
+    isOpen: false,
+    title: '',
+    message: '',
+    onConfirm: null,
+    confirmText: 'Confirm',
+    cancelText: 'Cancel'
+  });
 
   useEffect(() => {
     fetchUsers();
@@ -60,31 +68,47 @@ export default function AdminUsers() {
   };
 
   const handleSuspend = async (userId) => {
-    if (!confirm('Are you sure you want to suspend this user? They will not be able to login.')) return;
-    
-    try {
-      const response = await suspendUser(userId, 'Suspended by admin');
-      if (response.success) {
-        showMessage('success', 'User suspended successfully');
-        fetchUsers();
+    setConfirmDialog({
+      isOpen: true,
+      title: 'Suspend User',
+      message: 'Are you sure you want to suspend this user? They will not be able to login.',
+      confirmText: 'Suspend',
+      cancelText: 'Cancel',
+      onConfirm: async () => {
+        try {
+          const response = await suspendUser(userId, 'Suspended by admin');
+          if (response.success) {
+            showMessage('success', 'User suspended successfully');
+            fetchUsers();
+          }
+        } catch (error) {
+          showMessage('error', error.message || 'Failed to suspend user');
+        }
+        setConfirmDialog({ ...confirmDialog, isOpen: false });
       }
-    } catch (error) {
-      showMessage('error', error.message || 'Failed to suspend user');
-    }
+    });
   };
 
   const handleUnsuspend = async (userId) => {
-    if (!confirm('Are you sure you want to unsuspend this user?')) return;
-    
-    try {
-      const response = await unsuspendUser(userId);
-      if (response.success) {
-        showMessage('success', 'User unsuspended successfully');
-        fetchUsers();
+    setConfirmDialog({
+      isOpen: true,
+      title: 'Unsuspend User',
+      message: 'Are you sure you want to unsuspend this user?',
+      confirmText: 'Unsuspend',
+      cancelText: 'Cancel',
+      onConfirm: async () => {
+        try {
+          const response = await unsuspendUser(userId);
+          if (response.success) {
+            showMessage('success', 'User unsuspended successfully');
+            fetchUsers();
+          }
+        } catch (error) {
+          showMessage('error', error.message || 'Failed to unsuspend user');
+        }
+        setConfirmDialog({ ...confirmDialog, isOpen: false });
       }
-    } catch (error) {
-      showMessage('error', error.message || 'Failed to unsuspend user');
-    }
+    });
   };
 
   const handleVerify = async (userId) => {
@@ -100,17 +124,25 @@ export default function AdminUsers() {
   };
 
   const handleDelete = async (userId) => {
-    if (!confirm('Are you sure you want to delete this user? This action cannot be undone.')) return;
-    
-    try {
-      const response = await deleteAdminUser(userId);
-      if (response.success) {
-        showMessage('success', 'User deleted successfully');
-        fetchUsers();
+    setConfirmDialog({
+      isOpen: true,
+      title: 'Delete User',
+      message: 'Are you sure you want to delete this user? This action cannot be undone.',
+      confirmText: 'Delete',
+      cancelText: 'Cancel',
+      onConfirm: async () => {
+        try {
+          const response = await deleteAdminUser(userId);
+          if (response.success) {
+            showMessage('success', 'User deleted successfully');
+            fetchUsers();
+          }
+        } catch (error) {
+          showMessage('error', 'Failed to delete user');
+        }
+        setConfirmDialog({ ...confirmDialog, isOpen: false });
       }
-    } catch (error) {
-      showMessage('error', 'Failed to delete user');
-    }
+    });
   };
 
   const showMessage = (type, text) => {
@@ -139,6 +171,30 @@ export default function AdminUsers() {
             {message.text}
           </AlertDescription>
         </Alert>
+      )}
+
+      {/* Confirmation Dialog */}
+      {confirmDialog.isOpen && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4 shadow-xl">
+            <h3 className="text-lg font-semibold mb-2">{confirmDialog.title}</h3>
+            <p className="text-muted-foreground mb-6">{confirmDialog.message}</p>
+            <div className="flex gap-3 justify-end">
+              <Button
+                variant="outline"
+                onClick={() => setConfirmDialog({ ...confirmDialog, isOpen: false })}
+              >
+                {confirmDialog.cancelText}
+              </Button>
+              <Button
+                onClick={confirmDialog.onConfirm}
+                className="bg-red-600 hover:bg-red-700 text-white"
+              >
+                {confirmDialog.confirmText}
+              </Button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Filters */}
