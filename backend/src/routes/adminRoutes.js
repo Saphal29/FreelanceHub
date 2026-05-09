@@ -45,6 +45,13 @@ router.get('/users/stats', adminController.getUserStats);
 router.put('/users/:id/suspend', adminController.suspendUser);
 
 /**
+ * @route   PUT /api/admin/users/:id/unsuspend
+ * @desc    Unsuspend/unban user
+ * @access  Private (Admin only)
+ */
+router.put('/users/:id/unsuspend', adminController.unsuspendUser);
+
+/**
  * @route   PUT /api/admin/users/:id/verify
  * @desc    Verify user account
  * @access  Private (Admin only)

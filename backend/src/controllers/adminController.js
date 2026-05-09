@@ -99,20 +99,84 @@ const suspendUser = async (req, res) => {
   try {
     const { id } = req.params;
     const { reason } = req.body;
+    const adminId = req.user.userId;
     
-    logger.info('Suspend user request', { adminId: req.user.userId, userId: id, reason });
+    logger.info('Suspend user request', { adminId, userId: id, reason });
     
-    const result = await adminService.suspendUser(id, reason);
+    const result = await adminService.suspendUser(id, adminId, reason);
     
     res.json({
       success: true,
-      message: result.message
+      message: result.message,
+      user: result.user
     });
   } catch (error) {
     logger.error('Error suspending user', { error: error.message });
+    
+    if (error.message.includes('not found')) {
+      return res.status(404).json({
+        success: false,
+        error: error.message,
+        code: 'USER_NOT_FOUND'
+      });
+    }
+    
+    if (error.message.includes('Cannot suspend') || error.message.includes('already suspended')) {
+      return res.status(400).json({
+        success: false,
+        error: error.message,
+        code: 'INVALID_OPERATION'
+      });
+    }
+    
     res.status(500).json({
       success: false,
       error: 'Failed to suspend user',
+      code: 'SERVER_ERROR'
+    });
+  }
+};
+
+/**
+ * Unsuspend user
+ * @route PUT /api/admin/users/:id/unsuspend
+ */
+const unsuspendUser = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const adminId = req.user.userId;
+    
+    logger.info('Unsuspend user request', { adminId, userId: id });
+    
+    const result = await adminService.unsuspendUser(id, adminId);
+    
+    res.json({
+      success: true,
+      message: result.message,
+      user: result.user
+    });
+  } catch (error) {
+    logger.error('Error unsuspending user', { error: error.message });
+    
+    if (error.message.includes('not found')) {
+      return res.status(404).json({
+        success: false,
+        error: error.message,
+        code: 'USER_NOT_FOUND'
+      });
+    }
+    
+    if (error.message.includes('not suspended')) {
+      return res.status(400).json({
+        success: false,
+        error: error.message,
+        code: 'INVALID_OPERATION'
+      });
+    }
+    
+    res.status(500).json({
+      success: false,
+      error: 'Failed to unsuspend user',
       code: 'SERVER_ERROR'
     });
   }
@@ -381,6 +445,7 @@ module.exports = {
   getUsers,
   getUserStats,
   suspendUser,
+  unsuspendUser,
   verifyUser,
   deleteUser,
   

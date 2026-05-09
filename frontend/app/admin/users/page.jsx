@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { getAdminUsers, suspendUser, verifyUser, deleteAdminUser } from "@/lib/api";
+import { getAdminUsers, suspendUser, unsuspendUser, verifyUser, deleteAdminUser } from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,7 +13,8 @@ import {
   Trash2,
   CheckCircle,
   XCircle,
-  Mail
+  Mail,
+  ShieldAlert
 } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
@@ -59,7 +60,7 @@ export default function AdminUsers() {
   };
 
   const handleSuspend = async (userId) => {
-    if (!confirm('Are you sure you want to suspend this user?')) return;
+    if (!confirm('Are you sure you want to suspend this user? They will not be able to login.')) return;
     
     try {
       const response = await suspendUser(userId, 'Suspended by admin');
@@ -68,7 +69,21 @@ export default function AdminUsers() {
         fetchUsers();
       }
     } catch (error) {
-      showMessage('error', 'Failed to suspend user');
+      showMessage('error', error.message || 'Failed to suspend user');
+    }
+  };
+
+  const handleUnsuspend = async (userId) => {
+    if (!confirm('Are you sure you want to unsuspend this user?')) return;
+    
+    try {
+      const response = await unsuspendUser(userId);
+      if (response.success) {
+        showMessage('success', 'User unsuspended successfully');
+        fetchUsers();
+      }
+    } catch (error) {
+      showMessage('error', error.message || 'Failed to unsuspend user');
     }
   };
 
@@ -226,17 +241,25 @@ export default function AdminUsers() {
                         </span>
                       </td>
                       <td className="py-3 px-4">
-                        {user.verified ? (
-                          <span className="flex items-center gap-1 text-green-600">
-                            <CheckCircle className="h-4 w-4" />
-                            Verified
-                          </span>
-                        ) : (
-                          <span className="flex items-center gap-1 text-red-600">
-                            <XCircle className="h-4 w-4" />
-                            Unverified
-                          </span>
-                        )}
+                        <div className="flex flex-col gap-1">
+                          {user.verified ? (
+                            <span className="flex items-center gap-1 text-green-600">
+                              <CheckCircle className="h-4 w-4" />
+                              Verified
+                            </span>
+                          ) : (
+                            <span className="flex items-center gap-1 text-red-600">
+                              <XCircle className="h-4 w-4" />
+                              Unverified
+                            </span>
+                          )}
+                          {user.status === 'suspended' && (
+                            <span className="flex items-center gap-1 text-orange-600">
+                              <ShieldAlert className="h-4 w-4" />
+                              Suspended
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td className="py-3 px-4">
                         <span className="text-sm">{user.projects_count || 0} projects</span>
@@ -258,14 +281,27 @@ export default function AdminUsers() {
                               <UserCheck className="h-4 w-4" />
                             </Button>
                           )}
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleSuspend(user.id)}
-                            title="Suspend User"
-                          >
-                            <UserX className="h-4 w-4" />
-                          </Button>
+                          {user.status === 'suspended' ? (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleUnsuspend(user.id)}
+                              title="Unsuspend User"
+                              className="text-green-600 hover:text-green-700"
+                            >
+                              <UserCheck className="h-4 w-4" />
+                            </Button>
+                          ) : (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleSuspend(user.id)}
+                              title="Suspend User"
+                              className="text-orange-600 hover:text-orange-700"
+                            >
+                              <UserX className="h-4 w-4" />
+                            </Button>
+                          )}
                           <Button
                             size="sm"
                             variant="outline"

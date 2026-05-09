@@ -373,6 +373,34 @@ const login = async (req, res) => {
       });
     }
 
+    // Check if user account is suspended
+    if (user.status === 'suspended') {
+      logger.auth('Login failed - account suspended', { 
+        userId: user.id, 
+        email 
+      });
+      
+      return res.status(403).json({
+        success: false,
+        error: 'Your account has been suspended. Please contact support for assistance.',
+        code: 'ACCOUNT_SUSPENDED'
+      });
+    }
+
+    // Check if user account is deleted
+    if (user.status === 'deleted') {
+      logger.auth('Login failed - account deleted', { 
+        userId: user.id, 
+        email 
+      });
+      
+      return res.status(403).json({
+        success: false,
+        error: 'This account has been deleted',
+        code: 'ACCOUNT_DELETED'
+      });
+    }
+
     // Compare password
     const isPasswordValid = await bcrypt.compare(password, user.password_hash);
 

@@ -69,13 +69,116 @@ const getUserStats = async () => {
   }
 };
 
-const suspendUser = async (userId, reason) => {
+const suspendUser = async (userId, adminId, reason) => {
   try {
-    await query(`UPDATE users SET verified = false, updated_at = CURRENT_TIMESTAMP WHERE id = $1`, [userId]);
-    logger.info('User suspended', { userId, reason });
-    return { success: true, message: 'User suspended successfully' };
+    // Check if user exists and is not an admin
+    const userCheck = await query(
+      `SELECT id, role, status, full_name, email FROM users WHERE id = $1`,
+      [userId]
+    );
+    
+    if (userCheck.rows.length === 0) {
+      throw new Error('User not found');
+    }
+    
+    const user = userCheck.rows[0];
+    
+    // Prevent suspending admin users
+    if (user.role === 'ADMIN') {
+      throw new Error('Cannot suspend admin users');
+    }
+    
+    // Check if already suspended
+    if (user.status === 'suspended') {
+      throw new Error('User is already suspended');
+    }
+    
+    // Suspend the user
+    await query(
+      `UPDATE users 
+       SET status = 'suspended', 
+           suspension_reason = $1, 
+           suspended_at = CURRENT_TIMESTAMP,
+           suspended_by = $2,
+           updated_at = CURRENT_TIMESTAMP 
+       WHERE id = $3`,
+      [reason || 'Account suspended by administrator', adminId, userId]
+    );
+    
+    logger.info('User suspended', { 
+      userId, 
+      userName: user.full_name,
+      userEmail: user.email,
+      reason,
+      suspendedBy: adminId 
+    });
+    
+    return { 
+      success: true, 
+      message: 'User suspended successfully',
+      user: {
+        id: user.id,
+        name: user.full_name,
+        email: user.email,
+        status: 'suspended'
+      }
+    };
   } catch (error) {
     logger.error('Error suspending user', { userId, error: error.message });
+    throw error;
+  }
+};
+
+const unsuspendUser = async (userId, adminId) => {
+  try {
+    // Check if user exists
+    const userCheck = await query(
+      `SELECT id, role, status, full_name, email FROM users WHERE id = $1`,
+      [userId]
+    );
+    
+    if (userCheck.rows.length === 0) {
+      throw new Error('User not found');
+    }
+    
+    const user = userCheck.rows[0];
+    
+    // Check if user is suspended
+    if (user.status !== 'suspended') {
+      throw new Error('User is not suspended');
+    }
+    
+    // Unsuspend the user
+    await query(
+      `UPDATE users 
+       SET status = 'active', 
+           suspension_reason = NULL, 
+           suspended_at = NULL,
+           suspended_by = NULL,
+           updated_at = CURRENT_TIMESTAMP 
+       WHERE id = $1`,
+      [userId]
+    );
+    
+    logger.info('User unsuspended', { 
+      userId, 
+      userName: user.full_name,
+      userEmail: user.email,
+      unsuspendedBy: adminId 
+    });
+    
+    return { 
+      success: true, 
+      message: 'User unsuspended successfully',
+      user: {
+        id: user.id,
+        name: user.full_name,
+        email: user.email,
+        status: 'active'
+      }
+    };
+  } catch (error) {
+    logger.error('Error unsuspending user', { userId, error: error.message });
     throw error;
   }
 };
@@ -305,7 +408,7 @@ const getDashboardStats = async () => {
 };
 
 module.exports = {
-  getAllUsers, getUserStats, suspendUser, verifyUserAccount, deleteUser,
+  getAllUsers, getUserStats, suspendUser, unsuspendUser, verifyUserAccount, deleteUser,
   getAllProjects, getProjectStats, deleteProject,
   getAllDisputes, getDisputeStats,
   getAllTransactions, getFinancialStats,

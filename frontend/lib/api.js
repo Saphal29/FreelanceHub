@@ -1536,6 +1536,18 @@ export const suspendUser = async (userId, reason) => {
 };
 
 /**
+ * Unsuspend user (admin)
+ */
+export const unsuspendUser = async (userId) => {
+  try {
+    const response = await api.put(`/admin/users/${userId}/unsuspend`);
+    return response.data;
+  } catch (error) {
+    throw handleApiError(error);
+  }
+};
+
+/**
  * Verify user (admin)
  */
 export const verifyUser = async (userId) => {

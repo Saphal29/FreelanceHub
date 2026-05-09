@@ -112,7 +112,7 @@ const findUserByEmail = async (email) => {
     const result = await query(
       `SELECT 
         u.id, u.email, u.password_hash, u.role, u.full_name,
-        u.phone, u.avatar_url, u.verified, u.last_login,
+        u.phone, u.avatar_url, u.verified, u.last_login, u.status,
         fp.id as freelancer_profile_id, fp.bio, fp.skills,
         fp.hourly_rate, fp.experience_years, fp.availability_status,
         cp.id as client_profile_id, cp.company_name, cp.industry, cp.website
@@ -129,7 +129,8 @@ const findUserByEmail = async (email) => {
       logger.database('User found by email', { 
         userId: user.id, 
         email: user.email,
-        role: user.role 
+        role: user.role,
+        status: user.status 
       });
     } else {
       logger.database('User not found by email', { email });
