@@ -625,7 +625,7 @@ export default function PostProjectPage() {
         <p className="text-[12px] text-[var(--muted)] uppercase">LOADING WIZARD...</p>
       </div>
     }>
-      <PostProjectContent />
+      <PostProjectForm />
     </Suspense>
   );
 }
