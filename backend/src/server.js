@@ -184,8 +184,11 @@ const startServer = async () => {
               callback(new Error('Not allowed by CORS'));
             }
           } else {
-            // Production: strict origin checking
-            const allowedOrigins = [process.env.FRONTEND_URL || 'http://localhost:3000'];
+            const allowedOrigins = [
+              process.env.FRONTEND_URL,
+              'https://freelance-hub-ochre.vercel.app',
+              'http://localhost:3000'
+            ].filter(Boolean);
             if (!origin || allowedOrigins.includes(origin)) {
               callback(null, true);
             } else {
