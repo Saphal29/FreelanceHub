@@ -6,13 +6,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import Link from 'next/link';
-import { Eye, EyeOff, LogIn, Mail, Lock, CheckCircle, AlertCircle, Shield, Sparkles } from 'lucide-react';
-
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Eye, EyeOff, ArrowRight, CheckCircle2, AlertCircle, Lock, Mail } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 
 // Validation schema
@@ -70,12 +64,10 @@ function LoginContent() {
   // Redirect if already authenticated
   useEffect(() => {
     if (isAuthenticated && !authLoading) {
-      // Get user from auth context to determine redirect
       const redirectTo = searchParams.get('redirect');
       if (redirectTo) {
         router.push(redirectTo);
       }
-      // If no redirect param, let the login submit handle the role-based redirect
     }
   }, [isAuthenticated, authLoading, router, searchParams]);
 
@@ -87,12 +79,10 @@ function LoginContent() {
       const result = await login(data);
 
       if (result.success) {
-        // Redirect based on user role
         const userRole = result.user?.role;
         let redirectTo = searchParams.get('redirect');
         
         if (!redirectTo) {
-          // Default redirect based on role
           if (userRole === 'FREELANCER') {
             redirectTo = '/freelancer';
           } else if (userRole === 'CLIENT') {
@@ -118,197 +108,238 @@ function LoginContent() {
   // Show loading spinner while checking authentication
   if (authLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-white">
-        <div className="animate-spin rounded-full h-16 w-16 border-4 border-gray-200 border-t-black"></div>
+      <div className="min-h-screen flex items-center justify-center bg-[var(--paper)] text-[var(--ink)] font-mono-ledger">
+        <div className="flex items-center space-x-3 text-[14px]">
+          <span className="w-3 h-3 bg-[var(--signal)] rounded-full animate-pulse"></span>
+          <span>AUTHENTICATING SESSION...</span>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-white py-12 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
-      {/* Background Elements */}
-      <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute -top-40 -right-40 w-80 h-80 bg-amber-500/5 rounded-full blur-3xl animate-float"></div>
-        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-black/5 rounded-full blur-3xl animate-float" style={{animationDelay: '2s'}}></div>
-      </div>
-
-      <div className="w-full max-w-md relative z-10">
-        {/* Header */}
-        <div className="text-center mb-8">
-          <Link href="/" className="inline-block">
-            <h1 className="text-4xl font-black text-black mb-2">
-              Freelance<span className="text-gradient-gold">Hub</span>
-            </h1>
+    <div className="min-h-screen bg-[var(--paper)] text-[var(--ink)] font-sans-ledger selection:bg-[var(--signal)] selection:text-[var(--paper)] flex flex-col justify-between">
+      
+      {/* Top Header */}
+      <header className="border-b border-[var(--line)] bg-[var(--paper)]/95 backdrop-blur-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 py-4 flex items-center justify-between">
+          <Link href="/" className="font-serif-ledger text-[19px] font-semibold tracking-tight text-[var(--ink)] hover:text-[var(--signal)] transition-colors">
+            FreelanceHub
           </Link>
-          <p className="text-gray-600 text-lg">Welcome back</p>
+
+          <Link 
+            href="/" 
+            className="font-mono-ledger text-[12px] text-[var(--muted)] hover:text-[var(--signal)] transition-colors flex items-center space-x-1"
+          >
+            <span>← Back to main ledger</span>
+          </Link>
         </div>
+      </header>
 
-        <Card className="card-premium shadow-3xl border-2 border-gray-100">
-          <CardHeader className="space-y-6 text-center pb-8">
-            <div className="flex justify-center">
-              <div className="h-20 w-20 bg-black rounded-2xl flex items-center justify-center shadow-xl">
-                <Shield className="h-10 w-10 text-amber-500" />
-              </div>
-            </div>
-            <div>
-              <CardTitle className="text-3xl font-black text-black mb-2">
-                Sign In
-              </CardTitle>
-              <CardDescription className="text-gray-600 text-lg">
-                Access your account
-              </CardDescription>
-            </div>
-          </CardHeader>
+      {/* Main 2-Column Editorial Section */}
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 py-12 md:py-16 flex-1 w-full">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-16 items-start">
           
-          <CardContent className="space-y-6 px-8 pb-8">
-            {/* Success Messages */}
-            {showSuccessMessage && (
-              <Alert className="border-2 border-green-200 bg-green-50 animate-in slide-in-from-top-2">
-                <CheckCircle className="h-5 w-5 text-green-600" />
-                <AlertDescription className="text-green-800 font-semibold">
-                  {searchParams.get('registered') === 'true' && 
-                    'Registration successful! Please check your email to verify your account.'
-                  }
-                  {searchParams.get('verified') === 'true' && 
-                    'Email verified successfully! You can now log in.'
-                  }
-                </AlertDescription>
-              </Alert>
-            )}
-
-            {/* Error Messages */}
-            {error && (
-              <Alert className="border-2 border-red-200 bg-red-50 animate-in slide-in-from-top-2">
-                <AlertCircle className="h-5 w-5 text-red-600" />
-                <AlertDescription className="text-red-800 font-semibold">{error}</AlertDescription>
-              </Alert>
-            )}
-
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-              {/* Email */}
-              <div className="space-y-3">
-                <Label htmlFor="email" className="form-label-modern">
-                  Email Address
-                </Label>
-                <div className="relative">
-                  <Mail className="absolute left-4 top-4 h-5 w-5 text-gray-400" />
-                  <Input
-                    id="email"
-                    type="email"
-                    {...register('email')}
-                    placeholder="Enter your email"
-                    className="form-input-modern pl-12 text-lg"
-                    autoComplete="email"
-                  />
-                </div>
-                {errors.email && (
-                  <p className="form-error-modern animate-in slide-in-from-top-1">
-                    {errors.email.message}
-                  </p>
-                )}
+          {/* LEFT COLUMN: Structured Editorial Form Panel */}
+          <div className="lg:col-span-6 order-2 lg:order-1">
+            <div className="bg-[var(--paper)] border-2 border-[var(--ink)] p-6 sm:p-8 space-y-6 shadow-sm">
+              
+              {/* Form Header Tag */}
+              <div className="flex items-center justify-between border-b border-[var(--line)] pb-3 font-mono-ledger text-[11px]">
+                <span className="text-[var(--ink)] font-bold uppercase tracking-wider">01 / SYSTEM AUTHENTICATION</span>
+                <span className="text-[var(--signal)] flex items-center font-bold">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[var(--signal)] animate-pulse mr-1.5"></span>
+                  LOG IN
+                </span>
               </div>
 
-              {/* Password */}
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="password" className="form-label-modern">
-                    Password
-                  </Label>
-                  <Link 
-                    href="/forgot-password" 
-                    className="text-sm font-bold text-amber-600 hover:text-amber-700 transition-colors"
-                  >
-                    Forgot password?
-                  </Link>
+              {/* Success Notification Alert */}
+              {showSuccessMessage && (
+                <div className="p-3.5 bg-[var(--paper-2)] border border-[var(--signal)] text-[var(--ink)] font-mono-ledger text-[12px] flex items-start space-x-2">
+                  <CheckCircle2 className="h-4 w-4 text-[var(--signal)] shrink-0 mt-0.5" />
+                  <div>
+                    {searchParams.get('registered') === 'true' && 
+                      'Registration successful! Please check your email for OTP verification.'
+                    }
+                    {searchParams.get('verified') === 'true' && 
+                      'Email verified successfully! You may now sign in.'
+                    }
+                  </div>
                 </div>
-                <div className="relative">
-                  <Lock className="absolute left-4 top-4 h-5 w-5 text-gray-400" />
-                  <Input
-                    id="password"
-                    type={showPassword ? 'text' : 'password'}
-                    {...register('password')}
-                    placeholder="Enter your password"
-                    className="form-input-modern pl-12 pr-12 text-lg"
-                    autoComplete="current-password"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-4 top-4 text-gray-400 hover:text-gray-600 transition-colors"
+              )}
+
+              {/* Error Notification Alert */}
+              {error && (
+                <div className="p-3.5 bg-red-50 border border-[var(--signal)] text-[var(--signal-dark)] font-mono-ledger text-[12px] flex items-start space-x-2">
+                  <AlertCircle className="h-4 w-4 text-[var(--signal)] shrink-0 mt-0.5" />
+                  <span>{error}</span>
+                </div>
+              )}
+
+              <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+                
+                {/* Email Field */}
+                <div className="space-y-1.5 text-left">
+                  <label htmlFor="email" className="font-mono-ledger text-[11px] uppercase tracking-wider text-[var(--ink)] block font-bold">
+                    Email Address *
+                  </label>
+                  <div className="relative">
+                    <Mail className="absolute left-3.5 top-3.5 h-4 w-4 text-[var(--muted)]" />
+                    <input
+                      id="email"
+                      type="email"
+                      {...register('email')}
+                      placeholder="name@domain.com"
+                      className="w-full bg-[var(--paper-2)] border border-[var(--line)] focus:border-[var(--ink)] focus:ring-1 focus:ring-[var(--ink)] font-sans-ledger text-[14px] pl-10 pr-4 py-2.5 outline-none transition-all placeholder:text-[var(--muted)]"
+                      autoComplete="email"
+                    />
+                  </div>
+                  {errors.email && (
+                    <p className="font-mono-ledger text-[11px] text-[var(--signal)] mt-1">
+                      {errors.email.message}
+                    </p>
+                  )}
+                </div>
+
+                {/* Password Field */}
+                <div className="space-y-1.5 text-left">
+                  <div className="flex items-center justify-between">
+                    <label htmlFor="password" className="font-mono-ledger text-[11px] uppercase tracking-wider text-[var(--ink)] block font-bold">
+                      Password *
+                    </label>
+                    <Link 
+                      href="/forgot-password" 
+                      className="font-mono-ledger text-[11px] text-[var(--signal)] hover:text-[var(--signal-dark)] transition-colors font-bold"
+                    >
+                      Forgot password?
+                    </Link>
+                  </div>
+                  <div className="relative">
+                    <Lock className="absolute left-3.5 top-3.5 h-4 w-4 text-[var(--muted)]" />
+                    <input
+                      id="password"
+                      type={showPassword ? 'text' : 'password'}
+                      {...register('password')}
+                      placeholder="••••••••••••"
+                      className="w-full bg-[var(--paper-2)] border border-[var(--line)] focus:border-[var(--ink)] focus:ring-1 focus:ring-[var(--ink)] font-sans-ledger text-[14px] pl-10 pr-10 py-2.5 outline-none transition-all placeholder:text-[var(--muted)]"
+                      autoComplete="current-password"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3.5 top-3.5 text-[var(--muted)] hover:text-[var(--ink)] transition-colors"
+                      aria-label={showPassword ? "Hide password" : "Show password"}
+                    >
+                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
+                  {errors.password && (
+                    <p className="font-mono-ledger text-[11px] text-[var(--signal)] mt-1">
+                      {errors.password.message}
+                    </p>
+                  )}
+                </div>
+
+                {/* Submit Action */}
+                <div className="pt-2">
+                  <button 
+                    type="submit" 
+                    disabled={loading}
+                    className="w-full bg-[var(--signal)] hover:bg-[var(--signal-dark)] text-[var(--paper)] font-mono-ledger font-bold text-[13px] uppercase py-3 px-4 transition-colors flex items-center justify-center space-x-2 shadow-xs"
                   >
-                    {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                    {loading ? (
+                      <span className="font-mono-ledger text-[13px] flex items-center">
+                        <span className="w-2 h-2 rounded-full bg-[var(--paper)] animate-pulse mr-2"></span>
+                        VERIFYING CREDENTIALS...
+                      </span>
+                    ) : (
+                      <>
+                        <span>Sign in to ledger →</span>
+                      </>
+                    )}
                   </button>
                 </div>
-                {errors.password && (
-                  <p className="form-error-modern animate-in slide-in-from-top-1">
-                    {errors.password.message}
-                  </p>
-                )}
+
+              </form>
+
+              {/* Secondary Navigation Links */}
+              <div className="pt-4 border-t border-[var(--line)] text-center space-y-3 font-mono-ledger text-[12px]">
+                <p className="text-[var(--muted)]">
+                  New to FreelanceHub?{' '}
+                  <Link 
+                    href="/register" 
+                    className="text-[var(--ink)] font-bold hover:text-[var(--signal)] transition-colors"
+                  >
+                    Create account →
+                  </Link>
+                </p>
+
+                <div className="flex justify-center space-x-4 text-[11px] text-[var(--muted)] pt-2">
+                  <Link href="/verify-email" className="hover:text-[var(--ink)] transition-colors font-bold">
+                    Verify Email
+                  </Link>
+                  <span>•</span>
+                  <Link href="/how-it-works" className="hover:text-[var(--ink)] transition-colors font-bold">
+                    System Help
+                  </Link>
+                </div>
               </div>
 
-              {/* Submit Button */}
-              <Button 
-                type="submit" 
-                className="btn-primary w-full text-lg py-6 mt-8" 
-                disabled={loading}
-              >
-                {loading ? (
-                  <div className="flex items-center">
-                    <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent mr-3" />
-                    Signing In...
-                  </div>
-                ) : (
-                  <div className="flex items-center">
-                    <LogIn className="h-5 w-5 mr-3" />
-                    Sign In
-                  </div>
-                )}
-              </Button>
-            </form>
+            </div>
+          </div>
 
-            {/* Divider */}
-            <div className="relative my-8">
-              <div className="absolute inset-0 flex items-center">
-                <span className="w-full border-t-2 border-gray-200" />
-              </div>
-              <div className="relative flex justify-center text-sm uppercase">
-                <span className="bg-white px-4 text-gray-500 font-bold tracking-wide">Or</span>
+          {/* RIGHT COLUMN: Editorial Copy & System Verification Specimen */}
+          <div className="lg:col-span-6 order-1 lg:order-2 space-y-6 text-left">
+            <p className="font-mono-ledger text-[11px] uppercase tracking-[0.08em] text-[var(--muted)]">
+              FREELANCEHUB / ACCESS · SECURE SYSTEM VERIFICATION
+            </p>
+
+            <h1 className="font-serif-ledger text-[40px] sm:text-[56px] leading-[1.0] font-medium tracking-tight text-[var(--ink)]">
+              Welcome back.
+            </h1>
+
+            <p className="text-[15px] sm:text-[16px] leading-relaxed text-[var(--muted)] max-w-md font-sans-ledger">
+              Sign in to access your open contracts, active milestone escrows, and direct project communications on Nepal’s open freelance ledger.
+            </p>
+
+            {/* System Specimen Box */}
+            <div className="pt-2">
+              <div className="border border-[var(--ink)] bg-[var(--paper-2)] p-4 space-y-3 font-mono-ledger text-[12px]">
+                <div className="flex items-center justify-between text-[var(--muted)] border-b border-[var(--line)] pb-2 text-[10px] uppercase tracking-wider font-bold">
+                  <span>SECURITY PROTOCOL</span>
+                  <span className="text-[var(--signal)] flex items-center font-bold">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[var(--signal)] inline-block mr-1.5 animate-pulse"></span>
+                    SESSION ACTIVE
+                  </span>
+                </div>
+                <div className="flex items-center justify-between text-[var(--ink)]">
+                  <span>01. Encrypted JWT Authentication</span>
+                  <span className="text-[var(--signal)] font-bold">[VERIFIED]</span>
+                </div>
+                <div className="flex items-center justify-between text-[var(--ink)]">
+                  <span>02. Direct Escrow Reserve</span>
+                  <span>NPR LOCAL</span>
+                </div>
+                <div className="flex items-center justify-between text-[var(--ink)]">
+                  <span>03. Zero Platform Overhead</span>
+                  <span>NANTIO SPEC</span>
+                </div>
               </div>
             </div>
 
-            {/* Register Link */}
-            <div className="text-center">
-              <p className="text-gray-600 text-lg">
-                New to FreelanceHub?{' '}
-                <Link 
-                  href="/register" 
-                  className="font-bold text-black hover:text-amber-600 transition-colors"
-                >
-                  Create Account
-                </Link>
-              </p>
-            </div>
+          </div>
 
-            {/* Additional Links */}
-            <div className="flex justify-center space-x-6 text-sm text-gray-500 pt-6 border-t-2 border-gray-100">
-              <Link href="/verify-email" className="hover:text-black transition-colors font-semibold">
-                Verify Email
-              </Link>
-              <span className="text-gray-300">•</span>
-              <Link href="/help" className="hover:text-black transition-colors font-semibold">
-                Need Help?
-              </Link>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Footer */}
-        <div className="text-center mt-8">
-          <p className="text-gray-500">
-            © 2024 FreelanceHub. Built with care.
-          </p>
         </div>
-      </div>
+      </main>
+
+      {/* Editorial Footer */}
+      <footer className="border-t border-[var(--line)] py-6 text-center">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 flex flex-col sm:flex-row items-center justify-between text-[12px] font-mono-ledger text-[var(--muted)] gap-2">
+          <span>FreelanceHub · Nepal Marketplace Ledger</span>
+          <span>Engineered by Nantio Studio (www.nantio.it.com)</span>
+        </div>
+      </footer>
+
     </div>
   );
 }
@@ -316,8 +347,11 @@ function LoginContent() {
 export default function LoginPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center bg-white">
-        <div className="animate-spin rounded-full h-16 w-16 border-4 border-gray-200 border-t-black"></div>
+      <div className="min-h-screen flex items-center justify-center bg-[var(--paper)] text-[var(--ink)] font-mono-ledger">
+        <div className="flex items-center space-x-3 text-[14px]">
+          <span className="w-3 h-3 bg-[var(--signal)] rounded-full animate-pulse"></span>
+          <span>LOADING SYSTEM...</span>
+        </div>
       </div>
     }>
       <LoginContent />

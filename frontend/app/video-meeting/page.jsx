@@ -1,64 +1,58 @@
 "use client";
 
 import { useState, useEffect, Suspense } from "react";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useAuth } from "@/contexts/AuthContext";
+import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
 import Navbar from "@/components/layout/Navbar";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import CommandRail from "@/components/layout/CommandRail";
+import { useAuth } from "@/contexts/AuthContext";
 import {
   Video,
   Calendar,
   Clock,
   Users,
   Copy,
-  MoreVertical,
+  ArrowRight,
+  CheckCircle
 } from "lucide-react";
-import { getAvatarUrl, getInitials, getAvatarColor } from "@/lib/avatarUtils";
 import api from "@/lib/api";
 
 function VideoMeetingContent() {
   const { user } = useAuth();
   const searchParams = useSearchParams();
+  const router = useRouter();
+
   const [meetingLink, setMeetingLink] = useState("");
   const [meetingCodeInput, setMeetingCodeInput] = useState("");
   const [upcomingMeetings, setUpcomingMeetings] = useState([]);
   const [recentMeetings, setRecentMeetings] = useState([]);
   const [loading, setLoading] = useState(true);
-  const pathname = usePathname();
-  const router = useRouter();
-  
+  const [copied, setCopied] = useState(false);
+
   const isFreelancer = user?.role === 'FREELANCER';
   const userType = isFreelancer ? 'freelancer' : 'client';
-  
-  // Get contractId from URL if present
   const contractId = searchParams.get('contractId');
 
   useEffect(() => {
-    if (user) {
-      fetchMeetings();
-    }
+    if (user) fetchMeetings();
   }, [user]);
 
   const fetchMeetings = async () => {
     try {
       setLoading(true);
-      
-      // Fetch scheduled meetings
-      const scheduledRes = await api.get('/calls/scheduled');
-      if (scheduledRes.data.success) {
-        setUpcomingMeetings(scheduledRes.data.meetings || []);
+      const [scheduledRes, historyRes] = await Promise.allSettled([
+        api.get('/calls/scheduled'),
+        api.get('/calls/history')
+      ]);
+
+      if (scheduledRes.status === 'fulfilled' && scheduledRes.value?.data?.success) {
+        setUpcomingMeetings(scheduledRes.value.data.meetings || []);
       }
 
-      // Fetch call history
-      const historyRes = await api.get('/calls/history');
-      if (historyRes.data.success) {
-        // Filter only completed calls
-        const completed = (historyRes.data.calls || [])
+      if (historyRes.status === 'fulfilled' && historyRes.value?.data?.success) {
+        const completed = (historyRes.value.data.calls || [])
           .filter(call => call.status === 'ended' || call.status === 'connected')
-          .slice(0, 5); // Show only last 5
+          .slice(0, 5);
         setRecentMeetings(completed);
       }
     } catch (error) {
@@ -71,342 +65,249 @@ function VideoMeetingContent() {
   const generateMeetingLink = () => {
     const randomId = crypto.randomUUID();
     let link = `${window.location.origin}/calls/join/${randomId}`;
-    if (contractId) {
-      link += `?contractId=${contractId}`;
-    }
+    if (contractId) link += `?contractId=${contractId}`;
     setMeetingLink(link);
   };
 
   const copyMeetingLink = () => {
     navigator.clipboard.writeText(meetingLink);
-    // Silently copy without alert
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2500);
   };
 
   const startMeeting = () => {
-    // Generate a new meeting ID and redirect to the meeting room
     const randomId = crypto.randomUUID();
     let url = `/calls/join/${randomId}`;
-    if (contractId) {
-      url += `?contractId=${contractId}`;
-    }
+    if (contractId) url += `?contractId=${contractId}`;
     router.push(url);
   };
 
   const joinMeeting = () => {
     if (!meetingCodeInput.trim()) {
-      alert("Please enter a meeting code or link");
+      alert("Please enter a valid meeting code or link.");
       return;
     }
 
-    // Extract meeting ID from link or use code directly
     let meetingId = meetingCodeInput.trim();
-    
-    // If it's a full URL, extract the meeting ID
     if (meetingCodeInput.includes('/calls/join/')) {
       const parts = meetingCodeInput.split('/calls/join/');
       meetingId = parts[parts.length - 1];
     } else if (meetingCodeInput.includes('/meet/')) {
-      // Support old format
       const parts = meetingCodeInput.split('/meet/');
       meetingId = parts[parts.length - 1];
     }
 
-    // Validate meeting ID format (basic validation)
     if (meetingId.length < 5) {
-      alert("Invalid meeting code or link");
+      alert("Invalid meeting code or link format.");
       return;
     }
 
-    // Redirect to the meeting room
     router.push(`/calls/join/${meetingId}`);
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-[var(--paper)] text-[var(--ink)] font-sans-ledger selection:bg-[var(--signal)] selection:text-[var(--paper)] flex flex-col justify-between">
+      
+      {/* Top Navbar */}
       <Navbar userType={userType} />
 
-      {/* Header */}
-      <section className="border-b border-border bg-secondary/30 py-8">
-        <div className="container mx-auto px-4">
-          <h1 className="font-display text-3xl font-bold text-foreground sm:text-4xl">
-            Video Meetings
-          </h1>
-          <p className="mt-2 text-lg text-muted-foreground">
-            Connect face-to-face with clients and team members
+      {/* Floating Tool Rail */}
+      <CommandRail userType={userType} />
+
+      {/* Main Container */}
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 lg:pl-20 py-8 sm:py-12 space-y-10 flex-1 w-full pb-24 lg:pb-12 text-left">
+        
+        {/* EDITORIAL HEADER */}
+        <section className="space-y-4 border-b border-[var(--ink)] pb-8">
+          <p className="font-mono-ledger text-[11px] uppercase tracking-[0.08em] text-[var(--muted)] flex items-center space-x-2">
+            <span className="w-2 h-2 rounded-full bg-[var(--signal)] inline-block animate-pulse"></span>
+            <span>FREELANCEHUB DISPATCH · VIDEO COLLABORATION STATION</span>
           </p>
-        </div>
-      </section>
+          
+          <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+            <div className="space-y-2">
+              <h1 className="font-serif-ledger text-[38px] sm:text-[50px] leading-[1.05] font-medium tracking-tight text-[var(--ink)]">
+                Video Meetings.
+              </h1>
+              <p className="text-[15px] text-[var(--muted)] max-w-xl">
+                Initiate instant encrypted video calls, generate meeting links for participants, and join scheduled milestone reviews.
+              </p>
+            </div>
+          </div>
+        </section>
 
-      {/* Main Content */}
-      <main className="container mx-auto px-4 py-8">
-        <div className="grid gap-6 lg:grid-cols-3">
-          {/* Left Column - Quick Actions */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* Start Meeting Card */}
-            <Card className="border-border">
-              <CardHeader>
-                <CardTitle className="flex items-center font-display text-xl">
-                  <Video className="mr-2 h-5 w-5 text-accent" />
-                  Start a Meeting
-                </CardTitle>
-                <CardDescription className="text-muted-foreground">
-                  Create an instant meeting or schedule one for later
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex flex-wrap gap-3">
-                  <Button
-                    onClick={startMeeting}
-                    variant="accent"
-                    size="lg"
-                    className="flex-1 min-w-[200px]"
-                  >
-                    <Video className="mr-2 h-5 w-5" />
-                    Start Instant Meeting
-                  </Button>
-                  <Button
-                    onClick={generateMeetingLink}
-                    variant="outline"
-                    size="lg"
-                    className="flex-1 min-w-[200px]"
-                  >
-                    <Calendar className="mr-2 h-5 w-5" />
-                    Schedule Meeting
-                  </Button>
+
+        {/* ASYMMETRIC MEETING WORKSPACE */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-start">
+          
+          {/* Left Column (Cols 1 to 8: 70% Width) - QUICK CONTROLS & JOIN */}
+          <div className="lg:col-span-8 space-y-8 font-mono-ledger">
+            
+            {/* INSTANT MEETING CONTROLS */}
+            <div className="border-2 border-[var(--ink)] bg-[var(--paper)] p-6 space-y-4">
+              <div className="border-b border-[var(--ink)] pb-2 text-[11px] uppercase tracking-wider font-bold text-[var(--ink)] flex items-center justify-between">
+                <span>01 / INITIATE VIDEO MEETING</span>
+                <span className="text-[var(--signal)]">[LIVE CONFERENCING]</span>
+              </div>
+
+              <div className="flex flex-col sm:flex-row gap-3">
+                <button
+                  onClick={startMeeting}
+                  className="flex-1 bg-[var(--signal)] hover:bg-[var(--signal-dark)] text-[var(--paper)] font-bold text-[12px] uppercase tracking-wider py-3.5 px-6 transition-colors shadow-xs flex items-center justify-center space-x-2"
+                >
+                  <Video className="h-4 w-4" />
+                  <span>START INSTANT MEETING →</span>
+                </button>
+
+                <button
+                  onClick={generateMeetingLink}
+                  className="flex-1 bg-[var(--paper-2)] border-2 border-[var(--ink)] hover:bg-[var(--paper)] text-[var(--ink)] font-bold text-[12px] uppercase py-3.5 px-6 transition-colors flex items-center justify-center space-x-2"
+                >
+                  <Calendar className="h-4 w-4" />
+                  <span>GENERATE MEETING LINK</span>
+                </button>
+              </div>
+
+              {meetingLink && (
+                <div className="p-4 border-2 border-[var(--ink)] bg-[var(--paper-2)] space-y-2">
+                  <span className="text-[10px] text-[var(--muted)] uppercase font-bold block">GENERATED MEETING SPECIMEN LINK:</span>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={meetingLink}
+                      readOnly
+                      className="flex-1 bg-[var(--paper)] border border-[var(--ink)] p-2.5 text-[12px] font-bold"
+                    />
+                    <button
+                      onClick={copyMeetingLink}
+                      className="bg-[var(--ink)] text-[var(--paper)] font-bold text-[11px] px-4 uppercase hover:bg-[var(--signal)] transition-colors"
+                    >
+                      {copied ? "COPIED ✓" : "COPY LINK"}
+                    </button>
+                  </div>
                 </div>
+              )}
+            </div>
 
-                {meetingLink && (
-                  <div className="rounded-xl border border-border bg-secondary p-4">
-                    <p className="mb-2 text-sm font-medium text-foreground">
-                      Your meeting link:
-                    </p>
-                    <div className="flex items-center gap-2">
-                      <Input
-                        value={meetingLink}
-                        readOnly
-                        className="flex-1 bg-card"
-                      />
-                      <Button
-                        onClick={copyMeetingLink}
-                        variant="outline"
-                        size="icon"
+
+            {/* JOIN MEETING WITH CODE */}
+            <div className="border-2 border-[var(--ink)] bg-[var(--paper-2)] p-6 space-y-4">
+              <div className="border-b border-[var(--ink)] pb-2 text-[11px] uppercase tracking-wider font-bold text-[var(--ink)]">
+                02 / JOIN EXISTING MEETING ROOM
+              </div>
+
+              <div className="flex gap-3">
+                <input
+                  type="text"
+                  placeholder="Enter meeting code or paste link..."
+                  value={meetingCodeInput}
+                  onChange={(e) => setMeetingCodeInput(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') joinMeeting(); }}
+                  className="flex-1 bg-[var(--paper)] border-2 border-[var(--ink)] p-3 text-[13px] font-bold focus:outline-none"
+                />
+                <button
+                  onClick={joinMeeting}
+                  className="bg-[var(--ink)] text-[var(--paper)] font-bold text-[11px] uppercase px-6 hover:bg-[var(--signal)] transition-colors"
+                >
+                  JOIN ROOM →
+                </button>
+              </div>
+            </div>
+
+
+            {/* RECENT CALL LOGS */}
+            <div className="space-y-4">
+              <div className="border-b border-[var(--ink)] pb-2 text-[11px] uppercase tracking-wider font-bold text-[var(--ink)] flex items-center justify-between">
+                <span>RECENT TELECONFERENCE HISTORY</span>
+                <span className="text-[var(--signal)]">{recentMeetings.length} CALLS</span>
+              </div>
+
+              {loading ? (
+                <div className="border-2 border-[var(--line)] bg-[var(--paper-2)] p-6 text-center text-[11px] text-[var(--muted)]">
+                  LOADING CALL HISTORY...
+                </div>
+              ) : recentMeetings.length === 0 ? (
+                <div className="border-2 border-[var(--ink)] bg-[var(--paper-2)] p-6 text-center text-[11px] text-[var(--muted)]">
+                  NO RECENT VIDEO CALLS ON RECORD
+                </div>
+              ) : (
+                <div className="border-2 border-[var(--ink)] bg-[var(--paper)] divide-y divide-[var(--line)] text-[12px]">
+                  {recentMeetings.map((call) => {
+                    const isOutgoing = call.callerId === user?.id;
+                    const callDate = new Date(call.createdAt);
+                    const durationMins = call.duration ? Math.floor(call.duration / 60) : 0;
+
+                    return (
+                      <div key={call.callId} className="p-4 flex items-center justify-between">
+                        <div className="space-y-1">
+                          <span className="font-bold text-[var(--ink)] block">
+                            {isOutgoing ? 'OUTGOING' : 'INCOMING'} {call.callType?.toUpperCase() || 'VIDEO'} CALL
+                          </span>
+                          <span className="text-[10px] text-[var(--muted)] block">
+                            {callDate.toLocaleDateString()} AT {callDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} • DURATION: {durationMins} MINS
+                          </span>
+                        </div>
+
+                        <span className="px-2.5 py-0.5 border border-[var(--ink)] bg-[var(--paper-2)] text-[10px] uppercase font-bold">
+                          [{call.status?.toUpperCase() || 'COMPLETED'}]
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+          </div>
+
+
+          {/* Right Column (Cols 9 to 12: 30% Width) - UPCOMING MEETINGS */}
+          <div className="lg:col-span-4 space-y-6 font-mono-ledger text-[12px]">
+            
+            <div className="border-2 border-[var(--ink)] bg-[var(--paper)] p-6 space-y-4">
+              <div className="border-b border-[var(--ink)] pb-2 text-[11px] uppercase tracking-wider font-bold text-[var(--ink)] flex items-center justify-between">
+                <span>SCHEDULED MEETINGS</span>
+                <span className="text-[var(--signal)] font-bold">• CALENDAR</span>
+              </div>
+
+              {loading ? (
+                <p className="text-[11px] text-[var(--muted)]">Loading upcoming schedule...</p>
+              ) : upcomingMeetings.length === 0 ? (
+                <p className="text-[11px] text-[var(--muted)]">NO UPCOMING MEETINGS SCHEDULED</p>
+              ) : (
+                <div className="space-y-4">
+                  {upcomingMeetings.map((meeting) => (
+                    <div key={meeting.meetingId} className="border border-[var(--ink)] bg-[var(--paper-2)] p-4 space-y-2 text-left">
+                      <span className="font-bold text-[var(--ink)] text-[13px] block">{meeting.title}</span>
+                      <span className="text-[10px] text-[var(--muted)] block">
+                        {new Date(meeting.scheduledAt).toLocaleDateString()} AT {new Date(meeting.scheduledAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                      <button
+                        onClick={() => router.push(meeting.meetingUrl)}
+                        className="w-full bg-[var(--signal)] text-[var(--paper)] font-bold text-[10px] uppercase py-2 transition-colors mt-2"
                       >
-                        <Copy className="h-4 w-4" />
-                      </Button>
+                        JOIN MEETING ROOM →
+                      </button>
                     </div>
-                    <p className="mt-2 text-xs text-muted-foreground">
-                      Share this link with participants to join the meeting
-                    </p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Join Meeting Card */}
-            <Card className="border-border">
-              <CardHeader>
-                <CardTitle className="flex items-center font-display text-xl">
-                  <Users className="mr-2 h-5 w-5 text-accent" />
-                  Join a Meeting
-                </CardTitle>
-                <CardDescription className="text-muted-foreground">
-                  Enter a meeting code or link to join
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="flex gap-3">
-                  <Input
-                    placeholder="Enter meeting code or link..."
-                    className="flex-1 border-border bg-card"
-                    value={meetingCodeInput}
-                    onChange={(e) => setMeetingCodeInput(e.target.value)}
-                    onKeyPress={(e) => {
-                      if (e.key === 'Enter') {
-                        joinMeeting();
-                      }
-                    }}
-                  />
-                  <Button variant="accent" onClick={joinMeeting}>Join</Button>
+                  ))}
                 </div>
-              </CardContent>
-            </Card>
+              )}
+            </div>
 
-            {/* Recent Meetings */}
-            <Card className="border-border">
-              <CardHeader>
-                <CardTitle className="flex items-center font-display text-xl">
-                  <Clock className="mr-2 h-5 w-5 text-accent" />
-                  Recent Meetings
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {loading ? (
-                  <div className="text-center py-8 text-muted-foreground">
-                    Loading meetings...
-                  </div>
-                ) : recentMeetings.length === 0 ? (
-                  <div className="text-center py-8 text-muted-foreground">
-                    No recent meetings
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {recentMeetings.map((call) => {
-                      // Determine the other participant
-                      const otherUserId = call.callerId === user?.id ? call.receiverId : call.callerId;
-                      const isOutgoing = call.callerId === user?.id;
-                      
-                      // Format date and duration
-                      const callDate = new Date(call.createdAt);
-                      const dateStr = callDate.toLocaleDateString('en-US', { 
-                        month: 'short', 
-                        day: 'numeric',
-                        year: callDate.getFullYear() !== new Date().getFullYear() ? 'numeric' : undefined
-                      });
-                      const timeStr = callDate.toLocaleTimeString('en-US', { 
-                        hour: 'numeric', 
-                        minute: '2-digit',
-                        hour12: true 
-                      });
-                      
-                      // Format duration
-                      const durationMins = call.duration ? Math.floor(call.duration / 60) : 0;
-                      const durationSecs = call.duration ? call.duration % 60 : 0;
-                      const durationStr = durationMins > 0 
-                        ? `${durationMins}m ${durationSecs}s` 
-                        : `${durationSecs}s`;
-
-                      return (
-                        <div
-                          key={call.callId}
-                          className="flex items-center justify-between rounded-xl border border-border bg-secondary p-4 transition-colors hover:bg-secondary/80"
-                        >
-                          <div className="flex items-center gap-3">
-                            <Avatar className="h-10 w-10">
-                              <AvatarImage src={getAvatarUrl(null)} alt="User" />
-                              <AvatarFallback className={getAvatarColor(otherUserId)}>
-                                {getInitials('User')}
-                              </AvatarFallback>
-                            </Avatar>
-                            <div>
-                              <h4 className="font-semibold text-foreground">
-                                {isOutgoing ? 'Outgoing' : 'Incoming'} {call.callType === 'video' ? 'Video' : 'Audio'} Call
-                              </h4>
-                              <p className="text-sm text-muted-foreground">
-                                {dateStr} at {timeStr} • {durationStr}
-                              </p>
-                            </div>
-                          </div>
-                          <div className="text-xs text-muted-foreground capitalize">
-                            {call.status}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
           </div>
 
-          {/* Right Column - Upcoming Meetings */}
-          <div className="space-y-6">
-            <Card className="border-border">
-              <CardHeader>
-                <CardTitle className="flex items-center font-display text-xl">
-                  <Calendar className="mr-2 h-5 w-5 text-accent" />
-                  Upcoming Meetings
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {loading ? (
-                  <div className="text-center py-8 text-muted-foreground">
-                    Loading meetings...
-                  </div>
-                ) : upcomingMeetings.length === 0 ? (
-                  <div className="text-center py-8 text-muted-foreground">
-                    No upcoming meetings
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {upcomingMeetings.map((meeting) => {
-                      // Format scheduled date and time
-                      const scheduledDate = new Date(meeting.scheduledAt);
-                      const dateStr = scheduledDate.toLocaleDateString('en-US', { 
-                        month: 'short', 
-                        day: 'numeric',
-                        year: scheduledDate.getFullYear() !== new Date().getFullYear() ? 'numeric' : undefined
-                      });
-                      const timeStr = scheduledDate.toLocaleTimeString('en-US', { 
-                        hour: 'numeric', 
-                        minute: '2-digit',
-                        hour12: true 
-                      });
-
-                      // Get other participants (exclude current user)
-                      const otherParticipants = meeting.participants.filter(p => p.userId !== user?.id);
-                      const participantNames = otherParticipants.map(p => p.fullName).join(', ') || 'No other participants';
-
-                      return (
-                        <div
-                          key={meeting.meetingId}
-                          className="rounded-xl border border-border bg-secondary p-4"
-                        >
-                          <div className="mb-3 flex items-start justify-between">
-                            <div>
-                              <h4 className="font-semibold text-foreground">
-                                {meeting.title}
-                              </h4>
-                              <p className="text-sm text-muted-foreground">
-                                {otherParticipants.length > 0 ? `with ${participantNames}` : 'No participants yet'}
-                              </p>
-                            </div>
-                            {otherParticipants.length > 0 && (
-                              <div className="flex -space-x-2">
-                                {otherParticipants.slice(0, 3).map((participant) => (
-                                  <Avatar key={participant.userId} className="h-8 w-8 border-2 border-background">
-                                    <AvatarImage src={getAvatarUrl(participant.avatarUrl)} alt={participant.fullName} />
-                                    <AvatarFallback className={getAvatarColor(participant.userId)}>
-                                      {getInitials(participant.fullName)}
-                                    </AvatarFallback>
-                                  </Avatar>
-                                ))}
-                                {otherParticipants.length > 3 && (
-                                  <div className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-background bg-muted text-xs font-medium">
-                                    +{otherParticipants.length - 3}
-                                  </div>
-                                )}
-                              </div>
-                            )}
-                          </div>
-                          <div className="mb-3 flex items-center gap-4 text-sm text-muted-foreground">
-                            <div className="flex items-center gap-1">
-                              <Calendar className="h-4 w-4" />
-                              {dateStr}
-                            </div>
-                            <div className="flex items-center gap-1">
-                              <Clock className="h-4 w-4" />
-                              {timeStr}
-                            </div>
-                          </div>
-                          <Button
-                            onClick={() => router.push(meeting.meetingUrl)}
-                            variant="accent"
-                            size="sm"
-                            className="w-full"
-                          >
-                            <Video className="mr-2 h-4 w-4" />
-                            Join Meeting
-                          </Button>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
         </div>
+
       </main>
+
+      {/* Editorial Footer */}
+      <footer className="border-t border-[var(--line)] py-6 text-center mt-12 font-mono-ledger text-[12px] text-[var(--muted)]">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 flex flex-col sm:flex-row items-center justify-between gap-2">
+          <span>FreelanceHub · Video Collaboration Station</span>
+          <span>Engineered by Nantio Studio (www.nantio.it.com)</span>
+        </div>
+      </footer>
+
     </div>
   );
 }
@@ -414,8 +315,8 @@ function VideoMeetingContent() {
 export default function VideoMeetingPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-primary"></div>
+      <div className="min-h-screen bg-[var(--paper)] flex items-center justify-center font-mono-ledger">
+        <p className="text-[12px] text-[var(--muted)] uppercase">LOADING MEETING STATION...</p>
       </div>
     }>
       <VideoMeetingContent />

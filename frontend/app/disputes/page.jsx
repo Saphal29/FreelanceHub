@@ -2,10 +2,10 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import Navbar from "@/components/layout/Navbar";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import CommandRail from "@/components/layout/CommandRail";
+import EmptyState from "@/components/common/EmptyState";
 import { useAuth } from "@/contexts/AuthContext";
 import { getDisputes } from "@/lib/api";
 import {
@@ -18,16 +18,16 @@ import {
   MessageSquare,
   Paperclip,
   Filter,
+  ArrowRight
 } from "lucide-react";
-import Link from "next/link";
-import { Pagination } from "@/components/ui/pagination";
+import { formatCurrency } from "@/lib/currency";
 
 const STATUS_CONFIG = {
-  open: { label: "Open", color: "bg-blue-100 text-blue-700", icon: FileText },
-  under_review: { label: "Under Review", color: "bg-yellow-100 text-yellow-700", icon: Clock },
-  in_mediation: { label: "In Mediation", color: "bg-purple-100 text-purple-700", icon: MessageSquare },
-  resolved: { label: "Resolved", color: "bg-green-100 text-green-700", icon: CheckCircle },
-  closed: { label: "Closed", color: "bg-gray-100 text-gray-700", icon: XCircle },
+  open: { label: "OPEN", color: "bg-amber-100 text-amber-900 border-amber-300" },
+  under_review: { label: "UNDER REVIEW", color: "bg-blue-100 text-blue-900 border-blue-300" },
+  in_mediation: { label: "IN MEDIATION", color: "bg-purple-100 text-purple-900 border-purple-300" },
+  resolved: { label: "RESOLVED", color: "bg-green-100 text-green-900 border-green-300" },
+  closed: { label: "CLOSED", color: "bg-gray-100 text-gray-800 border-gray-300" },
 };
 
 const CATEGORY_OPTIONS = [
@@ -47,12 +47,7 @@ export default function DisputesPage() {
   const [disputes, setDisputes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  
   const [statusFilter, setStatusFilter] = useState("");
-  
-  // Pagination states
-  const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(4);
   const [categoryFilter, setCategoryFilter] = useState("");
 
   useEffect(() => {
@@ -63,11 +58,11 @@ export default function DisputesPage() {
 
   useEffect(() => {
     if (user) {
-      fetchDisputes();
+      fetchDisputesData();
     }
   }, [user, statusFilter, categoryFilter]);
 
-  const fetchDisputes = async () => {
+  const fetchDisputesData = async () => {
     try {
       setLoading(true);
       setError("");
@@ -81,202 +76,190 @@ export default function DisputesPage() {
       if (response.success) {
         setDisputes(response.disputes || []);
       } else {
-        setError(response.error || "Failed to load disputes");
+        setError(response.error || "Could not load dispute register.");
       }
     } catch (err) {
       console.error("Error fetching disputes:", err);
-      setError(err.message || "Failed to load disputes");
+      setError(err.message || "Network sync error loading disputes.");
     } finally {
       setLoading(false);
     }
   };
 
-  const getStatusConfig = (status) => {
-    return STATUS_CONFIG[status] || STATUS_CONFIG.open;
-  };
-
-  const getCategoryLabel = (category) => {
-    const cat = CATEGORY_OPTIONS.find(c => c.value === category);
-    return cat ? cat.label : category;
-  };
-
-  if (authLoading || loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
-      </div>
-    );
-  }
-
-  if (!user) return null;
-
-  const userType = user.role === "CLIENT" ? "client" : "freelancer";
+  const userType = user?.role === "CLIENT" ? "client" : "freelancer";
 
   return (
-    <div className="min-h-screen bg-background">
-      <Navbar userType={userType} />
+    <div className="min-h-screen bg-[var(--paper)] text-[var(--ink)] font-sans-ledger selection:bg-[var(--signal)] selection:text-[var(--paper)] flex flex-col justify-between">
       
-      <main className="container mx-auto px-4 py-8">
-        <div className="max-w-6xl mx-auto">
-          {/* Header */}
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <h1 className="font-display text-3xl font-bold text-foreground">
-                My <span className="text-amber-500">Disputes</span>
+      {/* Top Navbar */}
+      <Navbar userType={userType} />
+
+      {/* Floating Tool Rail */}
+      <CommandRail userType={userType} />
+
+      {/* Main Container */}
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 lg:pl-20 py-8 sm:py-12 space-y-10 flex-1 w-full pb-24 lg:pb-12 text-left">
+        
+        {/* EDITORIAL HEADER */}
+        <section className="space-y-4 border-b border-[var(--ink)] pb-8">
+          <p className="font-mono-ledger text-[11px] uppercase tracking-[0.08em] text-[var(--muted)] flex items-center space-x-2">
+            <span className="w-2 h-2 rounded-full bg-[var(--signal)] inline-block animate-pulse"></span>
+            <span>FREELANCEHUB AUDIT · DISPUTE & MEDIATION REGISTER</span>
+          </p>
+          
+          <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+            <div className="space-y-2">
+              <h1 className="font-serif-ledger text-[38px] sm:text-[50px] leading-[1.05] font-medium tracking-tight text-[var(--ink)]">
+                Dispute Register.
               </h1>
-              <p className="text-muted-foreground mt-1">Manage and track your disputes</p>
+              <p className="text-[15px] text-[var(--muted)] max-w-xl">
+                Manage formal contract disputes, review evidence files, and track neutral mediation progress.
+              </p>
             </div>
-            <Link href="/disputes/file">
-              <Button variant="accent">
-                <Plus className="h-4 w-4 mr-2" />
-                File Dispute
-              </Button>
+
+            <Link 
+              href="/disputes/file" 
+              className="bg-[var(--signal)] hover:bg-[var(--signal-dark)] text-[var(--paper)] font-mono-ledger font-bold text-[12px] uppercase tracking-wider px-5 py-3 transition-colors inline-flex items-center space-x-2 shrink-0 shadow-xs"
+            >
+              <span>FILE NEW DISPUTE RECORD →</span>
             </Link>
           </div>
+        </section>
 
-          {error && (
-            <Alert className="mb-6 border-2 border-red-200 bg-red-50">
-              <AlertCircle className="h-5 w-5 text-red-600" />
-              <AlertDescription className="text-red-800 font-semibold">{error}</AlertDescription>
-            </Alert>
-          )}
 
-          {/* Filters */}
-          <Card className="border-border mb-6">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-4">
-                <Filter className="h-5 w-5 text-muted-foreground" />
-                <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-foreground mb-1">Status</label>
-                    <select
-                      value={statusFilter}
-                      onChange={(e) => setStatusFilter(e.target.value)}
-                      className="w-full px-3 py-2 border border-border rounded-xl bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-accent"
-                    >
-                      <option value="">All Statuses</option>
-                      {Object.entries(STATUS_CONFIG).map(([value, config]) => (
-                        <option key={value} value={value}>{config.label}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-foreground mb-1">Category</label>
-                    <select
-                      value={categoryFilter}
-                      onChange={(e) => setCategoryFilter(e.target.value)}
-                      className="w-full px-3 py-2 border border-border rounded-xl bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-accent"
-                    >
-                      <option value="">All Categories</option>
-                      {CATEGORY_OPTIONS.map((cat) => (
-                        <option key={cat.value} value={cat.value}>{cat.label}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+        {/* FILTERS BAR */}
+        <section className="border-2 border-[var(--ink)] bg-[var(--paper-2)] p-4 font-mono-ledger text-[12px] space-y-3">
+          <span className="font-bold text-[var(--ink)] uppercase text-[11px] block">FILTER DISPUTE RECORDS</span>
+          
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-1">
+              <label className="text-[10px] text-[var(--muted)] uppercase font-bold block">STATUS</label>
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="w-full bg-[var(--paper)] border border-[var(--ink)] p-2.5 text-[12px] focus:outline-none"
+              >
+                <option value="">ALL STATUSES</option>
+                {Object.entries(STATUS_CONFIG).map(([val, cfg]) => (
+                  <option key={val} value={val}>{cfg.label}</option>
+                ))}
+              </select>
+            </div>
 
-          {/* Disputes List */}
-          {disputes.length === 0 ? (
-            <Card className="border-border">
-              <CardContent className="py-12">
-                <div className="text-center">
-                  <FileText className="mx-auto h-12 w-12 text-muted-foreground" />
-                  <h3 className="mt-4 font-display text-lg font-semibold text-foreground">
-                    No disputes found
-                  </h3>
-                  <p className="mt-2 text-muted-foreground">
-                    {statusFilter || categoryFilter
-                      ? "Try adjusting your filters"
-                      : "You don't have any disputes yet"}
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
+            <div className="space-y-1">
+              <label className="text-[10px] text-[var(--muted)] uppercase font-bold block">CATEGORY</label>
+              <select
+                value={categoryFilter}
+                onChange={(e) => setCategoryFilter(e.target.value)}
+                className="w-full bg-[var(--paper)] border border-[var(--ink)] p-2.5 text-[12px] focus:outline-none"
+              >
+                <option value="">ALL CATEGORIES</option>
+                {CATEGORY_OPTIONS.map((cat) => (
+                  <option key={cat.value} value={cat.value}>{cat.label}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+        </section>
+
+
+        {/* NOTIFICATIONS */}
+        {error && (
+          <div className="p-4 bg-red-50 border border-[var(--signal)] text-[var(--signal-dark)] font-mono-ledger text-[12px] flex items-center space-x-2">
+            <AlertCircle className="h-4 w-4 text-[var(--signal)] shrink-0" />
+            <span>{error}</span>
+          </div>
+        )}
+
+
+        {/* DISPUTES SPECIMEN STREAM */}
+        <section className="space-y-6">
+          {loading ? (
+            <div className="space-y-4">
+              {[1, 2, 3].map((n) => (
+                <div key={n} className="border-2 border-[var(--line)] bg-[var(--paper-2)] h-36 animate-pulse p-6"></div>
+              ))}
+            </div>
+          ) : disputes.length === 0 ? (
+            <EmptyState
+              marker="DISPUTE REGISTER"
+              title="No formal dispute records found."
+              description={statusFilter || categoryFilter ? "No disputes matched your filter selection." : "You currently have no active or historical contract disputes on record."}
+              actionLabel="FILE DISPUTE RECORD →"
+              actionHref="/disputes/file"
+            />
           ) : (
-            <>
-              <div className="space-y-4">
-                {disputes
-                  .slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
-                  .map((dispute) => {
-                const statusConfig = getStatusConfig(dispute.status);
-                const StatusIcon = statusConfig.icon;
-                const isFiledByUser = dispute.filedBy === user.id;
-                
+            <div className="space-y-6">
+              {disputes.map((dispute) => {
+                const statusCfg = STATUS_CONFIG[dispute.status] || STATUS_CONFIG.open;
+                const isFiledByUser = dispute.filedBy === user?.id;
+
                 return (
-                  <Link key={dispute.id} href={`/disputes/${dispute.id}`}>
-                    <Card className="border-border hover:shadow-md transition-shadow cursor-pointer">
-                      <CardContent className="p-6">
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-3 mb-2">
-                              <h3 className="font-semibold text-foreground text-lg">{dispute.title}</h3>
-                              <span className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${statusConfig.color}`}>
-                                <StatusIcon className="h-3 w-3" />
-                                {statusConfig.label}
-                              </span>
-                              <span className="px-2 py-1 rounded-full text-xs font-medium bg-secondary text-foreground">
-                                {getCategoryLabel(dispute.category)}
-                              </span>
-                            </div>
-                            
-                            <p className="text-sm text-muted-foreground mb-3 line-clamp-2">
-                              {dispute.description}
-                            </p>
-                            
-                            <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
-                              <span>Project: {dispute.projectTitle}</span>
-                              {dispute.milestoneTitle && <span>Milestone: {dispute.milestoneTitle}</span>}
-                              {dispute.amountDisputed && (
-                                <span className="font-semibold text-foreground">
-                                  Amount: ${dispute.amountDisputed.toLocaleString()}
-                                </span>
-                              )}
-                              <span>{isFiledByUser ? "Filed by you" : `Filed by ${dispute.filedByName}`}</span>
-                              <span>{new Date(dispute.createdAt).toLocaleDateString()}</span>
-                            </div>
-                            
-                            <div className="flex items-center gap-4 mt-3">
-                              <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                                <MessageSquare className="h-3 w-3" />
-                                <span>{dispute.messageCount} messages</span>
-                              </div>
-                              <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                                <Paperclip className="h-3 w-3" />
-                                <span>{dispute.evidenceCount} evidence files</span>
-                              </div>
-                              {dispute.mediatorName && (
-                                <div className="text-xs text-muted-foreground">
-                                  Mediator: {dispute.mediatorName}
-                                </div>
-                              )}
-                            </div>
-                          </div>
+                  <Link key={dispute.id} href={`/disputes/${dispute.id}`} className="block group">
+                    <div className="border-2 border-[var(--ink)] bg-[var(--paper)] p-6 space-y-4 text-left hover:border-[var(--signal)] transition-colors shadow-xs">
+                      
+                      {/* Header */}
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-[var(--line)] pb-3 gap-2 font-mono-ledger text-[11px] uppercase">
+                        <span className="text-[var(--signal)] font-bold">
+                          DISPUTE SPECIMEN / #{dispute.id?.slice(0, 8) || '0001'}
+                        </span>
+
+                        <div className="flex items-center space-x-3 text-[10px]">
+                          <span className={`px-2 py-0.5 border font-bold ${statusCfg.color}`}>
+                            [{statusCfg.label}]
+                          </span>
+                          <span className="text-[var(--ink)] font-bold">
+                            [{dispute.category?.replace("_", " ")?.toUpperCase()}]
+                          </span>
                         </div>
-                      </CardContent>
-                    </Card>
+                      </div>
+
+                      {/* Content */}
+                      <div className="space-y-2">
+                        <h3 className="font-serif-ledger text-[22px] font-medium text-[var(--ink)] leading-snug group-hover:text-[var(--signal)] transition-colors">
+                          {dispute.title}
+                        </h3>
+                        <p className="font-sans-ledger text-[13px] text-[var(--muted)] line-clamp-2 leading-relaxed">
+                          {dispute.description}
+                        </p>
+                      </div>
+
+                      {/* Footer Details */}
+                      <div className="pt-3 border-t border-[var(--line)] flex flex-wrap items-center justify-between gap-4 font-mono-ledger text-[11px]">
+                        <div className="flex flex-wrap items-center gap-3 text-[10px] text-[var(--muted)]">
+                          <span>PROJECT: <strong className="text-[var(--ink)]">{dispute.projectTitle}</strong></span>
+                          <span>•</span>
+                          <span>FILED: {isFiledByUser ? "BY YOU" : `BY ${dispute.filedByName?.toUpperCase() || 'PARTICIPANT'}`}</span>
+                          <span>•</span>
+                          <span>DATE: {new Date(dispute.createdAt || Date.now()).toLocaleDateString()}</span>
+                        </div>
+
+                        <div className="flex items-center space-x-4 text-[11px] font-bold text-[var(--signal)]">
+                          {dispute.amountDisputed && (
+                            <span>NPR {dispute.amountDisputed.toLocaleString()} DISPUTED</span>
+                          )}
+                          <span>OPEN MEDIATION LOG →</span>
+                        </div>
+                      </div>
+
+                    </div>
                   </Link>
                 );
               })}
-              </div>
-              
-              {/* Pagination */}
-              <Pagination
-                currentPage={currentPage}
-                totalPages={Math.ceil(disputes.length / itemsPerPage)}
-                onPageChange={(page) => {
-                  setCurrentPage(page);
-                  window.scrollTo({ top: 0, behavior: 'smooth' });
-                }}
-                itemsPerPage={itemsPerPage}
-                totalItems={disputes.length}
-              />
-            </>
+            </div>
           )}
-        </div>
+        </section>
+
       </main>
+
+      {/* Editorial Footer */}
+      <footer className="border-t border-[var(--line)] py-6 text-center mt-12 font-mono-ledger text-[12px] text-[var(--muted)]">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 flex flex-col sm:flex-row items-center justify-between gap-2">
+          <span>FreelanceHub · Formal Dispute & Mediation Register</span>
+          <span>Engineered by Nantio Studio (www.nantio.it.com)</span>
+        </div>
+      </footer>
+
     </div>
   );
 }

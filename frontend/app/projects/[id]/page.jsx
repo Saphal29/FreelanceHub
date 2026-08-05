@@ -4,11 +4,8 @@ import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 import Navbar from "@/components/layout/Navbar";
-import { Button } from "@/components/ui/button";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import CommandRail from "@/components/layout/CommandRail";
 import SubmitProposalModal from "@/components/proposals/SubmitProposalModal";
-import RatingDisplay from "@/components/reviews/RatingDisplay";
-import ReviewCard from "@/components/reviews/ReviewCard";
 import { useAuth } from "@/contexts/AuthContext";
 import { getProjectById, getUserRatingStats, getReceivedReviews } from "@/lib/api";
 import { 
@@ -32,6 +29,7 @@ export default function ProjectDetailPage() {
   const router = useRouter();
   const params = useParams();
   const { user, loading: authLoading } = useAuth();
+  
   const [project, setProject] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -44,7 +42,7 @@ export default function ProjectDetailPage() {
   // Fetch project details
   useEffect(() => {
     const fetchProject = async () => {
-      if (!params.id) return;
+      if (!params?.id) return;
 
       try {
         setLoading(true);
@@ -54,40 +52,39 @@ export default function ProjectDetailPage() {
 
         if (response.success) {
           setProject(response.project);
-          // Load client data after project is loaded
-          if (response.project.client?.id) {
+          if (response.project?.client?.id) {
             loadClientData(response.project.client.id);
           }
         } else {
-          setError(response.error || "Failed to load project");
+          setError(response.error || "Failed to load project brief");
         }
       } catch (err) {
-        console.error("Error fetching project:", err);
-        setError(err.message || "Failed to load project");
+        console.error("Error fetching project brief:", err);
+        setError("Network error while retrieving project brief.");
       } finally {
         setLoading(false);
       }
     };
 
     fetchProject();
-  }, [params.id]);
+  }, [params?.id]);
 
-  // Load client rating stats and reviews
+  // Load client rating stats & reviews
   const loadClientData = async (clientId) => {
     try {
       setLoadingClientData(true);
       
-      const [statsResponse, reviewsResponse] = await Promise.all([
+      const [statsResponse, reviewsResponse] = await Promise.allSettled([
         getUserRatingStats(clientId),
         getReceivedReviews(clientId, { page: 1, limit: 5 })
       ]);
 
-      if (statsResponse.success) {
-        setClientStats(statsResponse.stats);
+      if (statsResponse.status === 'fulfilled' && statsResponse.value?.success) {
+        setClientStats(statsResponse.value.stats);
       }
 
-      if (reviewsResponse.success) {
-        setClientReviews(reviewsResponse.reviews || []);
+      if (reviewsResponse.status === 'fulfilled' && reviewsResponse.value?.success) {
+        setClientReviews(reviewsResponse.value.reviews || []);
       }
     } catch (err) {
       console.error("Error loading client data:", err);
@@ -97,8 +94,7 @@ export default function ProjectDetailPage() {
   };
 
   const handleProposalSuccess = () => {
-    // Refresh project to update hasApplied status
-    if (params.id) {
+    if (params?.id) {
       getProjectById(params.id).then(response => {
         if (response.success) {
           setProject(response.project);
@@ -109,390 +105,332 @@ export default function ProjectDetailPage() {
 
   if (authLoading || loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
+      <div className="min-h-screen bg-[var(--paper)] flex items-center justify-center font-mono-ledger">
+        <div className="space-y-3 text-center">
+          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[var(--signal)] mx-auto"></div>
+          <p className="text-[12px] text-[var(--muted)] uppercase">LOADING PROJECT BRIEF SPECIMEN...</p>
+        </div>
       </div>
     );
   }
 
   if (error || !project) {
     return (
-      <div className="min-h-screen bg-background">
-        <Navbar userType={user?.role?.toLowerCase()} />
-        <div className="container mx-auto px-4 py-12">
-          <Alert className="border-2 border-red-200 bg-red-50">
-            <AlertCircle className="h-5 w-5 text-red-600" />
-            <AlertDescription className="text-red-800 font-semibold">
-              {error || "Project not found"}
-            </AlertDescription>
-          </Alert>
-          <Link href="/freelancer/jobs">
-            <Button variant="outline" className="mt-6">
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Back to Projects
-            </Button>
+      <div className="min-h-screen bg-[var(--paper)] text-[var(--ink)] font-sans-ledger">
+        <Navbar userType={user?.role?.toLowerCase() || "freelancer"} />
+        <CommandRail userType={user?.role?.toLowerCase() || "freelancer"} />
+        <main className="max-w-4xl mx-auto px-4 py-16 space-y-6 text-left">
+          <div className="p-4 bg-red-50 border border-[var(--signal)] text-[var(--signal-dark)] font-mono-ledger text-[12px]">
+            {error || "Project brief specimen not found."}
+          </div>
+          <Link 
+            href="/projects" 
+            className="inline-flex items-center space-x-2 bg-[var(--ink)] text-[var(--paper)] font-mono-ledger text-[12px] font-bold px-5 py-2.5 uppercase hover:bg-[var(--signal)] transition-colors"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            <span>RETURN TO BRIEF DIRECTORY</span>
           </Link>
-        </div>
+        </main>
       </div>
     );
   }
 
-  const isFreelancer = user?.role === "FREELANCER";
+  const isFreelancer = user?.role === "FREELANCER" || !user;
   const isOwner = user?.id === project.client?.id;
 
   return (
-    <div className="min-h-screen bg-background">
-      <Navbar userType={user?.role?.toLowerCase()} />
+    <div className="min-h-screen bg-[var(--paper)] text-[var(--ink)] font-sans-ledger selection:bg-[var(--signal)] selection:text-[var(--paper)] flex flex-col justify-between">
+      
+      {/* Top Navbar */}
+      <Navbar userType={user?.role?.toLowerCase() || "freelancer"} />
 
-      {/* Project Header */}
-      <section className="border-b border-border bg-gradient-hero py-12">
-        <div className="container mx-auto px-4">
-          <div className="mx-auto max-w-4xl">
-            <Link href={isFreelancer ? "/freelancer/jobs" : "/client/projects"}>
-              <Button variant="outline" size="sm" className="mb-4">
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Back
-              </Button>
+      {/* Floating Tool Rail */}
+      <CommandRail userType={user?.role?.toLowerCase() || "freelancer"} />
+
+      {/* Main Specimen Container */}
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 lg:pl-20 py-8 sm:py-12 space-y-10 flex-1 w-full pb-24 lg:pb-12">
+        
+        {/* SPECIMEN HEADER */}
+        <section className="space-y-4 text-left border-b border-[var(--ink)] pb-8">
+          
+          <div className="flex items-center justify-between font-mono-ledger text-[11px] uppercase tracking-wider">
+            <Link 
+              href="/projects" 
+              className="text-[var(--muted)] hover:text-[var(--ink)] flex items-center space-x-1"
+            >
+              <ArrowLeft className="h-3.5 w-3.5" />
+              <span>PROJECT DIRECTORY</span>
             </Link>
+            <span className="text-[var(--signal)] font-bold">
+              SPECIMEN / #{project.id?.slice(0, 8) || '0001'}
+            </span>
+          </div>
+
+          <div className="space-y-3">
+            <h1 className="font-serif-ledger text-[34px] sm:text-[48px] leading-[1.1] font-medium tracking-tight text-[var(--ink)]">
+              {project.title}
+            </h1>
+
+            <div className="flex flex-wrap items-center gap-4 font-mono-ledger text-[11px] text-[var(--muted)] border-t border-[var(--line)] pt-3">
+              <span>POSTED: {new Date(project.createdAt || project.created_at || Date.now()).toLocaleDateString()}</span>
+              <span>•</span>
+              <span>CATEGORY: <strong className="text-[var(--ink)]">{project.category || 'Engineering'}</strong></span>
+              <span>•</span>
+              <span>PROPOSALS: <strong className="text-[var(--signal)]">{project.proposalsCount || 0} BIDS RECEIVED</strong></span>
+              {project.location && (
+                <>
+                  <span>•</span>
+                  <span>LOCATION: {project.location}</span>
+                </>
+              )}
+            </div>
+          </div>
+
+          {/* Quick Proposal Action Strip */}
+          {isFreelancer && !isOwner && (
+            <div className="pt-2 font-mono-ledger text-[12px]">
+              {project.hasApplied ? (
+                <div className="p-3 bg-green-50 border border-green-600 text-green-800 font-bold flex items-center space-x-2">
+                  <CheckCircle className="h-4 w-4 text-green-600 shrink-0" />
+                  <span>PROPOSAL SUBMITTED ON RECORD</span>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setShowProposalModal(true)}
+                  className="bg-[var(--signal)] hover:bg-[var(--signal-dark)] text-[var(--paper)] font-bold text-[12px] uppercase tracking-wider px-6 py-3 transition-colors inline-flex items-center space-x-2 shadow-xs"
+                >
+                  <Send className="h-4 w-4" />
+                  <span>SUBMIT PROPOSAL BRIEF →</span>
+                </button>
+              )}
+            </div>
+          )}
+
+          {isOwner && (
+            <div className="pt-2 font-mono-ledger text-[12px]">
+              <Link 
+                href={`/client/projects/${project.id}`}
+                className="bg-[var(--ink)] text-[var(--paper)] font-bold px-6 py-3 uppercase hover:bg-[var(--signal)] transition-colors inline-block"
+              >
+                MANAGE PROJECT BRIEF & BIDS →
+              </Link>
+            </div>
+          )}
+
+        </section>
+
+
+        {/* ASYMMETRIC 2-COLUMN SPECIMEN LAYOUT (70% Brief / 30% Client Record) */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-start text-left">
+          
+          {/* Left Column (70% Width: Cols 1 to 8) - PROJECT SPECIMEN SHEET */}
+          <div className="lg:col-span-8 space-y-10">
             
-            <div className="flex items-start justify-between gap-4">
-              <div className="flex-1">
-                <h1 className="font-display text-3xl font-bold tracking-tight text-foreground sm:text-4xl mb-4">
-                  {project.title}
-                </h1>
-                
-                <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
-                  <span className="flex items-center gap-1">
-                    <Clock className="h-4 w-4" />
-                    Posted {new Date(project.createdAt).toLocaleDateString()}
-                  </span>
-                  {project.location && (
-                    <span className="flex items-center gap-1">
-                      <MapPin className="h-4 w-4" />
-                      {project.location}
-                    </span>
-                  )}
-                  <span className="flex items-center gap-1">
-                    <Users className="h-4 w-4" />
-                    {project.proposalsCount} proposal{project.proposalsCount !== 1 ? "s" : ""}
-                  </span>
-                </div>
+            {/* 01 / PROJECT SCOPE & OBJECTIVES */}
+            <div className="space-y-4">
+              <div className="border-b border-[var(--ink)] pb-2 font-mono-ledger text-[11px] uppercase tracking-wider font-bold text-[var(--ink)]">
+                01 / PROJECT SCOPE & OBJECTIVES
               </div>
-
-              <div className="rounded-full bg-accent/10 px-4 py-2 text-sm font-medium text-accent">
-                {project.category}
+              <div className="font-sans-ledger text-[15px] leading-relaxed text-[var(--ink)] whitespace-pre-wrap">
+                {project.description}
               </div>
             </div>
 
-            {/* Quick Action Buttons */}
-            {isFreelancer && !isOwner && (
-              <div className="flex flex-wrap gap-2 mt-4">
-                {project.hasApplied ? (
-                  <Alert className="border-2 border-green-200 bg-green-50 flex-1">
-                    <CheckCircle className="h-5 w-5 text-green-600" />
-                    <AlertDescription className="text-green-800 font-semibold">
-                      You have already submitted a proposal
-                    </AlertDescription>
-                  </Alert>
-                ) : (
-                  <>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setShowProposalModal(true)}
-                      className="border-accent text-accent hover:bg-accent hover:text-white transition-colors"
+            {/* 02 / REQUIRED TECHNICAL SKILLS */}
+            {project.skills && project.skills.length > 0 && (
+              <div className="space-y-4">
+                <div className="border-b border-[var(--ink)] pb-2 font-mono-ledger text-[11px] uppercase tracking-wider font-bold text-[var(--ink)]">
+                  02 / REQUIRED TECHNICAL SKILLS
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {project.skills.map((skill, index) => (
+                    <span
+                      key={index}
+                      className="font-mono-ledger text-[11px] uppercase px-3 py-1.5 bg-[var(--paper-2)] border border-[var(--ink)] text-[var(--ink)] font-bold"
                     >
-                      <Send className="h-4 w-4 mr-2" />
-                      Submit Proposal
-                    </Button>
-                    <Link href="/freelancer/proposals">
-                      <Button variant="outline" size="sm" className="gap-2">
-                        <FileText className="h-4 w-4" />
-                        View Proposal
-                      </Button>
-                    </Link>
-                  </>
-                )}
+                      {skill}
+                    </span>
+                  ))}
+                </div>
               </div>
             )}
 
-            {isOwner && (
-              <div className="mt-4">
-                <Link href={`/client/projects/${project.id}`}>
-                  <Button variant="accent" size="sm">
-                    Manage Project
-                  </Button>
-                </Link>
+            {/* 03 / PROJECT MILESTONES */}
+            {project.milestones && project.milestones.length > 0 && (
+              <div className="space-y-4">
+                <div className="border-b border-[var(--ink)] pb-2 font-mono-ledger text-[11px] uppercase tracking-wider font-bold text-[var(--ink)]">
+                  03 / PROJECT MILESTONES & SCHEDULE
+                </div>
+                <div className="border-2 border-[var(--ink)] bg-[var(--paper-2)] divide-y divide-[var(--line)] font-mono-ledger text-[12px]">
+                  {project.milestones.map((milestone, index) => (
+                    <div key={milestone.id || index} className="p-4 space-y-1.5">
+                      <div className="flex items-center justify-between font-bold">
+                        <span>{index + 1}. {milestone.title}</span>
+                        <span className="text-[var(--signal)]">NPR {milestone.amount?.toLocaleString()}</span>
+                      </div>
+                      {milestone.description && (
+                        <p className="font-sans-ledger text-[13px] text-[var(--muted)]">
+                          {milestone.description}
+                        </p>
+                      )}
+                      {milestone.dueDate && (
+                        <p className="text-[10px] text-[var(--muted)] uppercase">
+                          DUE DATE: {new Date(milestone.dueDate).toLocaleDateString()}
+                        </p>
+                      )}
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
+
+            {/* Bottom Action CTA */}
+            {isFreelancer && !isOwner && !project.hasApplied && (
+              <div className="pt-6 border-t border-[var(--ink)] space-y-3 font-mono-ledger">
+                <h4 className="font-serif-ledger text-[20px] font-medium text-[var(--ink)]">
+                  Ready to submit your proposal?
+                </h4>
+                <p className="text-[13px] text-[var(--muted)]">
+                  Include your rate estimate in NPR, delivery timeline, and portfolio specimens to stand out to the client.
+                </p>
+                <button
+                  onClick={() => setShowProposalModal(true)}
+                  className="bg-[var(--signal)] hover:bg-[var(--signal-dark)] text-[var(--paper)] font-bold text-[12px] uppercase tracking-wider px-6 py-3.5 transition-colors inline-flex items-center space-x-2 shadow-xs"
+                >
+                  <Send className="h-4 w-4" />
+                  <span>SUBMIT PROPOSAL BRIEF →</span>
+                </button>
+              </div>
+            )}
+
           </div>
-        </div>
-      </section>
 
-      {/* Main Content */}
-      <section className="py-8">
-        <div className="container mx-auto px-4">
-          <div className="mx-auto max-w-4xl">
-            <div className="grid gap-8 lg:grid-cols-3">
-              {/* Left Column - Project Details */}
-              <div className="lg:col-span-2 space-y-6">
-                {/* Description */}
-                <div className="rounded-2xl border border-border bg-card p-6">
-                  <h2 className="font-display text-xl font-bold text-foreground mb-4">
-                    Project Description
-                  </h2>
-                  <p className="text-muted-foreground whitespace-pre-wrap">
-                    {project.description}
-                  </p>
-                </div>
 
-                {/* Skills Required */}
-                <div className="rounded-2xl border border-border bg-card p-6">
-                  <h2 className="font-display text-xl font-bold text-foreground mb-4">
-                    Skills Required
-                  </h2>
-                  <div className="flex flex-wrap gap-2">
-                    {project.skills.map((skill, index) => (
-                      <span
-                        key={index}
-                        className="rounded-full bg-secondary px-4 py-2 text-sm text-foreground"
-                      >
-                        {skill}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Milestones */}
-                {project.milestones && project.milestones.length > 0 && (
-                  <div className="rounded-2xl border border-border bg-card p-6">
-                    <h2 className="font-display text-xl font-bold text-foreground mb-4">
-                      Project Milestones
-                    </h2>
-                    <div className="space-y-4">
-                      {project.milestones.map((milestone, index) => (
-                        <div key={milestone.id} className="border-l-4 border-accent pl-4">
-                          <h3 className="font-semibold text-foreground">
-                            {index + 1}. {milestone.title}
-                          </h3>
-                          {milestone.description && (
-                            <p className="text-sm text-muted-foreground mt-1">
-                              {milestone.description}
-                            </p>
-                          )}
-                          <div className="flex items-center gap-4 mt-2 text-sm">
-                            <span className="text-accent font-semibold">
-                              {formatCurrency(milestone.amount)}
-                            </span>
-                            {milestone.dueDate && (
-                              <span className="text-muted-foreground">
-                                Due: {new Date(milestone.dueDate).toLocaleDateString()}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
+          {/* Right Column (30% Width: Cols 9 to 12) - BRIEF DETAILS & CLIENT RECORD */}
+          <div className="lg:col-span-4 space-y-8 font-mono-ledger text-[12px]">
+            
+            {/* SPECIMEN DETAILS */}
+            <div className="border-2 border-[var(--ink)] bg-[var(--paper-2)] p-6 space-y-4">
+              <div className="border-b border-[var(--ink)] pb-2 text-[11px] uppercase tracking-wider font-bold text-[var(--ink)] flex items-center justify-between">
+                <span>BRIEF SPECIFICATIONS</span>
+                <span className="text-[var(--signal)]">[DETAILS]</span>
               </div>
 
-              {/* Right Column - Project Info & Actions */}
-              <div className="space-y-6">
-                {/* Budget & Timeline */}
-                <div className="rounded-2xl border border-border bg-card p-6">
-                  <h3 className="font-display text-lg font-bold text-foreground mb-4">
-                    Project Details
-                  </h3>
-                  
-                  <div className="space-y-4">
-                    <div>
-                      <p className="text-sm text-muted-foreground mb-1">Budget</p>
-                      <div className="flex items-center gap-2">
-                        <Banknote className="h-5 w-5 text-accent" />
-                        <p className="font-semibold text-foreground">
-                          {formatCurrency(project.budget.min)} - {formatCurrency(project.budget.max)}
-                        </p>
-                      </div>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        {project.budget.type === "fixed_price" ? "Fixed Price" : "Hourly Rate"}
-                      </p>
-                    </div>
-
-                    {project.duration && (
-                      <div>
-                        <p className="text-sm text-muted-foreground mb-1">Duration</p>
-                        <div className="flex items-center gap-2">
-                          <Calendar className="h-5 w-5 text-accent" />
-                          <p className="font-semibold text-foreground">{project.duration}</p>
-                        </div>
-                      </div>
-                    )}
-
-                    <div>
-                      <p className="text-sm text-muted-foreground mb-1">Experience Level</p>
-                      <div className="flex items-center gap-2">
-                        <Briefcase className="h-5 w-5 text-accent" />
-                        <p className="font-semibold text-foreground capitalize">
-                          {project.experienceLevel.replace("_", " ")}
-                        </p>
-                      </div>
-                    </div>
-
-                    {project.deadline && (
-                      <div>
-                        <p className="text-sm text-muted-foreground mb-1">Deadline</p>
-                        <div className="flex items-center gap-2">
-                          <Clock className="h-5 w-5 text-accent" />
-                          <p className="font-semibold text-foreground">
-                            {new Date(project.deadline).toLocaleDateString()}
-                          </p>
-                        </div>
-                      </div>
-                    )}
-                  </div>
+              <div className="space-y-3">
+                <div>
+                  <span className="text-[var(--muted)] text-[10px] uppercase block">BUDGET RANGE (NPR)</span>
+                  <span className="font-bold text-[16px] text-[var(--signal)]">
+                    NPR {project.budget?.min?.toLocaleString() || project.budget_min?.toLocaleString() || 'Agreed'} - {project.budget?.max?.toLocaleString() || project.budget_max?.toLocaleString() || 'Agreed'}
+                  </span>
+                  <span className="text-[10px] text-[var(--muted)] block">
+                    {project.budget?.type === "fixed_price" ? "Fixed Price Contract" : "Hourly Rate Contract"}
+                  </span>
                 </div>
 
-                {/* Client Info - Enhanced */}
-                <div className="rounded-2xl border border-border bg-card p-6">
-                  <h3 className="font-display text-lg font-bold text-foreground mb-4">
-                    About the Client
-                  </h3>
-                  
-                  <div className="flex items-center gap-3 mb-4">
-                    {project.client.avatar ? (
-                      <img
-                        src={project.client.avatar}
-                        alt={project.client.name}
-                        className="h-12 w-12 rounded-full object-cover"
-                      />
-                    ) : (
-                      <div className="h-12 w-12 rounded-full bg-accent/10 flex items-center justify-center">
-                        <span className="text-accent font-semibold text-lg">
-                          {project.client.name.charAt(0)}
-                        </span>
-                      </div>
-                    )}
-                    <div>
-                      <p className="font-semibold text-foreground">{project.client.name}</p>
-                      {project.client.company && (
-                        <p className="text-sm text-muted-foreground">{project.client.company}</p>
-                      )}
-                    </div>
+                {project.duration && (
+                  <div className="border-t border-[var(--line)] pt-2">
+                    <span className="text-[var(--muted)] text-[10px] uppercase block">DURATION</span>
+                    <span className="font-bold text-[var(--ink)]">{project.duration}</span>
                   </div>
+                )}
 
-                  {project.client.location && (
-                    <p className="text-sm text-muted-foreground mb-4">
-                      <MapPin className="h-4 w-4 inline mr-1" />
-                      {project.client.location}
-                    </p>
-                  )}
+                {project.experienceLevel && (
+                  <div className="border-t border-[var(--line)] pt-2">
+                    <span className="text-[var(--muted)] text-[10px] uppercase block">EXPERIENCE LEVEL</span>
+                    <span className="font-bold text-[var(--ink)] capitalize">
+                      {project.experienceLevel.replace("_", " ")}
+                    </span>
+                  </div>
+                )}
 
-                  {/* Client Rating */}
-                  {loadingClientData ? (
-                    <div className="py-4 text-center">
-                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-accent mx-auto"></div>
-                    </div>
-                  ) : clientStats && clientStats.totalReviews > 0 ? (
-                    <div className="space-y-4 pt-4 border-t border-border">
-                      <div>
-                        <div className="flex items-center gap-2 mb-2">
-                          <Star className="h-5 w-5 text-yellow-400 fill-yellow-400" />
-                          <span className="text-2xl font-bold text-foreground">
-                            {clientStats.averageRating.toFixed(1)}
-                          </span>
-                          <span className="text-sm text-muted-foreground">
-                            ({clientStats.totalReviews} review{clientStats.totalReviews !== 1 ? 's' : ''})
-                          </span>
-                        </div>
-                        
-                        {/* Rating bars */}
-                        <div className="space-y-1">
-                          {[5, 4, 3, 2, 1].map((rating) => {
-                            const count = clientStats[`rating${rating}Count`] || 0;
-                            const percentage = clientStats.totalReviews > 0 
-                              ? (count / clientStats.totalReviews) * 100 
-                              : 0;
-                            
-                            return (
-                              <div key={rating} className="flex items-center gap-2 text-xs">
-                                <span className="w-8">{rating} ★</span>
-                                <div className="flex-1 h-2 bg-secondary rounded-full overflow-hidden">
-                                  <div
-                                    className="h-full bg-yellow-400 transition-all"
-                                    style={{ width: `${percentage}%` }}
-                                  />
-                                </div>
-                                <span className="w-6 text-right text-muted-foreground">{count}</span>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-
-                      {/* Recent Reviews */}
-                      {clientReviews.length > 0 && (
-                        <div>
-                          <h4 className="font-semibold text-foreground mb-3 flex items-center gap-2">
-                            <Award className="h-4 w-4 text-accent" />
-                            Recent Reviews
-                          </h4>
-                          <div className="space-y-3">
-                            {clientReviews.slice(0, showAllReviews ? clientReviews.length : 2).map((review) => (
-                              <div key={review.id} className="bg-secondary/30 rounded-lg p-3">
-                                <div className="flex items-center gap-2 mb-2">
-                                  <div className="flex">
-                                    {[...Array(5)].map((_, i) => (
-                                      <Star
-                                        key={i}
-                                        className={`h-3 w-3 ${
-                                          i < review.overallRating
-                                            ? 'fill-yellow-400 text-yellow-400'
-                                            : 'text-gray-300'
-                                        }`}
-                                      />
-                                    ))}
-                                  </div>
-                                  <span className="text-xs text-muted-foreground">
-                                    {new Date(review.createdAt).toLocaleDateString()}
-                                  </span>
-                                </div>
-                                <p className="text-sm text-foreground line-clamp-3">
-                                  {review.feedback}
-                                </p>
-                                {review.reviewerName && (
-                                  <p className="text-xs text-muted-foreground mt-2">
-                                    - {review.reviewerName}
-                                  </p>
-                                )}
-                              </div>
-                            ))}
-                          </div>
-                          
-                          {clientReviews.length > 2 && (
-                            <button
-                              onClick={() => setShowAllReviews(!showAllReviews)}
-                              className="text-sm text-accent hover:underline mt-2"
-                            >
-                              {showAllReviews ? 'Show less' : `Show all ${clientReviews.length} reviews`}
-                            </button>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  ) : (
-                    <p className="text-sm text-muted-foreground pt-4 border-t border-border">
-                      No reviews yet
-                    </p>
-                  )}
-                </div>
+                {project.deadline && (
+                  <div className="border-t border-[var(--line)] pt-2">
+                    <span className="text-[var(--muted)] text-[10px] uppercase block">DEADLINE</span>
+                    <span className="font-bold text-[var(--ink)]">
+                      {new Date(project.deadline).toLocaleDateString()}
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
-          </div>
-        </div>
-      </section>
 
-      {/* Proposal Modal */}
+
+            {/* CLIENT VERIFICATION RECORD */}
+            <div className="border-2 border-[var(--ink)] bg-[var(--paper)] p-6 space-y-4">
+              <div className="border-b border-[var(--ink)] pb-2 text-[11px] uppercase tracking-wider font-bold text-[var(--ink)] flex items-center justify-between">
+                <span>CLIENT VERIFICATION</span>
+                <span className="text-[var(--signal)]">• RECORD</span>
+              </div>
+
+              <div className="space-y-3">
+                <div className="flex items-center space-x-3">
+                  <div className="w-10 h-10 bg-[var(--ink)] text-[var(--paper)] font-bold text-[14px] flex items-center justify-center">
+                    {project.client?.name?.charAt(0) || 'C'}
+                  </div>
+                  <div className="space-y-0.5">
+                    <p className="font-bold text-[var(--ink)] text-[13px]">{project.client?.name || 'Client Participant'}</p>
+                    {project.client?.company && (
+                      <p className="text-[11px] text-[var(--muted)]">{project.client.company}</p>
+                    )}
+                  </div>
+                </div>
+
+                {project.client?.location && (
+                  <p className="text-[11px] text-[var(--muted)] border-t border-[var(--line)] pt-2">
+                    <MapPin className="h-3 w-3 inline mr-1 text-[var(--signal)]" />
+                    {project.client.location}
+                  </p>
+                )}
+
+                {/* Rating Stats */}
+                {loadingClientData ? (
+                  <p className="text-[10px] text-[var(--muted)]">Loading client feedback record...</p>
+                ) : clientStats && clientStats.totalReviews > 0 ? (
+                  <div className="border-t border-[var(--line)] pt-3 space-y-2">
+                    <div className="flex items-center space-x-2">
+                      <Star className="h-4 w-4 text-[var(--signal)] fill-[var(--signal)]" />
+                      <span className="font-bold text-[14px] text-[var(--ink)]">
+                        {clientStats.averageRating?.toFixed(1)} / 5.0
+                      </span>
+                      <span className="text-[10px] text-[var(--muted)]">
+                        ({clientStats.totalReviews} REVIEWS)
+                      </span>
+                    </div>
+
+                    {/* Recent Reviews */}
+                    {clientReviews.length > 0 && (
+                      <div className="space-y-2 pt-2 border-t border-[var(--line)]">
+                        <span className="text-[10px] uppercase font-bold text-[var(--muted)] block">RECENT FEEDBACK</span>
+                        {clientReviews.slice(0, 2).map((rev) => (
+                          <div key={rev.id} className="p-2 bg-[var(--paper-2)] border border-[var(--line)] space-y-1 text-[11px]">
+                            <div className="flex justify-between text-[10px] text-[var(--signal)] font-bold">
+                              <span>⭐ {rev.overallRating || 5}.0</span>
+                              <span className="text-[var(--muted)] font-normal">{new Date(rev.createdAt || Date.now()).toLocaleDateString()}</span>
+                            </div>
+                            <p className="font-sans-ledger text-[12px] text-[var(--ink)] line-clamp-2">
+                              {rev.feedback}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-[10px] text-[var(--muted)] border-t border-[var(--line)] pt-2">
+                    VERIFIED CLIENT · NO PAST REVIEWS YET
+                  </p>
+                )}
+
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+
+      </main>
+
+      {/* PROPOSAL MODAL */}
       {showProposalModal && (
         <SubmitProposalModal
           project={project}
@@ -500,6 +438,15 @@ export default function ProjectDetailPage() {
           onSuccess={handleProposalSuccess}
         />
       )}
+
+      {/* Editorial Footer */}
+      <footer className="border-t border-[var(--line)] py-6 text-center mt-12 font-mono-ledger text-[12px] text-[var(--muted)]">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 flex flex-col sm:flex-row items-center justify-between gap-2">
+          <span>FreelanceHub · Architectural Brief Specimen</span>
+          <span>Engineered by Nantio Studio (www.nantio.it.com)</span>
+        </div>
+      </footer>
+
     </div>
   );
 }

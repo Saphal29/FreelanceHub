@@ -1,4 +1,5 @@
 'use client';
+
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
@@ -6,6 +7,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import Link from 'next/link';
 import Navbar from '@/components/layout/Navbar';
+import CommandRail from '@/components/layout/CommandRail';
 import { 
   User, 
   Mail, 
@@ -21,14 +23,8 @@ import {
   DollarSign,
   LogOut,
   Camera,
-  Upload,
   Star
 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useAuth } from '@/contexts/AuthContext';
 import { updateProfile, getProfile, uploadProfileImage } from '@/lib/api';
 import RatingDisplay from '@/components/reviews/RatingDisplay';
@@ -52,7 +48,7 @@ const baseProfileSchema = z.object({
     })
 });
 
-// Freelancer-specific schema
+// Freelancer schema
 const freelancerProfileSchema = baseProfileSchema.extend({
   title: z.string()
     .min(5, 'Professional title must be at least 5 characters')
@@ -61,8 +57,7 @@ const freelancerProfileSchema = baseProfileSchema.extend({
   bio: z.string()
     .max(500, 'Bio must be less than 500 characters')
     .optional(),
-  skills: z.string()
-    .optional(),
+  skills: z.string().optional(),
   hourlyRate: z.string()
     .optional()
     .refine((val) => !val || /^\d+(\.\d{1,2})?$/.test(val), {
@@ -70,7 +65,7 @@ const freelancerProfileSchema = baseProfileSchema.extend({
     })
 });
 
-// Client-specific schema
+// Client schema
 const clientProfileSchema = baseProfileSchema.extend({
   companyName: z.string()
     .min(2, 'Company name must be at least 2 characters')
@@ -96,7 +91,6 @@ export default function ProfilePage() {
   const isFreelancer = user?.role === 'FREELANCER';
   const isClient = user?.role === 'CLIENT';
 
-  // Choose schema based on role
   const validationSchema = isFreelancer ? freelancerProfileSchema : clientProfileSchema;
 
   const { 
@@ -112,28 +106,24 @@ export default function ProfilePage() {
       phone: '',
       location: '',
       website: '',
-      // Freelancer fields
       title: '',
       bio: '',
       skills: '',
       hourlyRate: '',
-      // Client fields
       companyName: '',
       companySize: '',
       industry: ''
     }
   });
 
-  // Populate form with user data when user is loaded
+  // Populate form data
   useEffect(() => {
     const loadProfile = async () => {
       if (user) {
         try {
-          // Get complete profile data from new API
           const profileResponse = await getProfile();
           const profileData = profileResponse.profile;
           
-          // Set avatar URL with full path
           const avatarPath = profileData.avatarUrl || '';
           const fullAvatarUrl = avatarPath 
             ? (avatarPath.startsWith('http') ? avatarPath : `${process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'http://localhost:5000'}${avatarPath}`)
@@ -165,36 +155,6 @@ export default function ProfilePage() {
           reset(formData);
         } catch (error) {
           console.error('Error loading profile:', error);
-          // Fallback to user data from context
-          const avatarPath = user.avatarUrl || '';
-          const fullAvatarUrl = avatarPath 
-            ? (avatarPath.startsWith('http') ? avatarPath : `${process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'http://localhost:5000'}${avatarPath}`)
-            : '';
-          
-          setAvatarUrl(avatarPath);
-          setImagePreview(fullAvatarUrl);
-          
-          const formData = {
-            fullName: user.fullName || '',
-            phone: user.phone || '',
-            location: user.location || '',
-            website: user.website || '',
-          };
-
-          if (isFreelancer && user.freelancerProfile) {
-            formData.title = user.freelancerProfile.title || '';
-            formData.bio = user.freelancerProfile.bio || '';
-            formData.skills = user.freelancerProfile.skills || '';
-            formData.hourlyRate = user.freelancerProfile.hourlyRate?.toString() || '';
-          }
-
-          if (isClient && user.clientProfile) {
-            formData.companyName = user.clientProfile.companyName || '';
-            formData.companySize = user.clientProfile.companySize || '';
-            formData.industry = user.clientProfile.industry || '';
-          }
-
-          reset(formData);
         }
       }
     };
@@ -202,7 +162,7 @@ export default function ProfilePage() {
     loadProfile();
   }, [user, reset, isFreelancer, isClient]);
 
-  // Redirect if not authenticated
+  // Auth check
   useEffect(() => {
     if (!authLoading && !user) {
       router.push('/login');
@@ -218,11 +178,9 @@ export default function ProfilePage() {
       const response = await updateProfile(data);
       
       if (response.success) {
-        setSuccess('Profile updated successfully!');
-        // Update user context with new data
+        setSuccess('Profile specimen updated successfully!');
         updateUser(response.profile);
-        // Clear success message after 3 seconds
-        setTimeout(() => setSuccess(''), 3000);
+        setTimeout(() => setSuccess(''), 3500);
       } else {
         setError(response.error || 'Failed to update profile');
       }
@@ -237,9 +195,8 @@ export default function ProfilePage() {
     try {
       setIsLoggingOut(true);
       await logout();
-      // The logout function in AuthContext will handle the redirect
     } catch (err) {
-      setError('Failed to logout. Please try again.');
+      setError('Failed to logout.');
       setIsLoggingOut(false);
     }
   };
@@ -248,16 +205,13 @@ export default function ProfilePage() {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Validate file type
     const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
     if (!allowedTypes.includes(file.type)) {
       setError('Please upload a valid image file (JPEG, PNG, or WebP)');
       return;
     }
 
-    // Validate file size (5MB limit)
-    const maxSize = 5 * 1024 * 1024; // 5MB
-    if (file.size > maxSize) {
+    if (file.size > 5 * 1024 * 1024) {
       setError('Image size must be less than 5MB');
       return;
     }
@@ -266,14 +220,10 @@ export default function ProfilePage() {
       setUploadingImage(true);
       setError('');
 
-      // Create preview
       const reader = new FileReader();
-      reader.onloadend = () => {
-        setImagePreview(reader.result);
-      };
+      reader.onloadend = () => setImagePreview(reader.result);
       reader.readAsDataURL(file);
 
-      // Upload image
       const response = await uploadProfileImage(file);
 
       if (response.success) {
@@ -283,26 +233,14 @@ export default function ProfilePage() {
         
         setAvatarUrl(response.imageUrl);
         setImagePreview(fullImageUrl);
-        setSuccess('Profile picture uploaded successfully!');
-        
-        // Update user context
+        setSuccess('Profile picture updated successfully!');
         updateUser({ ...user, avatarUrl: response.imageUrl });
-        setTimeout(() => setSuccess(''), 3000);
+        setTimeout(() => setSuccess(''), 3500);
       } else {
         setError(response.error || 'Failed to upload image');
-        // Reset preview on error
-        const fallbackUrl = avatarUrl 
-          ? (avatarUrl.startsWith('http') ? avatarUrl : `${process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'http://localhost:5000'}${avatarUrl}`)
-          : '';
-        setImagePreview(fallbackUrl);
       }
     } catch (err) {
       setError(err.message || 'Failed to upload image');
-      // Reset preview on error
-      const fallbackUrl = avatarUrl 
-        ? (avatarUrl.startsWith('http') ? avatarUrl : `${process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'http://localhost:5000'}${avatarUrl}`)
-        : '';
-      setImagePreview(fallbackUrl);
     } finally {
       setUploadingImage(false);
     }
@@ -310,417 +248,332 @@ export default function ProfilePage() {
 
   if (authLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
+      <div className="min-h-screen bg-[var(--paper)] flex items-center justify-center font-mono-ledger">
+        <div className="space-y-3 text-center">
+          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[var(--signal)] mx-auto"></div>
+          <p className="text-[12px] text-[var(--muted)] uppercase">LOADING PROFILE SPECIMEN...</p>
+        </div>
       </div>
     );
   }
 
-  if (!user) {
-    return null;
-  }
+  if (!user) return null;
+
+  const userType = isFreelancer ? "freelancer" : "client";
 
   return (
-    <div className="min-h-screen bg-background">
-      <Navbar userType={isFreelancer ? "freelancer" : "client"} />
+    <div className="min-h-screen bg-[var(--paper)] text-[var(--ink)] font-sans-ledger selection:bg-[var(--signal)] selection:text-[var(--paper)] flex flex-col justify-between">
+      
+      {/* Top Navbar */}
+      <Navbar userType={userType} />
 
-      {/* Header */}
-      <section className="border-b border-border bg-secondary/30 py-8">
-        <div className="container mx-auto px-4">
-          <div className="flex items-center justify-between mb-4">
-            <Link href="/dashboard" className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors">
-              <ArrowLeft className="h-4 w-4" />
-              <span>Back to Dashboard</span>
-            </Link>
-            <Button
-              onClick={handleLogout}
-              variant="outline"
-              disabled={isLoggingOut}
-              className="flex items-center gap-2 border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 hover:border-red-300"
+      {/* Floating Tool Rail */}
+      <CommandRail userType={userType} />
+
+      {/* Main Container */}
+      <main className="max-w-4xl mx-auto px-4 sm:px-6 py-8 sm:py-12 space-y-10 flex-1 w-full pb-24 lg:pb-12 text-left">
+        
+        {/* EDITORIAL HEADER */}
+        <section className="space-y-4 border-b border-[var(--ink)] pb-8">
+          <div className="flex items-center justify-between font-mono-ledger text-[11px] uppercase tracking-wider">
+            <Link 
+              href={isFreelancer ? "/freelancer" : "/dashboard"} 
+              className="text-[var(--muted)] hover:text-[var(--ink)] flex items-center space-x-1"
             >
-              {isLoggingOut ? (
-                <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-600"></div>
-                  <span>Logging out...</span>
-                </>
-              ) : (
-                <>
-                  <LogOut className="h-4 w-4" />
-                  <span>Logout</span>
-                </>
-              )}
-            </Button>
+              <ArrowLeft className="h-3.5 w-3.5" />
+              <span>RETURN TO WORKSPACE</span>
+            </Link>
+
+            <button
+              onClick={handleLogout}
+              disabled={isLoggingOut}
+              className="px-3.5 py-1.5 border border-[var(--ink)] text-[var(--signal)] hover:bg-red-50 font-bold uppercase transition-colors"
+            >
+              {isLoggingOut ? "SIGNING OUT..." : "SIGN OUT"}
+            </button>
           </div>
-          <h1 className="font-display text-3xl font-bold text-foreground sm:text-4xl">
-            Edit Profile
-          </h1>
-          <p className="mt-2 text-lg text-muted-foreground">
-            Update your personal information and {isFreelancer ? 'professional' : 'company'} details
-          </p>
-        </div>
-      </section>
 
-      {/* Main Content */}
-      <main className="container mx-auto py-8 px-4">
-        <div className="mx-auto max-w-4xl space-y-6">
-          {/* Success/Error Messages */}
-          {success && (
-            <Alert className="border-2 border-green-200 bg-green-50">
-              <CheckCircle className="h-5 w-5 text-green-600" />
-              <AlertDescription className="text-green-800 font-semibold">{success}</AlertDescription>
-            </Alert>
-          )}
+          <div className="space-y-2">
+            <h1 className="font-serif-ledger text-[36px] sm:text-[48px] leading-[1.05] font-medium tracking-tight text-[var(--ink)]">
+              Account Profile.
+            </h1>
+            <p className="text-[15px] text-[var(--muted)]">
+              Update your individual identification record, professional title, contact details, and reputation history.
+            </p>
+          </div>
+        </section>
 
-          {error && (
-            <Alert className="border-2 border-red-200 bg-red-50">
-              <AlertCircle className="h-5 w-5 text-red-600" />
-              <AlertDescription className="text-red-800 font-semibold">{error}</AlertDescription>
-            </Alert>
-          )}
 
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-            {/* Basic Information */}
-            <Card className="border-border">
-              <CardHeader>
-                <CardTitle className="flex items-center font-display text-xl">
-                  <User className="h-5 w-5 mr-2 text-accent" />
-                  Basic Information
-                </CardTitle>
-                <CardDescription className="text-muted-foreground">
-                  Update your personal information and contact details
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {/* Profile Picture Upload */}
-                <div className="flex flex-col items-center space-y-4 pb-6 border-b border-border">
-                  <div className="relative">
-                    {imagePreview ? (
-                      <img
-                        src={imagePreview.startsWith('http') ? imagePreview : `${process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'http://localhost:5000'}${imagePreview}`}
-                        alt="Profile"
-                        className="h-32 w-32 rounded-full object-cover border-4 border-border"
-                      />
-                    ) : (
-                      <div className="h-32 w-32 rounded-full bg-secondary flex items-center justify-center border-4 border-border">
-                        <User className="h-16 w-16 text-muted-foreground" />
-                      </div>
-                    )}
-                    {uploadingImage && (
-                      <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-full">
-                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
-                      </div>
-                    )}
-                    <label
-                      htmlFor="avatar-upload"
-                      className="absolute bottom-0 right-0 h-10 w-10 rounded-full bg-accent text-white flex items-center justify-center cursor-pointer hover:bg-accent/90 transition-colors shadow-lg"
-                    >
-                      <Camera className="h-5 w-5" />
-                      <input
-                        id="avatar-upload"
-                        type="file"
-                        accept="image/jpeg,image/png,image/webp"
-                        onChange={handleImageChange}
-                        className="sr-only"
-                        disabled={uploadingImage}
-                      />
-                    </label>
-                  </div>
-                  <div className="text-center">
-                    <p className="text-sm font-medium text-foreground">Profile Picture</p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      JPG, PNG or WebP. Max size 5MB.
-                    </p>
-                  </div>
+        {/* NOTIFICATIONS */}
+        {success && (
+          <div className="p-4 bg-green-50 border border-green-600 text-green-800 font-mono-ledger text-[12px] flex items-center space-x-2">
+            <CheckCircle className="h-4 w-4 text-green-600 shrink-0" />
+            <span className="font-bold">{success}</span>
+          </div>
+        )}
+
+        {error && (
+          <div className="p-4 bg-red-50 border border-[var(--signal)] text-[var(--signal-dark)] font-mono-ledger text-[12px] flex items-center space-x-2">
+            <AlertCircle className="h-4 w-4 text-[var(--signal)] shrink-0" />
+            <span className="font-bold">{error}</span>
+          </div>
+        )}
+
+
+        {/* PROFILE FORM */}
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-10">
+          
+          {/* AVATAR SPECIMEN BLOCK */}
+          <div className="border-2 border-[var(--ink)] bg-[var(--paper-2)] p-6 flex flex-col sm:flex-row items-center space-y-4 sm:space-y-0 sm:space-x-6">
+            <div className="relative shrink-0">
+              {imagePreview ? (
+                <img
+                  src={imagePreview.startsWith('http') ? imagePreview : `${process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'http://localhost:5000'}${imagePreview}`}
+                  alt="Profile Avatar"
+                  className="w-24 h-24 border-2 border-[var(--ink)] object-cover"
+                />
+              ) : (
+                <div className="w-24 h-24 bg-[var(--ink)] text-[var(--paper)] font-bold text-[32px] flex items-center justify-center border-2 border-[var(--ink)]">
+                  {user.fullName?.charAt(0) || 'U'}
                 </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {/* Full Name */}
-                  <div className="space-y-2">
-                    <Label htmlFor="fullName" className="text-foreground font-medium">Full Name *</Label>
-                    <div className="relative">
-                      <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        id="fullName"
-                        {...register('fullName')}
-                        placeholder="John Doe"
-                        className="pl-10 border-border bg-card"
-                      />
-                    </div>
-                    {errors.fullName && (
-                      <p className="text-sm text-red-500">{errors.fullName.message}</p>
-                    )}
-                  </div>
-
-                  {/* Email (Read-only) */}
-                  <div className="space-y-2">
-                    <Label htmlFor="email" className="text-foreground font-medium">Email Address</Label>
-                    <div className="relative">
-                      <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        id="email"
-                        value={user.email}
-                        disabled
-                        className="pl-10 bg-secondary border-border"
-                      />
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      Email cannot be changed. Contact support if needed.
-                    </p>
-                  </div>
-
-                  {/* Phone */}
-                  <div className="space-y-2">
-                    <Label htmlFor="phone" className="text-foreground font-medium">Phone Number</Label>
-                    <div className="relative">
-                      <Phone className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        id="phone"
-                        {...register('phone')}
-                        placeholder="+977-9812345678"
-                        className="pl-10 border-border bg-card"
-                      />
-                    </div>
-                    {errors.phone && (
-                      <p className="text-sm text-red-500">{errors.phone.message}</p>
-                    )}
-                  </div>
-
-                  {/* Location */}
-                  <div className="space-y-2">
-                    <Label htmlFor="location" className="text-foreground font-medium">Location</Label>
-                    <div className="relative">
-                      <MapPin className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        id="location"
-                        {...register('location')}
-                        placeholder="Kathmandu, Nepal"
-                        className="pl-10 border-border bg-card"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Website */}
-                  <div className="space-y-2 md:col-span-2">
-                    <Label htmlFor="website" className="text-foreground font-medium">Website</Label>
-                    <div className="relative">
-                      <Globe className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        id="website"
-                        {...register('website')}
-                        placeholder="https://yourwebsite.com"
-                        className="pl-10 border-border bg-card"
-                      />
-                    </div>
-                    {errors.website && (
-                      <p className="text-sm text-red-500">{errors.website.message}</p>
-                    )}
-                  </div>
+              )}
+              {uploadingImage && (
+                <div className="absolute inset-0 bg-[var(--ink)]/60 flex items-center justify-center text-[var(--paper)] text-[10px] font-mono-ledger">
+                  UPLOADING...
                 </div>
-              </CardContent>
-            </Card>
-
-            {/* Role-specific Information */}
-            {isFreelancer && (
-              <Card className="border-border">
-                <CardHeader>
-                  <CardTitle className="flex items-center font-display text-xl">
-                    <Briefcase className="h-5 w-5 mr-2 text-accent" />
-                    Freelancer Profile
-                  </CardTitle>
-                  <CardDescription className="text-muted-foreground">
-                    Showcase your skills and expertise to potential clients
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {/* Professional Title */}
-                  <div className="space-y-2">
-                    <Label htmlFor="title" className="text-foreground font-medium">Professional Title</Label>
-                    <Input
-                      id="title"
-                      {...register('title')}
-                      placeholder="Full Stack Developer, Graphic Designer, etc."
-                      className="border-border bg-card"
-                    />
-                    {errors.title && (
-                      <p className="text-sm text-red-500">{errors.title.message}</p>
-                    )}
-                  </div>
-
-                  {/* Bio */}
-                  <div className="space-y-2">
-                    <Label htmlFor="bio" className="text-foreground font-medium">Professional Bio</Label>
-                    <textarea
-                      id="bio"
-                      {...register('bio')}
-                      placeholder="Tell clients about your experience, expertise, and what makes you unique..."
-                      className="w-full min-h-[100px] px-3 py-2 border border-border rounded-xl bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent resize-vertical"
-                      maxLength={500}
-                    />
-                    <div className="flex justify-between text-xs text-muted-foreground">
-                      <span>Describe your professional background and expertise</span>
-                      <span>{watch('bio')?.length || 0}/500</span>
-                    </div>
-                    {errors.bio && (
-                      <p className="text-sm text-red-500">{errors.bio.message}</p>
-                    )}
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {/* Skills */}
-                    <div className="space-y-2">
-                      <Label htmlFor="skills" className="text-foreground font-medium">Skills</Label>
-                      <Input
-                        id="skills"
-                        {...register('skills')}
-                        placeholder="JavaScript, React, Node.js, etc."
-                        className="border-border bg-card"
-                      />
-                      <p className="text-xs text-muted-foreground">
-                        Separate skills with commas
-                      </p>
-                    </div>
-
-                    {/* Hourly Rate */}
-                    <div className="space-y-2">
-                      <Label htmlFor="hourlyRate" className="text-foreground font-medium">Hourly Rate (USD)</Label>
-                      <div className="relative">
-                        <DollarSign className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                        <Input
-                          id="hourlyRate"
-                          {...register('hourlyRate')}
-                          placeholder="25.00"
-                          className="pl-10 border-border bg-card"
-                        />
-                      </div>
-                      {errors.hourlyRate && (
-                        <p className="text-sm text-red-500">{errors.hourlyRate.message}</p>
-                      )}
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            {isClient && (
-              <Card className="border-border">
-                <CardHeader>
-                  <CardTitle className="flex items-center font-display text-xl">
-                    <Building className="h-5 w-5 mr-2 text-accent" />
-                    Company Profile
-                  </CardTitle>
-                  <CardDescription className="text-muted-foreground">
-                    Tell freelancers about your company and projects
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {/* Company Name */}
-                    <div className="space-y-2">
-                      <Label htmlFor="companyName" className="text-foreground font-medium">Company Name</Label>
-                      <div className="relative">
-                        <Building className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                        <Input
-                          id="companyName"
-                          {...register('companyName')}
-                          placeholder="Your Company Ltd."
-                          className="pl-10 border-border bg-card"
-                        />
-                      </div>
-                      {errors.companyName && (
-                        <p className="text-sm text-red-500">{errors.companyName.message}</p>
-                      )}
-                    </div>
-
-                    {/* Company Size */}
-                    <div className="space-y-2">
-                      <Label htmlFor="companySize" className="text-foreground font-medium">Company Size</Label>
-                      <select
-                        id="companySize"
-                        {...register('companySize')}
-                        className="w-full px-3 py-2 border border-border rounded-xl bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent"
-                      >
-                        <option value="">Select company size</option>
-                        <option value="1-10">1-10 employees</option>
-                        <option value="11-50">11-50 employees</option>
-                        <option value="51-200">51-200 employees</option>
-                        <option value="201-500">201-500 employees</option>
-                        <option value="500+">500+ employees</option>
-                      </select>
-                    </div>
-
-                    {/* Industry */}
-                    <div className="space-y-2 md:col-span-2">
-                      <Label htmlFor="industry" className="text-foreground font-medium">Industry</Label>
-                      <Input
-                        id="industry"
-                        {...register('industry')}
-                        placeholder="Technology, Healthcare, Finance, etc."
-                        className="border-border bg-card"
-                      />
-                      {errors.industry && (
-                        <p className="text-sm text-red-500">{errors.industry.message}</p>
-                      )}
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Reviews & Ratings Section */}
-            <Card className="border-border">
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle className="flex items-center font-display text-xl">
-                    <Star className="h-5 w-5 mr-2 text-yellow-400" />
-                    Reviews & Ratings
-                  </CardTitle>
-                  <Link href="/reviews">
-                    <Button variant="outline" size="sm">
-                      View All Reviews
-                    </Button>
-                  </Link>
-                </div>
-                <CardDescription className="text-muted-foreground">
-                  Your reputation and feedback from {isFreelancer ? 'clients' : 'freelancers'}
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <RatingDisplay userId={user.id} showDetails={true} />
-              </CardContent>
-            </Card>
-
-            {/* Submit Button */}
-            <div className="flex justify-end space-x-4">
-              <Link href="/dashboard">
-                <Button
-                  type="button"
-                  variant="outline"
-                >
-                  Cancel
-                </Button>
-              </Link>
-              <Button
-                type="submit"
-                variant="accent"
-                disabled={loading || !isDirty}
-                className="min-w-[120px]"
-              >
-                {loading ? (
-                  <div className="flex items-center">
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                    Saving...
-                  </div>
-                ) : (
-                  <div className="flex items-center">
-                    <Save className="h-4 w-4 mr-2" />
-                    Save Changes
-                  </div>
-                )}
-              </Button>
+              )}
             </div>
-          </form>
-        </div>
+
+            <div className="space-y-2 text-center sm:text-left font-mono-ledger">
+              <div>
+                <span className="font-bold text-[14px] text-[var(--ink)] block">{user.fullName || 'Registered Participant'}</span>
+                <span className="text-[11px] text-[var(--muted)] uppercase">{user.email} • [{user.role}]</span>
+              </div>
+
+              <label
+                htmlFor="avatar-upload"
+                className="inline-block bg-[var(--ink)] hover:bg-[var(--signal)] text-[var(--paper)] font-bold text-[10px] uppercase px-4 py-2 cursor-pointer transition-colors"
+              >
+                UPLOAD PROFILE PHOTO →
+                <input
+                  id="avatar-upload"
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  onChange={handleImageChange}
+                  className="sr-only"
+                  disabled={uploadingImage}
+                />
+              </label>
+            </div>
+          </div>
+
+
+          {/* 01 / BASIC IDENTIFICATION & CONTACT */}
+          <div className="space-y-5">
+            <div className="border-b border-[var(--ink)] pb-2 font-mono-ledger text-[11px] uppercase tracking-wider font-bold text-[var(--ink)]">
+              01 / BASIC IDENTIFICATION & CONTACT
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 font-mono-ledger">
+              <div className="space-y-1">
+                <label htmlFor="fullName" className="text-[10px] text-[var(--muted)] uppercase font-bold block">FULL NAME *</label>
+                <input
+                  id="fullName"
+                  type="text"
+                  {...register('fullName')}
+                  className="w-full bg-[var(--paper-2)] border-2 border-[var(--ink)] p-3 text-[13px] font-bold focus:outline-none"
+                />
+                {errors.fullName && <p className="text-[11px] text-[var(--signal)]">{errors.fullName.message}</p>}
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] text-[var(--muted)] uppercase font-bold block">EMAIL ADDRESS (VERIFIED)</label>
+                <input
+                  type="email"
+                  value={user.email}
+                  disabled
+                  className="w-full bg-[var(--paper-2)]/60 border-2 border-[var(--line)] p-3 text-[13px] text-[var(--muted)] cursor-not-allowed font-bold"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label htmlFor="phone" className="text-[10px] text-[var(--muted)] uppercase font-bold block">PHONE NUMBER (NEPAL)</label>
+                <input
+                  id="phone"
+                  type="text"
+                  {...register('phone')}
+                  placeholder="+977-98XXXXXXXX"
+                  className="w-full bg-[var(--paper-2)] border-2 border-[var(--ink)] p-3 text-[13px] focus:outline-none"
+                />
+                {errors.phone && <p className="text-[11px] text-[var(--signal)]">{errors.phone.message}</p>}
+              </div>
+
+              <div className="space-y-1">
+                <label htmlFor="location" className="text-[10px] text-[var(--muted)] uppercase font-bold block">PRIMARY LOCATION</label>
+                <input
+                  id="location"
+                  type="text"
+                  {...register('location')}
+                  placeholder="Kathmandu, Nepal"
+                  className="w-full bg-[var(--paper-2)] border-2 border-[var(--ink)] p-3 text-[13px] focus:outline-none"
+                />
+              </div>
+
+              <div className="space-y-1 sm:col-span-2">
+                <label htmlFor="website" className="text-[10px] text-[var(--muted)] uppercase font-bold block">WEBSITE / PORTFOLIO LINK</label>
+                <input
+                  id="website"
+                  type="text"
+                  {...register('website')}
+                  placeholder="https://yourportfolio.com"
+                  className="w-full bg-[var(--paper-2)] border-2 border-[var(--ink)] p-3 text-[13px] focus:outline-none"
+                />
+                {errors.website && <p className="text-[11px] text-[var(--signal)]">{errors.website.message}</p>}
+              </div>
+            </div>
+          </div>
+
+
+          {/* 02 / ROLE-SPECIFIC DISCIPLINE SPECIMEN */}
+          {isFreelancer && (
+            <div className="space-y-5">
+              <div className="border-b border-[var(--ink)] pb-2 font-mono-ledger text-[11px] uppercase tracking-wider font-bold text-[var(--ink)]">
+                02 / FREELANCER DISCIPLINE & HOURLY RATE
+              </div>
+
+              <div className="space-y-4 font-mono-ledger">
+                <div className="space-y-1">
+                  <label htmlFor="title" className="text-[10px] text-[var(--muted)] uppercase font-bold block">PROFESSIONAL TITLE</label>
+                  <input
+                    id="title"
+                    type="text"
+                    {...register('title')}
+                    placeholder="e.g. Senior Full Stack Engineer & System Architect"
+                    className="w-full bg-[var(--paper-2)] border-2 border-[var(--ink)] p-3 text-[13px] font-bold focus:outline-none font-sans-ledger"
+                  />
+                  {errors.title && <p className="text-[11px] text-[var(--signal)]">{errors.title.message}</p>}
+                </div>
+
+                <div className="space-y-1">
+                  <div className="flex justify-between text-[10px] text-[var(--muted)] uppercase font-bold">
+                    <label htmlFor="bio">PROFESSIONAL SUMMARY & BIO</label>
+                    <span>{watch('bio')?.length || 0}/500</span>
+                  </div>
+                  <textarea
+                    id="bio"
+                    rows={4}
+                    {...register('bio')}
+                    placeholder="Describe your technical expertise, track record, and delivery methodology..."
+                    className="w-full bg-[var(--paper-2)] border-2 border-[var(--ink)] p-3 text-[13px] text-[var(--ink)] focus:outline-none font-sans-ledger leading-relaxed"
+                    maxLength={500}
+                  />
+                  {errors.bio && <p className="text-[11px] text-[var(--signal)]">{errors.bio.message}</p>}
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <label htmlFor="skills" className="text-[10px] text-[var(--muted)] uppercase font-bold block">SKILLS (COMMA SEPARATED)</label>
+                    <input
+                      id="skills"
+                      type="text"
+                      {...register('skills')}
+                      placeholder="React, Node.js, PostgreSQL, System Design"
+                      className="w-full bg-[var(--paper-2)] border-2 border-[var(--ink)] p-3 text-[13px] focus:outline-none"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label htmlFor="hourlyRate" className="text-[10px] text-[var(--muted)] uppercase font-bold block">HOURLY RATE ESTIMATE (NPR)</label>
+                    <input
+                      id="hourlyRate"
+                      type="text"
+                      {...register('hourlyRate')}
+                      placeholder="1500"
+                      className="w-full bg-[var(--paper-2)] border-2 border-[var(--ink)] p-3 text-[14px] font-bold focus:outline-none"
+                    />
+                    {errors.hourlyRate && <p className="text-[11px] text-[var(--signal)]">{errors.hourlyRate.message}</p>}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {isClient && (
+            <div className="space-y-5">
+              <div className="border-b border-[var(--ink)] pb-2 font-mono-ledger text-[11px] uppercase tracking-wider font-bold text-[var(--ink)]">
+                02 / COMPANY PARTICIPANT PROFILE
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 font-mono-ledger">
+                <div className="space-y-1">
+                  <label htmlFor="companyName" className="text-[10px] text-[var(--muted)] uppercase font-bold block">COMPANY NAME</label>
+                  <input
+                    id="companyName"
+                    type="text"
+                    {...register('companyName')}
+                    placeholder="Nantio Studio"
+                    className="w-full bg-[var(--paper-2)] border-2 border-[var(--ink)] p-3 text-[13px] font-bold focus:outline-none"
+                  />
+                  {errors.companyName && <p className="text-[11px] text-[var(--signal)]">{errors.companyName.message}</p>}
+                </div>
+
+                <div className="space-y-1">
+                  <label htmlFor="companySize" className="text-[10px] text-[var(--muted)] uppercase font-bold block">COMPANY SIZE</label>
+                  <select
+                    id="companySize"
+                    {...register('companySize')}
+                    className="w-full bg-[var(--paper-2)] border-2 border-[var(--ink)] p-3 text-[13px] focus:outline-none"
+                  >
+                    <option value="">Select Company Size</option>
+                    <option value="1-10">1-10 employees</option>
+                    <option value="11-50">11-50 employees</option>
+                    <option value="51-200">51-200 employees</option>
+                    <option value="500+">500+ employees</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+          )}
+
+
+          {/* 03 / REPUTATION & RATING DISPLAY */}
+          <div className="space-y-4">
+            <div className="border-b border-[var(--ink)] pb-2 font-mono-ledger text-[11px] uppercase tracking-wider font-bold text-[var(--ink)] flex items-center justify-between">
+              <span>03 / VERIFIED REPUTATION & REVIEWS RECORD</span>
+              <Link href="/reviews" className="text-[var(--signal)] hover:underline">
+                VIEW FULL REVIEWS LOG →
+              </Link>
+            </div>
+
+            <div className="border-2 border-[var(--ink)] bg-[var(--paper)] p-6 font-mono-ledger">
+              <RatingDisplay userId={user.id} showDetails={true} />
+            </div>
+          </div>
+
+
+          {/* SUBMIT BUTTON */}
+          <div className="pt-6 border-t border-[var(--ink)] flex justify-end font-mono-ledger">
+            <button
+              type="submit"
+              disabled={loading || !isDirty}
+              className="bg-[var(--signal)] hover:bg-[var(--signal-dark)] text-[var(--paper)] font-bold text-[12px] uppercase tracking-wider px-8 py-3.5 transition-colors shadow-xs disabled:opacity-50"
+            >
+              {loading ? "SAVING CHANGES..." : "SAVE PROFILE SPECIMEN →"}
+            </button>
+          </div>
+
+        </form>
+
       </main>
+
+      {/* Footer */}
+      <footer className="border-t border-[var(--line)] py-6 text-center mt-12 font-mono-ledger text-[12px] text-[var(--muted)]">
+        <div className="max-w-4xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
+          <span>FreelanceHub · Account Profile Specimen</span>
+          <span>Engineered by Nantio Studio (www.nantio.it.com)</span>
+        </div>
+      </footer>
+
     </div>
   );
 }

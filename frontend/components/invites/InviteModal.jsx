@@ -1,8 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Button } from "@/components/ui/button";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import { X, Send, AlertCircle, CheckCircle } from "lucide-react";
 import { getClientProjectsForInvite, sendInvitation } from "@/lib/api";
 import { formatCurrency } from "@/lib/currency";
@@ -29,14 +27,14 @@ export default function InviteModal({ freelancer, onClose }) {
       if (response.success) {
         setProjects(response.projects || []);
         if (response.projects?.length === 0) {
-          setError("You don't have any active projects. Please create a project first.");
+          setError("You don't have any active projects. Please post a project brief first.");
         }
       } else {
-        setError("Failed to load projects");
+        setError("Failed to load project register");
       }
     } catch (err) {
       console.error("Error loading projects:", err);
-      setError(err.message || "Failed to load projects");
+      setError(err.message || "Failed to load project register");
     } finally {
       setLoading(false);
     }
@@ -44,7 +42,7 @@ export default function InviteModal({ freelancer, onClose }) {
 
   const handleSendInvite = async () => {
     if (!selectedProject) {
-      setError("Please select a project");
+      setError("Please select a project brief");
       return;
     }
 
@@ -62,7 +60,7 @@ export default function InviteModal({ freelancer, onClose }) {
         setSuccess(true);
         setTimeout(() => {
           onClose();
-        }, 2000);
+        }, 1800);
       } else {
         setError(response.error || "Failed to send invitation");
       }
@@ -75,167 +73,105 @@ export default function InviteModal({ freelancer, onClose }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="w-full max-w-2xl rounded-2xl border border-border bg-card p-6 shadow-xl">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--ink)]/60 backdrop-blur-xs p-4 text-left font-sans-ledger">
+      <div className="relative w-full max-w-xl border-2 border-[var(--ink)] bg-[var(--paper)] shadow-2xl flex flex-col font-mono-ledger text-[12px]">
+        
         {/* Header */}
-        <div className="mb-6 flex items-start justify-between">
+        <div className="border-b border-[var(--ink)] p-5 bg-[var(--paper-2)] flex items-center justify-between uppercase">
           <div>
-            <h2 className="text-2xl font-bold text-foreground">
-              Invite {freelancer.fullName}
-            </h2>
-            <p className="text-sm text-muted-foreground mt-1">
-              Select a project and send an invitation to this freelancer
-            </p>
+            <span className="text-[var(--signal)] font-bold block">TALENT INVITATION SPECIMEN</span>
+            <span className="text-[var(--ink)] font-bold text-[14px]">{freelancer.fullName}</span>
           </div>
           <button
             onClick={onClose}
-            className="rounded-lg p-2 text-muted-foreground hover:bg-secondary"
+            className="text-[var(--muted)] hover:text-[var(--ink)] font-bold text-[14px]"
           >
             <X className="h-5 w-5" />
           </button>
         </div>
 
-        {/* Success Message */}
-        {success && (
-          <Alert className="mb-4 border-2 border-green-200 bg-green-50">
-            <CheckCircle className="h-5 w-5 text-green-600" />
-            <AlertDescription className="text-green-800 font-semibold">
-              Invitation sent successfully! The freelancer will be notified.
-            </AlertDescription>
-          </Alert>
-        )}
+        {/* Content */}
+        <div className="p-6 space-y-5">
+          
+          {success && (
+            <div className="p-4 bg-green-50 border border-green-600 text-green-800 text-[12px] flex items-center space-x-2 font-bold">
+              <CheckCircle className="h-4 w-4 text-green-600 shrink-0" />
+              <span>Invitation dispatched! Freelancer has been notified.</span>
+            </div>
+          )}
 
-        {/* Error Message */}
-        {error && !success && (
-          <Alert className="mb-4 border-2 border-red-200 bg-red-50">
-            <AlertCircle className="h-5 w-5 text-red-600" />
-            <AlertDescription className="text-red-800 font-semibold">
-              {error}
-            </AlertDescription>
-          </Alert>
-        )}
+          {error && !success && (
+            <div className="p-4 bg-red-50 border border-[var(--signal)] text-[var(--signal-dark)] text-[12px] flex items-center space-x-2 font-bold">
+              <AlertCircle className="h-4 w-4 text-[var(--signal)] shrink-0" />
+              <span>{error}</span>
+            </div>
+          )}
 
-        {/* Loading State */}
-        {loading ? (
-          <div className="flex items-center justify-center py-12">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-accent"></div>
-          </div>
-        ) : (
-          <>
-            {/* Project Selection */}
-            <div className="mb-4">
-              <label className="mb-2 block text-sm font-medium text-foreground">
-                Select Project <span className="text-red-500">*</span>
-              </label>
-              <select
-                value={selectedProject}
-                onChange={(e) => setSelectedProject(e.target.value)}
-                disabled={projects.length === 0 || sending}
-                className="w-full rounded-xl border border-border bg-background px-4 py-3 text-foreground focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <option value="">Choose a project...</option>
-                {projects.map((project) => {
-                  const budgetDisplay = project.project_type === 'hourly' 
-                    ? `Hourly` 
-                    : project.budget_min && project.budget_max
-                      ? `${formatCurrency(project.budget_min)} - ${formatCurrency(project.budget_max)}`
-                      : project.budget_min
-                        ? `${formatCurrency(project.budget_min)}+`
-                        : 'Budget TBD';
-                  
-                  return (
+          {loading ? (
+            <div className="py-8 text-center text-[var(--muted)] uppercase">
+              LOADING ACTIVE PROJECT BRIEFS...
+            </div>
+          ) : (
+            <div className="space-y-4">
+              
+              <div className="space-y-1">
+                <label className="text-[10px] text-[var(--muted)] uppercase font-bold block">
+                  SELECT PROJECT BRIEF *
+                </label>
+                <select
+                  value={selectedProject}
+                  onChange={(e) => setSelectedProject(e.target.value)}
+                  disabled={projects.length === 0 || sending}
+                  className="w-full bg-[var(--paper-2)] border-2 border-[var(--ink)] p-3 text-[13px] font-bold focus:outline-none"
+                >
+                  <option value="">CHOOSE A PROJECT BRIEF...</option>
+                  {projects.map((project) => (
                     <option key={project.id} value={project.id}>
-                      {project.title} - {project.category} ({budgetDisplay})
+                      {project.title} - [{project.category}]
                     </option>
-                  );
-                })}
-              </select>
-            </div>
-
-            {/* Selected Project Details */}
-            {selectedProject && (
-              <div className="mb-4 rounded-xl border border-border bg-secondary/30 p-4">
-                {(() => {
-                  const project = projects.find(p => p.id === selectedProject);
-                  if (!project) return null;
-                  
-                  const budgetDisplay = project.project_type === 'hourly' 
-                    ? 'Hourly Rate Project' 
-                    : project.budget_min && project.budget_max
-                      ? `${formatCurrency(project.budget_min)} - ${formatCurrency(project.budget_max)}`
-                      : project.budget_min
-                        ? `${formatCurrency(project.budget_min)}+`
-                        : 'Budget TBD';
-                  
-                  return (
-                    <>
-                      <h3 className="font-semibold text-foreground mb-2">
-                        {project.title}
-                      </h3>
-                      <p className="text-sm text-muted-foreground line-clamp-2">
-                        {project.description}
-                      </p>
-                      <div className="mt-2 flex gap-4 text-sm">
-                        <span className="text-muted-foreground">
-                          Category: <span className="text-foreground font-medium">{project.category}</span>
-                        </span>
-                        <span className="text-muted-foreground">
-                          Budget: <span className="text-foreground font-medium">{budgetDisplay}</span>
-                        </span>
-                      </div>
-                    </>
-                  );
-                })()}
+                  ))}
+                </select>
               </div>
-            )}
 
-            {/* Custom Message */}
-            <div className="mb-6">
-              <label className="mb-2 block text-sm font-medium text-foreground">
-                Personal Message (Optional)
-              </label>
-              <textarea
-                value={message}
-                onChange={(e) => setMessage(e.target.value)}
-                disabled={sending}
-                placeholder="Add a personal message to your invitation..."
-                rows={4}
-                className="w-full rounded-xl border border-border bg-background px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed resize-none"
-              />
-              <p className="mt-1 text-xs text-muted-foreground">
-                This message will be included in the notification sent to the freelancer
-              </p>
-            </div>
+              <div className="space-y-1">
+                <label className="text-[10px] text-[var(--muted)] uppercase font-bold block">
+                  PERSONAL INVITATION MESSAGE (OPTIONAL)
+                </label>
+                <textarea
+                  value={message}
+                  onChange={(e) => setMessage(e.target.value)}
+                  disabled={sending}
+                  placeholder="Add a personal message inviting this talent to review your scope..."
+                  rows={4}
+                  className="w-full bg-[var(--paper-2)] border-2 border-[var(--ink)] p-3 text-[13px] text-[var(--ink)] focus:outline-none font-sans-ledger"
+                />
+              </div>
 
-            {/* Actions */}
-            <div className="flex gap-3 justify-end">
-              <Button
-                variant="outline"
-                onClick={onClose}
-                disabled={sending}
-              >
-                Cancel
-              </Button>
-              <Button
-                variant="accent"
-                onClick={handleSendInvite}
-                disabled={!selectedProject || sending || projects.length === 0 || success}
-              >
-                {sending ? (
-                  <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                    Sending...
-                  </>
-                ) : (
-                  <>
-                    <Send className="mr-2 h-4 w-4" />
-                    Send Invitation
-                  </>
-                )}
-              </Button>
             </div>
-          </>
-        )}
+          )}
+
+        </div>
+
+        {/* Footer */}
+        <div className="border-t border-[var(--ink)] p-4 bg-[var(--paper-2)] flex justify-end gap-3 uppercase text-[11px]">
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={sending}
+            className="px-5 py-2.5 border border-[var(--ink)] bg-[var(--paper)] text-[var(--ink)] font-bold"
+          >
+            CANCEL
+          </button>
+          <button
+            type="button"
+            onClick={handleSendInvite}
+            disabled={!selectedProject || sending || projects.length === 0 || success}
+            className="px-6 py-2.5 bg-[var(--signal)] hover:bg-[var(--signal-dark)] text-[var(--paper)] font-bold transition-colors"
+          >
+            {sending ? "DISPATCHING..." : "DISPATCH INVITATION →"}
+          </button>
+        </div>
+
       </div>
     </div>
   );

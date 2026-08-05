@@ -6,14 +6,8 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import Link from 'next/link';
-import { Eye, EyeOff, UserPlus, Mail, Lock, User, Phone, Briefcase, Users, Sparkles, Crown } from 'lucide-react';
+import { Eye, EyeOff, ArrowRight, User, Mail, Lock, Phone, AlertCircle, Briefcase, Crown } from 'lucide-react';
 
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { register as registerUser } from '@/lib/api';
 import { validatePassword, getPasswordStrength } from '@/lib/utils';
 
@@ -60,8 +54,7 @@ export default function RegisterPage() {
     handleSubmit, 
     formState: { errors }, 
     watch,
-    setValue,
-    trigger
+    setValue
   } = useForm({
     resolver: zodResolver(registerSchema),
     defaultValues: {
@@ -91,12 +84,12 @@ export default function RegisterPage() {
       const response = await registerUser(data);
 
       if (response.success) {
-        setSuccess(response.message);
+        setSuccess(response.message || 'Registration successful!');
         
         // Redirect to OTP verification page
         setTimeout(() => {
           router.push(`/verify-otp?email=${encodeURIComponent(data.email)}`);
-        }, 1500);
+        }, 1200);
       } else {
         setError(response.error || 'Registration failed');
       }
@@ -110,290 +103,365 @@ export default function RegisterPage() {
   const strengthInfo = getPasswordStrength(passwordStrength.score);
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-white py-12 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
-      {/* Background Elements */}
-      <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute -top-40 -right-40 w-80 h-80 bg-amber-500/5 rounded-full blur-3xl animate-float"></div>
-        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-black/5 rounded-full blur-3xl animate-float" style={{animationDelay: '2s'}}></div>
-      </div>
-
-      <div className="w-full max-w-lg relative z-10">
-        {/* Header */}
-        <div className="text-center mb-8">
-          <Link href="/" className="inline-block">
-            <h1 className="text-4xl font-black text-black mb-2">
-              Freelance<span className="text-gradient-gold">Hub</span>
-            </h1>
+    <div className="min-h-screen bg-[var(--paper)] text-[var(--ink)] font-sans-ledger selection:bg-[var(--signal)] selection:text-[var(--paper)] flex flex-col justify-between">
+      
+      {/* Top Header */}
+      <header className="border-b border-[var(--line)] bg-[var(--paper)]/95 backdrop-blur-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 py-4 flex items-center justify-between">
+          <Link href="/" className="font-serif-ledger text-[19px] font-semibold tracking-tight text-[var(--ink)] hover:text-[var(--signal)] transition-colors">
+            FreelanceHub
           </Link>
-          <p className="text-gray-600 text-lg">Join our community</p>
+
+          <Link 
+            href="/" 
+            className="font-mono-ledger text-[12px] text-[var(--muted)] hover:text-[var(--signal)] transition-colors flex items-center space-x-1"
+          >
+            <span>← Back to main ledger</span>
+          </Link>
         </div>
+      </header>
 
-        <Card className="card-premium shadow-3xl border-2 border-gray-100">
-          <CardHeader className="space-y-6 text-center pb-8">
-            <div className="flex justify-center">
-              <div className="h-20 w-20 bg-black rounded-2xl flex items-center justify-center shadow-xl">
-                <Sparkles className="h-10 w-10 text-amber-500" />
-              </div>
-            </div>
-            <div>
-              <CardTitle className="text-3xl font-black text-black mb-2">
-                Create Account
-              </CardTitle>
-              <CardDescription className="text-gray-600 text-lg">
-                Start your freelancing journey today
-              </CardDescription>
-            </div>
-          </CardHeader>
+      {/* Main 2-Column Editorial Section */}
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 py-12 md:py-16 flex-1 w-full">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-16 items-start">
           
-          <CardContent className="space-y-6 px-8 pb-8">
-            {error && (
-              <Alert className="border-2 border-red-200 bg-red-50 animate-in slide-in-from-top-2">
-                <AlertDescription className="text-red-800 font-semibold">{error}</AlertDescription>
-              </Alert>
-            )}
+          {/* Left Column: Editorial Intro & Registration Ledger Specimen */}
+          <div className="lg:col-span-5 space-y-6 text-left">
+            <p className="font-mono-ledger text-[11px] uppercase tracking-[0.08em] text-[var(--muted)]">
+              FREELANCEHUB / REGISTRATION · SYSTEM IDENTITY
+            </p>
 
-            {success && (
-              <Alert className="border-2 border-green-200 bg-green-50 animate-in slide-in-from-top-2">
-                <AlertDescription className="text-green-800 font-semibold">{success}</AlertDescription>
-              </Alert>
-            )}
+            <h1 className="font-serif-ledger text-[40px] sm:text-[56px] leading-[1.0] font-medium tracking-tight text-[var(--ink)]">
+              Enter the ledger.
+            </h1>
 
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-              {/* Full Name */}
-              <div className="space-y-3">
-                <Label htmlFor="fullName" className="form-label-modern">
-                  Full Name *
-                </Label>
-                <div className="relative">
-                  <User className="absolute left-4 top-4 h-5 w-5 text-gray-400" />
-                  <Input
-                    id="fullName"
-                    {...register('fullName')}
-                    placeholder="Enter your full name"
-                    className="form-input-modern pl-12 text-lg"
-                  />
+            <p className="text-[15px] sm:text-[16px] leading-relaxed text-[var(--muted)] max-w-md">
+              Create your identity and choose how you participate in Nepal’s open freelance marketplace.
+            </p>
+
+            {/* Registration System Specimen Box */}
+            <div className="pt-2">
+              <div className="border border-[var(--line)] bg-[var(--paper-2)] p-4 space-y-3 font-mono-ledger text-[12px]">
+                <div className="flex items-center justify-between text-[var(--muted)] border-b border-[var(--line)] pb-2 text-[10px] uppercase tracking-wider">
+                  <span>REGISTRATION PROTOCOL</span>
+                  <span className="text-[var(--signal)] flex items-center">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[var(--signal)] inline-block mr-1.5 animate-pulse"></span>
+                    STEP 01 OF 02
+                  </span>
                 </div>
-                {errors.fullName && (
-                  <p className="form-error-modern animate-in slide-in-from-top-1">
-                    {errors.fullName.message}
-                  </p>
-                )}
+                <div className="flex items-center justify-between text-[var(--ink)]">
+                  <span>01. Identity & Role</span>
+                  <span className="text-[var(--signal)] font-bold">[ACTIVE]</span>
+                </div>
+                <div className="flex items-center justify-between text-[var(--ink)]">
+                  <span>02. OTP Verification</span>
+                  <span className="text-[var(--muted)]">[PENDING]</span>
+                </div>
+                <div className="flex items-center justify-between text-[var(--ink)]">
+                  <span>03. Escrow Access</span>
+                  <span>NPR LOCAL</span>
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+          {/* Right Column: Structured Editorial Signup Form Panel */}
+          <div className="lg:col-span-7">
+            <div className="bg-[var(--paper)] border-2 border-[var(--ink)] p-6 sm:p-8 space-y-6 shadow-sm">
+              
+              {/* Form Header Tag */}
+              <div className="flex items-center justify-between border-b border-[var(--line)] pb-3 font-mono-ledger text-[11px]">
+                <span className="text-[var(--ink)] font-bold uppercase tracking-wider">01 / ACCOUNT REGISTRATION SPECIMEN</span>
+                <span className="text-[var(--signal)]">CREATE ACCOUNT</span>
               </div>
 
-              {/* Email */}
-              <div className="space-y-3">
-                <Label htmlFor="email" className="form-label-modern">
-                  Email Address *
-                </Label>
-                <div className="relative">
-                  <Mail className="absolute left-4 top-4 h-5 w-5 text-gray-400" />
-                  <Input
-                    id="email"
-                    type="email"
-                    {...register('email')}
-                    placeholder="Enter your email"
-                    className="form-input-modern pl-12 text-lg"
-                  />
+              {/* Error Alert */}
+              {error && (
+                <div className="p-3.5 bg-red-50 border border-[var(--signal)] text-[var(--signal-dark)] font-mono-ledger text-[12px] flex items-start space-x-2">
+                  <AlertCircle className="h-4 w-4 text-[var(--signal)] shrink-0 mt-0.5" />
+                  <span>{error}</span>
                 </div>
-                {errors.email && (
-                  <p className="form-error-modern animate-in slide-in-from-top-1">
-                    {errors.email.message}
-                  </p>
-                )}
-              </div>
+              )}
 
-              {/* Password */}
-              <div className="space-y-3">
-                <Label htmlFor="password" className="form-label-modern">
-                  Password *
-                </Label>
-                <div className="relative">
-                  <Lock className="absolute left-4 top-4 h-5 w-5 text-gray-400" />
-                  <Input
-                    id="password"
-                    type={showPassword ? 'text' : 'password'}
-                    {...register('password')}
-                    placeholder="Create a strong password"
-                    className="form-input-modern pl-12 pr-12 text-lg"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-4 top-4 text-gray-400 hover:text-gray-600"
-                  >
-                    {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-                  </button>
+              {/* Success Alert */}
+              {success && (
+                <div className="p-3.5 bg-[var(--paper-2)] border border-[var(--signal)] text-[var(--signal-dark)] font-mono-ledger text-[12px] flex items-start space-x-2">
+                  <span className="w-2 h-2 rounded-full bg-[var(--signal)] animate-pulse shrink-0 mt-1"></span>
+                  <span>{success}</span>
                 </div>
+              )}
+
+              <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
                 
-                {/* Password Strength Indicator */}
+                {/* ROLE SELECTION (Key Editorial Component) */}
+                <div className="space-y-2 text-left">
+                  <label className="font-mono-ledger text-[11px] uppercase tracking-wider text-[var(--ink)] block">
+                    Choose Your Role *
+                  </label>
+                  
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    
+                    {/* Role 1: FREELANCER */}
+                    <div 
+                      onClick={() => setValue('role', 'FREELANCER')}
+                      className={`p-3.5 border-2 transition-all cursor-pointer text-left space-y-1 ${
+                        watchedRole === 'FREELANCER' 
+                          ? 'border-[var(--signal)] bg-[var(--signal)]/5 text-[var(--ink)] shadow-sm' 
+                          : 'border-[var(--line)] bg-[var(--paper-2)] hover:border-[var(--ink)] text-[var(--muted)]'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between font-mono-ledger text-[11px] font-bold">
+                        <span className={watchedRole === 'FREELANCER' ? 'text-[var(--signal)]' : 'text-[var(--ink)]'}>
+                          01 / FREELANCER
+                        </span>
+                        <div className={`w-3.5 h-3.5 rounded-full border-2 flex items-center justify-center ${
+                          watchedRole === 'FREELANCER' ? 'border-[var(--signal)] bg-[var(--signal)]' : 'border-[var(--muted)]'
+                        }`}>
+                          {watchedRole === 'FREELANCER' && <div className="w-1.5 h-1.5 rounded-full bg-[var(--paper)]" />}
+                        </div>
+                      </div>
+                      <p className="text-[13px] leading-snug">
+                        Offer your skills and services.
+                      </p>
+                    </div>
+
+                    {/* Role 2: CLIENT */}
+                    <div 
+                      onClick={() => setValue('role', 'CLIENT')}
+                      className={`p-3.5 border-2 transition-all cursor-pointer text-left space-y-1 ${
+                        watchedRole === 'CLIENT' 
+                          ? 'border-[var(--signal)] bg-[var(--signal)]/5 text-[var(--ink)] shadow-sm' 
+                          : 'border-[var(--line)] bg-[var(--paper-2)] hover:border-[var(--ink)] text-[var(--muted)]'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between font-mono-ledger text-[11px] font-bold">
+                        <span className={watchedRole === 'CLIENT' ? 'text-[var(--signal)]' : 'text-[var(--ink)]'}>
+                          02 / CLIENT
+                        </span>
+                        <div className={`w-3.5 h-3.5 rounded-full border-2 flex items-center justify-center ${
+                          watchedRole === 'CLIENT' ? 'border-[var(--signal)] bg-[var(--signal)]' : 'border-[var(--muted)]'
+                        }`}>
+                          {watchedRole === 'CLIENT' && <div className="w-1.5 h-1.5 rounded-full bg-[var(--paper)]" />}
+                        </div>
+                      </div>
+                      <p className="text-[13px] leading-snug">
+                        Find independent talent.
+                      </p>
+                    </div>
+
+                  </div>
+                  {errors.role && (
+                    <p className="font-mono-ledger text-[11px] text-[var(--signal)] mt-1">
+                      {errors.role.message}
+                    </p>
+                  )}
+                </div>
+
+                {/* Full Name */}
+                <div className="space-y-1.5 text-left">
+                  <label htmlFor="fullName" className="font-mono-ledger text-[11px] uppercase tracking-wider text-[var(--ink)] block">
+                    Full Name *
+                  </label>
+                  <div className="relative">
+                    <User className="absolute left-3.5 top-3.5 h-4 w-4 text-[var(--muted)]" />
+                    <input
+                      id="fullName"
+                      type="text"
+                      {...register('fullName')}
+                      placeholder="e.g. Aayush Maharjan"
+                      className="w-full bg-[var(--paper-2)] border border-[var(--line)] focus:border-[var(--ink)] focus:ring-1 focus:ring-[var(--ink)] font-sans-ledger text-[14px] pl-10 pr-4 py-2.5 outline-none transition-all placeholder:text-[var(--muted)]"
+                    />
+                  </div>
+                  {errors.fullName && (
+                    <p className="font-mono-ledger text-[11px] text-[var(--signal)] mt-1">
+                      {errors.fullName.message}
+                    </p>
+                  )}
+                </div>
+
+                {/* Email Address */}
+                <div className="space-y-1.5 text-left">
+                  <label htmlFor="email" className="font-mono-ledger text-[11px] uppercase tracking-wider text-[var(--ink)] block">
+                    Email Address *
+                  </label>
+                  <div className="relative">
+                    <Mail className="absolute left-3.5 top-3.5 h-4 w-4 text-[var(--muted)]" />
+                    <input
+                      id="email"
+                      type="email"
+                      {...register('email')}
+                      placeholder="name@domain.com"
+                      className="w-full bg-[var(--paper-2)] border border-[var(--line)] focus:border-[var(--ink)] focus:ring-1 focus:ring-[var(--ink)] font-sans-ledger text-[14px] pl-10 pr-4 py-2.5 outline-none transition-all placeholder:text-[var(--muted)]"
+                    />
+                  </div>
+                  {errors.email && (
+                    <p className="font-mono-ledger text-[11px] text-[var(--signal)] mt-1">
+                      {errors.email.message}
+                    </p>
+                  )}
+                </div>
+
+                {/* Password & Confirm Password (Grid) */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  
+                  {/* Password */}
+                  <div className="space-y-1.5 text-left">
+                    <label htmlFor="password" className="font-mono-ledger text-[11px] uppercase tracking-wider text-[var(--ink)] block">
+                      Password *
+                    </label>
+                    <div className="relative">
+                      <Lock className="absolute left-3.5 top-3.5 h-4 w-4 text-[var(--muted)]" />
+                      <input
+                        id="password"
+                        type={showPassword ? 'text' : 'password'}
+                        {...register('password')}
+                        placeholder="••••••••"
+                        className="w-full bg-[var(--paper-2)] border border-[var(--line)] focus:border-[var(--ink)] focus:ring-1 focus:ring-[var(--ink)] font-sans-ledger text-[14px] pl-10 pr-9 py-2.5 outline-none transition-all placeholder:text-[var(--muted)]"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-3.5 top-3.5 text-[var(--muted)] hover:text-[var(--ink)] transition-colors"
+                      >
+                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
+                    {errors.password && (
+                      <p className="font-mono-ledger text-[11px] text-[var(--signal)] mt-1">
+                        {errors.password.message}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Confirm Password */}
+                  <div className="space-y-1.5 text-left">
+                    <label htmlFor="confirmPassword" className="font-mono-ledger text-[11px] uppercase tracking-wider text-[var(--ink)] block">
+                      Confirm Password *
+                    </label>
+                    <div className="relative">
+                      <Lock className="absolute left-3.5 top-3.5 h-4 w-4 text-[var(--muted)]" />
+                      <input
+                        id="confirmPassword"
+                        type={showConfirmPassword ? 'text' : 'password'}
+                        {...register('confirmPassword')}
+                        placeholder="••••••••"
+                        className="w-full bg-[var(--paper-2)] border border-[var(--line)] focus:border-[var(--ink)] focus:ring-1 focus:ring-[var(--ink)] font-sans-ledger text-[14px] pl-10 pr-9 py-2.5 outline-none transition-all placeholder:text-[var(--muted)]"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                        className="absolute right-3.5 top-3.5 text-[var(--muted)] hover:text-[var(--ink)] transition-colors"
+                      >
+                        {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
+                    {errors.confirmPassword && (
+                      <p className="font-mono-ledger text-[11px] text-[var(--signal)] mt-1">
+                        {errors.confirmPassword.message}
+                      </p>
+                    )}
+                  </div>
+
+                </div>
+
+                {/* Password Strength Meter */}
                 {watchedPassword && (
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-gray-600 font-semibold">Password Strength</span>
-                      <span className={`font-bold ${strengthInfo.color}`}>
+                  <div className="p-3 bg-[var(--paper-2)] border border-[var(--line)] space-y-2 text-left font-mono-ledger text-[11px]">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[var(--muted)]">Password Strength:</span>
+                      <span className="font-bold text-[var(--signal)] uppercase">
                         {strengthInfo.label}
                       </span>
                     </div>
-                    <div className="w-full bg-gray-200 rounded-full h-3">
+                    <div className="w-full bg-[var(--paper)] border border-[var(--line)] h-2 overflow-hidden">
                       <div
-                        className={`h-3 rounded-full transition-all duration-500 ${strengthInfo.bgColor}`}
+                        className="h-full bg-[var(--signal)] transition-all duration-300"
                         style={{ width: `${(passwordStrength.score / 5) * 100}%` }}
                       />
                     </div>
                     {passwordStrength.feedback.length > 0 && (
-                      <ul className="text-sm text-gray-600 space-y-1">
-                        {passwordStrength.feedback.map((feedback, index) => (
-                          <li key={index} className="flex items-center">
-                            <span className="w-2 h-2 bg-amber-500 rounded-full mr-3" />
-                            {feedback}
-                          </li>
+                      <ul className="text-[10px] text-[var(--muted)] space-y-0.5 pt-1">
+                        {passwordStrength.feedback.map((fb, idx) => (
+                          <li key={idx}>• {fb}</li>
                         ))}
                       </ul>
                     )}
                   </div>
                 )}
-                
-                {errors.password && (
-                  <p className="form-error-modern animate-in slide-in-from-top-1">
-                    {errors.password.message}
-                  </p>
-                )}
-              </div>
 
-              {/* Confirm Password */}
-              <div className="space-y-3">
-                <Label htmlFor="confirmPassword" className="form-label-modern">
-                  Confirm Password *
-                </Label>
-                <div className="relative">
-                  <Lock className="absolute left-4 top-4 h-5 w-5 text-gray-400" />
-                  <Input
-                    id="confirmPassword"
-                    type={showConfirmPassword ? 'text' : 'password'}
-                    {...register('confirmPassword')}
-                    placeholder="Confirm your password"
-                    className="form-input-modern pl-12 pr-12 text-lg"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                    className="absolute right-4 top-4 text-gray-400 hover:text-gray-600"
+                {/* Phone Number (Optional) */}
+                <div className="space-y-1.5 text-left">
+                  <label htmlFor="phone" className="font-mono-ledger text-[11px] uppercase tracking-wider text-[var(--ink)] block">
+                    Phone Number (Optional)
+                  </label>
+                  <div className="relative">
+                    <Phone className="absolute left-3.5 top-3.5 h-4 w-4 text-[var(--muted)]" />
+                    <input
+                      id="phone"
+                      type="text"
+                      {...register('phone')}
+                      placeholder="+977-9812345678"
+                      className="w-full bg-[var(--paper-2)] border border-[var(--line)] focus:border-[var(--ink)] focus:ring-1 focus:ring-[var(--ink)] font-sans-ledger text-[14px] pl-10 pr-4 py-2.5 outline-none transition-all placeholder:text-[var(--muted)]"
+                    />
+                  </div>
+                  {errors.phone && (
+                    <p className="font-mono-ledger text-[11px] text-[var(--signal)] mt-1">
+                      {errors.phone.message}
+                    </p>
+                  )}
+                </div>
+
+                {/* Submit Action */}
+                <div className="pt-2">
+                  <button 
+                    type="submit" 
+                    disabled={loading}
+                    className="w-full bg-[var(--signal)] hover:bg-[var(--signal-dark)] text-[var(--paper)] font-sans-ledger font-medium text-[15px] py-3.5 px-4 transition-colors flex items-center justify-center space-x-2"
                   >
-                    {showConfirmPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                    {loading ? (
+                      <span className="font-mono-ledger text-[13px] flex items-center">
+                        <span className="w-2 h-2 rounded-full bg-[var(--paper)] animate-pulse mr-2"></span>
+                        CREATING IDENTITY...
+                      </span>
+                    ) : (
+                      <>
+                        <span>Create account & enter ledger</span>
+                        <ArrowRight className="h-4 w-4 text-[var(--paper)]" />
+                      </>
+                    )}
                   </button>
                 </div>
-                {errors.confirmPassword && (
-                  <p className="form-error-modern animate-in slide-in-from-top-1">
-                    {errors.confirmPassword.message}
-                  </p>
-                )}
+
+              </form>
+
+              {/* Secondary Navigation Links */}
+              <div className="pt-4 border-t border-[var(--line)] text-center font-mono-ledger text-[12px]">
+                <p className="text-[var(--muted)]">
+                  Already have an account?{' '}
+                  <Link 
+                    href="/login" 
+                    className="text-[var(--ink)] font-bold hover:text-[var(--signal)] transition-colors"
+                  >
+                    Sign in →
+                  </Link>
+                </p>
               </div>
 
-              {/* Phone */}
-              <div className="space-y-3">
-                <Label htmlFor="phone" className="form-label-modern">
-                  Phone Number (Optional)
-                </Label>
-                <div className="relative">
-                  <Phone className="absolute left-4 top-4 h-5 w-5 text-gray-400" />
-                  <Input
-                    id="phone"
-                    {...register('phone')}
-                    placeholder="+977-9812345678"
-                    className="form-input-modern pl-12 text-lg"
-                  />
-                </div>
-                {errors.phone && (
-                  <p className="form-error-modern animate-in slide-in-from-top-1">
-                    {errors.phone.message}
-                  </p>
-                )}
-              </div>
-
-              {/* Role Selection */}
-              <div className="space-y-4">
-                <Label className="form-label-modern">
-                  Choose Your Path *
-                </Label>
-                <RadioGroup
-                  value={watchedRole}
-                  onValueChange={(value) => setValue('role', value)}
-                  className="grid grid-cols-1 gap-4"
-                >
-                  <div className="flex items-center space-x-4 p-6 border-2 border-gray-200 rounded-xl hover:border-black hover:bg-gray-50 cursor-pointer transition-all duration-300">
-                    <RadioGroupItem value="FREELANCER" id="freelancer" className="border-2 border-black" />
-                    <Label htmlFor="freelancer" className="flex items-center cursor-pointer flex-1">
-                      <div className="h-12 w-12 bg-black rounded-xl flex items-center justify-center mr-4">
-                        <Briefcase className="h-6 w-6 text-amber-500" />
-                      </div>
-                      <div>
-                        <div className="font-bold text-black text-lg">Freelancer</div>
-                        <div className="text-gray-600">Offer your skills and services</div>
-                      </div>
-                    </Label>
-                  </div>
-                  <div className="flex items-center space-x-4 p-6 border-2 border-gray-200 rounded-xl hover:border-black hover:bg-gray-50 cursor-pointer transition-all duration-300">
-                    <RadioGroupItem value="CLIENT" id="client" className="border-2 border-black" />
-                    <Label htmlFor="client" className="flex items-center cursor-pointer flex-1">
-                      <div className="h-12 w-12 bg-amber-500 rounded-xl flex items-center justify-center mr-4">
-                        <Crown className="h-6 w-6 text-black" />
-                      </div>
-                      <div>
-                        <div className="font-bold text-black text-lg">Client</div>
-                        <div className="text-gray-600">Find talented freelancers</div>
-                      </div>
-                    </Label>
-                  </div>
-                </RadioGroup>
-                {errors.role && (
-                  <p className="form-error-modern animate-in slide-in-from-top-1">
-                    {errors.role.message}
-                  </p>
-                )}
-              </div>
-
-              {/* Submit Button */}
-              <Button 
-                type="submit" 
-                className="btn-primary w-full text-lg py-6 mt-8" 
-                disabled={loading}
-              >
-                {loading ? (
-                  <div className="flex items-center">
-                    <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent mr-3" />
-                    Creating Your Account...
-                  </div>
-                ) : (
-                  <div className="flex items-center">
-                    <Sparkles className="h-5 w-5 mr-3" />
-                    Create Account
-                  </div>
-                )}
-              </Button>
-            </form>
-
-            {/* Login Link */}
-            <div className="text-center pt-6 border-t-2 border-gray-100">
-              <p className="text-gray-600 text-lg">
-                Already have an account?{' '}
-                <Link 
-                  href="/login" 
-                  className="font-bold text-black hover:text-amber-600 transition-colors"
-                >
-                  Sign In
-                </Link>
-              </p>
             </div>
-          </CardContent>
-        </Card>
+          </div>
 
-        {/* Footer */}
-        <div className="text-center mt-8">
-          <p className="text-gray-500">
-            © 2024 FreelanceHub. Crafted with excellence.
-          </p>
         </div>
-      </div>
+      </main>
+
+      {/* Editorial Footer */}
+      <footer className="border-t border-[var(--line)] py-6 text-center">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 flex flex-col sm:flex-row items-center justify-between text-[12px] font-mono-ledger text-[var(--muted)] gap-2">
+          <span>FreelanceHub · Nepal Marketplace Ledger</span>
+          <span>Engineered by Nantio (www.nantio.it.com)</span>
+        </div>
+      </footer>
+
     </div>
   );
 }

@@ -5,13 +5,8 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import Link from 'next/link';
-import { Mail, ArrowLeft, Send, CheckCircle } from 'lucide-react';
+import { Mail, ArrowRight, CheckCircle2, AlertCircle } from 'lucide-react';
 
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { forgotPassword } from '@/lib/api';
 
 // Validation schema
@@ -55,180 +50,172 @@ export default function ForgotPasswordPage() {
     }
   };
 
-  if (success) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-amber-50 via-white to-yellow-50 py-12 px-4 sm:px-6 lg:px-8">
-        <Card className="w-full max-w-md shadow-xl border-0 bg-white/80 backdrop-blur-sm">
-          <CardHeader className="text-center">
-            <div className="flex justify-center mb-4">
-              <div className="p-4 bg-green-50 rounded-full">
-                <CheckCircle className="h-12 w-12 text-green-500" />
-              </div>
-            </div>
-            <CardTitle className="text-xl font-semibold text-gray-800">
-              Check Your Email
-            </CardTitle>
-            <CardDescription className="text-gray-600">
-              We've sent password reset instructions to your email
-            </CardDescription>
-          </CardHeader>
-          
-          <CardContent className="space-y-4">
-            <Alert variant="success">
-              <Mail className="h-4 w-4" />
-              <AlertDescription>
-                If an account with email <strong>{getValues('email')}</strong> exists, 
-                you will receive password reset instructions shortly.
-              </AlertDescription>
-            </Alert>
-
-            <div className="space-y-4 text-center">
-              <div className="text-sm text-gray-600 space-y-2">
-                <p>Didn't receive the email? Check your spam folder.</p>
-                <p>The reset link will expire in 1 hour.</p>
-              </div>
-
-              <div className="space-y-3">
-                <Button 
-                  onClick={() => window.location.reload()}
-                  variant="outline"
-                  className="w-full border-amber-200 hover:bg-amber-50 hover:text-amber-700"
-                >
-                  Send Another Email
-                </Button>
-                
-                <Link href="/login">
-                  <Button variant="ghost" className="w-full hover:bg-amber-50 hover:text-amber-700">
-                    <ArrowLeft className="mr-2 h-4 w-4" />
-                    Back to Login
-                  </Button>
-                </Link>
-              </div>
-            </div>
-
-            {/* Help Section */}
-            <div className="pt-6 border-t border-gray-100">
-              <div className="text-center space-y-2">
-                <p className="text-sm text-gray-600">
-                  Still having trouble?
-                </p>
-                <div className="flex justify-center space-x-4 text-xs">
-                  <Link 
-                    href="/contact" 
-                    className="text-amber-600 hover:text-amber-700 transition-colors"
-                  >
-                    Contact Support
-                  </Link>
-                  <span className="text-gray-300">•</span>
-                  <Link 
-                    href="/help" 
-                    className="text-amber-600 hover:text-amber-700 transition-colors"
-                  >
-                    Help Center
-                  </Link>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-amber-50 via-white to-yellow-50 py-12 px-4 sm:px-6 lg:px-8">
-      <Card className="w-full max-w-md shadow-xl border-0 bg-white/80 backdrop-blur-sm">
-        <CardHeader className="text-center">
-          <div className="flex justify-center mb-4">
-            <div className="p-3 bg-amber-50 rounded-full">
-              <Mail className="h-8 w-8 text-amber-600" />
+    <div className="min-h-screen bg-[var(--paper)] text-[var(--ink)] font-sans-ledger selection:bg-[var(--signal)] selection:text-[var(--paper)] flex flex-col justify-between">
+      
+      {/* Top Header */}
+      <header className="border-b border-[var(--line)] bg-[var(--paper)]/95 backdrop-blur-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 py-4 flex items-center justify-between">
+          <Link href="/" className="font-serif-ledger text-[19px] font-semibold tracking-tight text-[var(--ink)] hover:text-[var(--signal)] transition-colors">
+            FreelanceHub
+          </Link>
+
+          <Link 
+            href="/login" 
+            className="font-mono-ledger text-[12px] text-[var(--muted)] hover:text-[var(--signal)] transition-colors flex items-center space-x-1"
+          >
+            <span>← Back to sign in</span>
+          </Link>
+        </div>
+      </header>
+
+      {/* Main Content */}
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 py-12 md:py-16 flex-1 w-full">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-16 items-start">
+          
+          {/* Left Column: Editorial Copy */}
+          <div className="lg:col-span-6 space-y-6 text-left">
+            <p className="font-mono-ledger text-[11px] uppercase tracking-[0.08em] text-[var(--muted)]">
+              FREELANCEHUB / RECOVERY · ACCOUNT SECURITY
+            </p>
+
+            <h1 className="font-serif-ledger text-[40px] sm:text-[56px] leading-[1.0] font-medium tracking-tight text-[var(--ink)]">
+              Reset password.
+            </h1>
+
+            <p className="text-[15px] sm:text-[16px] leading-relaxed text-[var(--muted)] max-w-md">
+              Enter your registered email address to receive password reset instructions and regain secure access to your ledger account.
+            </p>
+
+            {/* Specimen Box */}
+            <div className="pt-2">
+              <div className="border border-[var(--line)] bg-[var(--paper-2)] p-4 space-y-3 font-mono-ledger text-[12px]">
+                <div className="flex items-center justify-between text-[var(--muted)] border-b border-[var(--line)] pb-2 text-[10px] uppercase tracking-wider">
+                  <span>SECURITY NOTICE</span>
+                  <span className="text-[var(--signal)]">EXPIRATION: 1 HOUR</span>
+                </div>
+                <p className="text-[12px] text-[var(--muted)] leading-relaxed">
+                  Reset tokens are time-bound and cryptographically signed. Check your inbox and spam folder for instructions.
+                </p>
+              </div>
             </div>
           </div>
-          <CardTitle className="text-2xl font-bold bg-gradient-to-r from-amber-600 to-yellow-600 bg-clip-text text-transparent">
-            Forgot Password?
-          </CardTitle>
-          <CardDescription className="text-gray-600">
-            Enter your email address and we'll send you a link to reset your password
-          </CardDescription>
-        </CardHeader>
-        
-        <CardContent className="space-y-4">
-          {error && (
-            <Alert variant="destructive" className="animate-in slide-in-from-top-2">
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          )}
 
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-            {/* Email */}
-            <div className="space-y-2">
-              <Label htmlFor="email" className="text-sm font-medium text-gray-700">
-                Email Address
-              </Label>
-              <div className="relative">
-                <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                <Input
-                  id="email"
-                  type="email"
-                  {...register('email')}
-                  placeholder="Enter your email address"
-                  className="pl-10 h-11 border-gray-200 focus:border-amber-500 focus:ring-amber-500"
-                  autoComplete="email"
-                  autoFocus
-                />
+          {/* Right Column: Form Panel */}
+          <div className="lg:col-span-6">
+            <div className="bg-[var(--paper)] border-2 border-[var(--ink)] p-6 sm:p-8 space-y-6 shadow-sm">
+              
+              <div className="flex items-center justify-between border-b border-[var(--line)] pb-3 font-mono-ledger text-[11px]">
+                <span className="text-[var(--ink)] font-bold uppercase tracking-wider">01 / RECOVERY REQUEST</span>
+                <span className="text-[var(--signal)]">PASSWORD RESET</span>
               </div>
-              {errors.email && (
-                <p className="text-sm text-red-500 animate-in slide-in-from-top-1">
-                  {errors.email.message}
-                </p>
-              )}
-            </div>
 
-            {/* Submit Button */}
-            <Button 
-              type="submit" 
-              className="w-full h-11 bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-600 hover:to-yellow-600 text-white font-medium transition-all duration-200 transform hover:scale-[1.02] shadow-md hover:shadow-lg" 
-              disabled={loading}
-            >
-              {loading ? (
-                <div className="flex items-center">
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
-                  Sending Reset Link...
+              {/* Success State */}
+              {success ? (
+                <div className="space-y-5 text-left font-sans-ledger">
+                  <div className="p-4 bg-[var(--paper-2)] border border-[var(--signal)] space-y-2">
+                    <div className="flex items-center space-x-2 text-[var(--signal)] font-mono-ledger text-[12px] font-bold">
+                      <CheckCircle2 className="h-4 w-4" />
+                      <span>INSTRUCTIONS SENT</span>
+                    </div>
+                    <p className="text-[14px] text-[var(--ink)] leading-relaxed">
+                      If an account exists for <span className="font-bold">{getValues('email')}</span>, password reset instructions have been dispatched.
+                    </p>
+                  </div>
+
+                  <div className="pt-2 space-y-3 font-mono-ledger text-[12px]">
+                    <button
+                      onClick={() => window.location.reload()}
+                      className="w-full bg-[var(--paper-2)] border border-[var(--ink)] hover:border-[var(--signal)] text-[var(--ink)] py-2.5 px-4 transition-colors"
+                    >
+                      Resend Reset Email
+                    </button>
+
+                    <Link 
+                      href="/login" 
+                      className="block w-full bg-[var(--signal)] text-[var(--paper)] py-2.5 px-4 text-center hover:bg-[var(--signal-dark)] transition-colors font-sans-ledger"
+                    >
+                      Return to Sign in →
+                    </Link>
+                  </div>
                 </div>
               ) : (
-                <div className="flex items-center">
-                  <Send className="h-4 w-4 mr-2" />
-                  Send Reset Link
-                </div>
+                /* Form State */
+                <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+                  {error && (
+                    <div className="p-3.5 bg-red-50 border border-[var(--signal)] text-[var(--signal-dark)] font-mono-ledger text-[12px] flex items-start space-x-2">
+                      <AlertCircle className="h-4 w-4 text-[var(--signal)] shrink-0 mt-0.5" />
+                      <span>{error}</span>
+                    </div>
+                  )}
+
+                  <div className="space-y-1.5 text-left">
+                    <label htmlFor="email" className="font-mono-ledger text-[11px] uppercase tracking-wider text-[var(--ink)] block">
+                      Email Address *
+                    </label>
+                    <div className="relative">
+                      <Mail className="absolute left-3.5 top-3.5 h-4 w-4 text-[var(--muted)]" />
+                      <input
+                        id="email"
+                        type="email"
+                        {...register('email')}
+                        placeholder="name@domain.com"
+                        className="w-full bg-[var(--paper-2)] border border-[var(--line)] focus:border-[var(--ink)] focus:ring-1 focus:ring-[var(--ink)] font-sans-ledger text-[14px] pl-10 pr-4 py-2.5 outline-none transition-all placeholder:text-[var(--muted)]"
+                        autoComplete="email"
+                      />
+                    </div>
+                    {errors.email && (
+                      <p className="font-mono-ledger text-[11px] text-[var(--signal)] mt-1">
+                        {errors.email.message}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="pt-2">
+                    <button 
+                      type="submit" 
+                      disabled={loading}
+                      className="w-full bg-[var(--signal)] hover:bg-[var(--signal-dark)] text-[var(--paper)] font-sans-ledger font-medium text-[15px] py-3 px-4 transition-colors flex items-center justify-center space-x-2"
+                    >
+                      {loading ? (
+                        <span className="font-mono-ledger text-[13px] flex items-center">
+                          <span className="w-2 h-2 rounded-full bg-[var(--paper)] animate-pulse mr-2"></span>
+                          SENDING RESET LINK...
+                        </span>
+                      ) : (
+                        <>
+                          <span>Send recovery email</span>
+                          <ArrowRight className="h-4 w-4 text-[var(--paper)]" />
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </form>
               )}
-            </Button>
-          </form>
 
-          {/* Back to Login */}
-          <div className="text-center pt-4 border-t border-gray-100">
-            <Link href="/login">
-              <Button variant="ghost" className="text-sm hover:bg-amber-50 hover:text-amber-700">
-                <ArrowLeft className="mr-2 h-4 w-4" />
-                Back to Login
-              </Button>
-            </Link>
-          </div>
-
-          {/* Additional Info */}
-          <div className="bg-amber-50 rounded-lg p-4 text-sm text-amber-900 border border-amber-100">
-            <div className="flex items-start">
-              <Mail className="h-4 w-4 mt-0.5 mr-2 flex-shrink-0 text-amber-600" />
-              <div>
-                <p className="font-medium mb-1">Security Notice</p>
-                <p className="text-amber-800">
-                  For security reasons, we'll send reset instructions to your email 
-                  regardless of whether an account exists with that address.
-                </p>
+              <div className="pt-4 border-t border-[var(--line)] text-center font-mono-ledger text-[12px]">
+                <Link 
+                  href="/login" 
+                  className="text-[var(--muted)] hover:text-[var(--signal)] transition-colors"
+                >
+                  ← Remember your password? Sign in
+                </Link>
               </div>
+
             </div>
           </div>
-        </CardContent>
-      </Card>
+
+        </div>
+      </main>
+
+      {/* Editorial Footer */}
+      <footer className="border-t border-[var(--line)] py-6 text-center">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 flex flex-col sm:flex-row items-center justify-between text-[12px] font-mono-ledger text-[var(--muted)] gap-2">
+          <span>FreelanceHub · Nepal Marketplace Ledger</span>
+          <span>Engineered by Nantio (www.nantio.it.com)</span>
+        </div>
+      </footer>
+
     </div>
   );
 }

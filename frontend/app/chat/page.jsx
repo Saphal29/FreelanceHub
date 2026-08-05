@@ -3,17 +3,29 @@
 import { useState, useEffect, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Navbar from "@/components/layout/Navbar";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import CommandRail from "@/components/layout/CommandRail";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSocket } from "@/contexts/SocketContext";
 import {
-  getConversations, getChatMessages, getOrCreateConversation,
-  markConversationAsRead, deleteChatMessage, searchChatMessages, uploadChatFile
+  getConversations, 
+  getChatMessages, 
+  getOrCreateConversation,
+  markConversationAsRead, 
+  deleteChatMessage, 
+  uploadChatFile
 } from "@/lib/api";
 import {
-  Send, Search, Trash2, Circle, MessageSquare, X,
-  Paperclip, Download, FileText, Image as ImageIcon, File
+  Send, 
+  Search, 
+  Trash2, 
+  Circle, 
+  MessageSquare, 
+  X,
+  Paperclip, 
+  Download, 
+  FileText, 
+  Image as ImageIcon,
+  ArrowLeft
 } from "lucide-react";
 
 const BACKEND_URL = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api").replace("/api", "");
@@ -35,14 +47,7 @@ const formatBytes = (bytes) => {
   return (bytes / (1024 * 1024)).toFixed(1) + " MB";
 };
 
-const Avatar = ({ name, size = "h-10 w-10" }) => (
-  <div className={`${size} rounded-full bg-accent flex items-center justify-center text-accent-foreground font-bold text-sm shrink-0`}>
-    {name?.charAt(0)?.toUpperCase() || "?"}
-  </div>
-);
-
 const FileMessage = ({ msg, isOwn, onLightbox }) => {
-  // Construct proper file URL - msg.fileUrl is already a path like /uploads/...
   const fileUrl = msg.fileUrl?.startsWith('http') 
     ? msg.fileUrl 
     : `${BACKEND_URL}${msg.fileUrl?.startsWith('/') ? msg.fileUrl : '/' + msg.fileUrl}`;
@@ -50,18 +55,14 @@ const FileMessage = ({ msg, isOwn, onLightbox }) => {
   const [imageSrc, setImageSrc] = useState(null);
   const [imageLoading, setImageLoading] = useState(true);
 
-  // Load image as blob to avoid mixed content issues
   useEffect(() => {
     if (isImage) {
       const loadImage = async () => {
         try {
           const token = localStorage.getItem('token');
           const response = await fetch(fileUrl, {
-            headers: {
-              'Authorization': `Bearer ${token}`
-            }
+            headers: { 'Authorization': `Bearer ${token}` }
           });
-          
           if (response.ok) {
             const blob = await response.blob();
             const url = URL.createObjectURL(blob);
@@ -74,13 +75,7 @@ const FileMessage = ({ msg, isOwn, onLightbox }) => {
         }
       };
       loadImage();
-      
-      // Cleanup
-      return () => {
-        if (imageSrc) {
-          URL.revokeObjectURL(imageSrc);
-        }
-      };
+      return () => { if (imageSrc) URL.revokeObjectURL(imageSrc); };
     }
   }, [fileUrl, isImage]);
 
@@ -88,16 +83,11 @@ const FileMessage = ({ msg, isOwn, onLightbox }) => {
     e.preventDefault();
     e.stopPropagation();
     try {
-      // Fetch file with authentication
       const token = localStorage.getItem('token');
       const response = await fetch(fileUrl, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+        headers: { 'Authorization': `Bearer ${token}` }
       });
-      
       if (!response.ok) throw new Error('Download failed');
-      
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
@@ -109,46 +99,41 @@ const FileMessage = ({ msg, isOwn, onLightbox }) => {
       window.URL.revokeObjectURL(url);
     } catch (error) {
       console.error('Download error:', error);
-      alert('Failed to download file. Please try again.');
     }
   };
 
   if (isImage) {
     return (
-      <div className="space-y-1">
+      <div className="space-y-1 text-left font-mono-ledger">
         {imageLoading ? (
-          <div className="w-[240px] h-[200px] rounded-xl bg-muted animate-pulse flex items-center justify-center">
-            <ImageIcon className="h-12 w-12 text-muted-foreground" />
+          <div className="w-[200px] h-[160px] bg-[var(--paper-2)] border border-[var(--ink)] animate-pulse flex items-center justify-center">
+            <ImageIcon className="h-8 w-8 text-[var(--muted)]" />
           </div>
         ) : imageSrc ? (
           <div className="relative group">
             <img
               src={imageSrc}
               alt={msg.fileName}
-              className="max-w-[240px] max-h-[200px] rounded-xl object-cover cursor-pointer hover:opacity-90 transition-opacity"
+              className="max-w-[240px] max-h-[180px] border-2 border-[var(--ink)] object-cover cursor-pointer hover:opacity-90 transition-opacity"
               onClick={() => onLightbox(imageSrc)}
             />
             <button
               onClick={handleDownload}
-              className="absolute top-2 right-2 bg-black/60 hover:bg-black/80 text-white rounded-full p-2 opacity-0 group-hover:opacity-100 transition-opacity"
+              className="absolute top-2 right-2 bg-[var(--ink)] text-[var(--paper)] p-1.5 opacity-0 group-hover:opacity-100 transition-opacity"
               title="Download image"
             >
-              <Download className="h-4 w-4" />
+              <Download className="h-3.5 w-3.5" />
             </button>
           </div>
         ) : (
-          <div className="p-4 border rounded-xl bg-muted text-center">
-            <ImageIcon className="h-12 w-12 mx-auto mb-2 text-muted-foreground" />
-            <p className="text-sm text-muted-foreground mb-2">{msg.fileName}</p>
-            <Button size="sm" variant="outline" onClick={handleDownload}>
-              <Download className="h-4 w-4 mr-2" />
-              Download Image
-            </Button>
+          <div className="p-3 border border-[var(--ink)] bg-[var(--paper-2)] text-center text-[11px]">
+            <p className="text-[var(--ink)] mb-1 font-bold">{msg.fileName}</p>
+            <button onClick={handleDownload} className="text-[var(--signal)] underline font-bold">
+              DOWNLOAD SPECIMEN
+            </button>
           </div>
         )}
-        <p className={`text-xs ${isOwn ? "text-accent-foreground/70" : "text-muted-foreground"}`}>
-          {msg.fileName}
-        </p>
+        <p className="text-[10px] text-[var(--muted)]">{msg.fileName}</p>
       </div>
     );
   }
@@ -157,20 +142,16 @@ const FileMessage = ({ msg, isOwn, onLightbox }) => {
     <a
       href="#"
       onClick={handleDownload}
-      className={`flex items-center gap-3 p-3 rounded-xl border transition-colors hover:opacity-80 ${
-        isOwn ? "border-accent-foreground/20 bg-accent-foreground/10" : "border-border bg-muted"
+      className={`flex items-center gap-3 p-3 border border-[var(--ink)] transition-colors hover:bg-[var(--signal)]/10 font-mono-ledger ${
+        isOwn ? "bg-[var(--paper-2)] text-[var(--ink)]" : "bg-[var(--paper)] text-[var(--ink)]"
       }`}
     >
-      <FileText className="h-8 w-8 shrink-0 text-accent" />
-      <div className="min-w-0">
-        <p className={`text-sm font-medium truncate ${isOwn ? "text-accent-foreground" : "text-foreground"}`}>
-          {msg.fileName}
-        </p>
-        <p className={`text-xs ${isOwn ? "text-accent-foreground/60" : "text-muted-foreground"}`}>
-          {formatBytes(msg.fileSize)}
-        </p>
+      <FileText className="h-6 w-6 text-[var(--signal)] shrink-0" />
+      <div className="min-w-0 flex-1 text-left">
+        <p className="text-[12px] font-bold truncate">{msg.fileName}</p>
+        <p className="text-[10px] text-[var(--muted)]">{formatBytes(msg.fileSize)}</p>
       </div>
-      <Download className="h-4 w-4 shrink-0" />
+      <Download className="h-4 w-4 shrink-0 text-[var(--ink)]" />
     </a>
   );
 };
@@ -187,13 +168,12 @@ function ChatContent() {
   const [messages, setMessages] = useState([]);
   const [messageText, setMessageText] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
-  const [searchResults, setSearchResults] = useState(null);
   const [typingUsers, setTypingUsers] = useState(new Set());
   const [loading, setLoading] = useState(true);
   const [msgLoading, setMsgLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
-  const [imagePreview, setImagePreview] = useState(null); // { src, file } - pending send
-  const [lightboxSrc, setLightboxSrc] = useState(null);  // full-size view of sent images
+  const [imagePreview, setImagePreview] = useState(null);
+  const [lightboxSrc, setLightboxSrc] = useState(null);
 
   const messagesEndRef = useRef(null);
   const typingTimeoutRef = useRef(null);
@@ -233,7 +213,7 @@ function ChatContent() {
     }
   }, [searchParams, user]);
 
-  // Socket events
+  // Socket listeners
   useEffect(() => {
     if (!socket) return;
 
@@ -293,11 +273,8 @@ function ChatContent() {
       const res = await getConversations();
       const convs = res.conversations || [];
       
-      // Deduplicate conversations by other user - keep the most recent one
       const uniqueConvs = [];
       const seenUsers = new Set();
-      
-      // Sort by last message time (most recent first)
       const sortedConvs = [...convs].sort((a, b) => {
         const timeA = a.last_message_at || a.created_at;
         const timeB = b.last_message_at || b.created_at;
@@ -321,7 +298,6 @@ function ChatContent() {
 
   const selectConversation = async (conv) => {
     setSelectedConv(conv);
-    setSearchResults(null);
     setMsgLoading(true);
     try {
       const res = await getChatMessages(conv.id);
@@ -341,7 +317,7 @@ function ChatContent() {
     e.preventDefault();
     if (!messageText.trim() || !selectedConv) return;
     if (!socket || !isConnected) {
-      alert("Not connected. Please refresh.");
+      alert("Not connected. Please refresh connection.");
       return;
     }
     socket.emit("message:send", { conversationId: selectedConv.id, content: messageText.trim() }, (res) => {
@@ -365,7 +341,6 @@ function ChatContent() {
     const file = e.target.files?.[0];
     if (!file || !selectedConv || !socket || !isConnected) return;
 
-    // Show image preview before upload
     if (file.type.startsWith("image/")) {
       const reader = new FileReader();
       reader.onload = (ev) => setImagePreview({ src: ev.target.result, file });
@@ -412,8 +387,8 @@ function ChatContent() {
   );
 
   if (authLoading) return (
-    <div className="min-h-screen flex items-center justify-center">
-      <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-primary"></div>
+    <div className="min-h-screen bg-[var(--paper)] flex items-center justify-center font-mono-ledger">
+      <p className="text-[12px] text-[var(--muted)] uppercase">LOADING MESSAGING DISPATCH...</p>
     </div>
   );
   if (!user) return null;
@@ -423,189 +398,195 @@ function ChatContent() {
   const isTyping = typingUsers.size > 0;
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <div className="min-h-screen bg-[var(--paper)] text-[var(--ink)] font-sans-ledger selection:bg-[var(--signal)] selection:text-[var(--paper)] flex flex-col justify-between">
+      
+      {/* Top Navbar */}
       <Navbar userType={userType} />
 
-      <div className="flex-1 container mx-auto px-4 py-4">
-        <div className="flex h-[calc(100vh-120px)] rounded-2xl border border-border bg-card overflow-hidden shadow-lg">
+      {/* Floating Tool Rail */}
+      <CommandRail userType={userType} />
 
-          {/* Sidebar */}
-          <div className="w-80 flex flex-col border-r border-border shrink-0">
-            <div className="p-4 border-b border-border">
-              <div className="flex items-center justify-between mb-3">
-                <h2 className="font-display text-xl font-bold text-foreground">Messages</h2>
-                <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${isConnected ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>
-                  {isConnected ? "● Live" : "● Offline"}
-                </span>
-              </div>
+      {/* Main Messaging Canvas */}
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 lg:pl-20 py-8 flex-1 w-full flex flex-col space-y-6">
+        
+        {/* EDITORIAL HEADER */}
+        <section className="space-y-2 text-left border-b border-[var(--ink)] pb-4">
+          <p className="font-mono-ledger text-[11px] uppercase tracking-[0.08em] text-[var(--muted)] flex items-center space-x-2">
+            <span className={`w-2 h-2 rounded-full inline-block ${isConnected ? 'bg-green-600 animate-pulse' : 'bg-[var(--signal)]'}`}></span>
+            <span>FREELANCEHUB DISPATCH · REALTIME MESSAGING CONSOLE [{isConnected ? 'ONLINE' : 'CONNECTING'}]</span>
+          </p>
+          <h1 className="font-serif-ledger text-[28px] sm:text-[34px] font-medium text-[var(--ink)]">
+            Deliverable & Operations Chat.
+          </h1>
+        </section>
+
+        {/* WORKSPACE DISPATCH CONSOLE */}
+        <div className="flex-1 flex flex-col lg:flex-row border-2 border-[var(--ink)] bg-[var(--paper)] min-h-[600px] shadow-xs text-left">
+
+          {/* LEFT CONVERSATION SIDEBAR */}
+          <div className="w-full lg:w-80 border-b lg:border-b-0 lg:border-r-2 border-[var(--ink)] flex flex-col bg-[var(--paper-2)]">
+            
+            {/* Search Bar */}
+            <div className="p-3 border-b border-[var(--ink)] font-mono-ledger">
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search conversations..."
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-[var(--muted)]" />
+                <input
+                  type="text"
+                  placeholder="Search dispatches..."
                   value={searchQuery}
                   onChange={e => setSearchQuery(e.target.value)}
-                  className="pl-9 rounded-xl bg-secondary border-border text-sm"
+                  className="w-full bg-[var(--paper)] border border-[var(--ink)] py-2 pl-9 pr-3 text-[12px] text-[var(--ink)] focus:outline-none"
                 />
               </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto">
+            {/* Conversations List */}
+            <div className="flex-1 overflow-y-auto divide-y divide-[var(--line)] font-mono-ledger">
               {loading ? (
-                <div className="flex items-center justify-center h-32">
-                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-accent"></div>
+                <div className="p-6 text-center text-[11px] text-[var(--muted)]">
+                  LOADING DISPATCH LOGS...
                 </div>
               ) : filteredConversations.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-32 gap-2 text-muted-foreground">
-                  <MessageSquare className="h-8 w-8" />
-                  <p className="text-sm">No conversations yet</p>
+                <div className="p-6 text-center text-[11px] text-[var(--muted)]">
+                  NO ACTIVE DISPATCHES FOUND
                 </div>
               ) : (
                 filteredConversations.map(conv => (
                   <button
                     key={conv.id}
                     onClick={() => selectConversation(conv)}
-                    className={`w-full flex items-center gap-3 p-4 border-b border-border transition-colors hover:bg-secondary text-left ${selectedConv?.id === conv.id ? "bg-secondary" : ""}`}
+                    className={`w-full p-3.5 text-left transition-colors flex items-start space-x-3 ${
+                      selectedConv?.id === conv.id 
+                        ? "bg-[var(--paper)] border-l-4 border-l-[var(--signal)]" 
+                        : "hover:bg-[var(--paper)]"
+                    }`}
                   >
-                    <div className="relative">
-                      <Avatar name={conv.otherUser?.name} size="h-11 w-11" />
-                      {isUserOnline(conv.otherUser?.id) && (
-                        <Circle className="absolute bottom-0 right-0 h-3 w-3 fill-green-500 text-green-500" />
-                      )}
+                    <div className="w-9 h-9 bg-[var(--ink)] text-[var(--paper)] font-bold text-[13px] flex items-center justify-center shrink-0">
+                      {conv.otherUser?.name?.charAt(0) || 'U'}
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between">
-                        <span className="font-semibold text-foreground text-sm truncate">{conv.otherUser?.name}</span>
-                        <span className="text-xs text-muted-foreground shrink-0 ml-1">{formatTime(conv.lastMessageAt)}</span>
+
+                    <div className="flex-1 min-w-0 space-y-0.5 text-[11px]">
+                      <div className="flex items-center justify-between font-bold">
+                        <span className="truncate text-[var(--ink)]">{conv.otherUser?.name}</span>
+                        <span className="text-[9px] text-[var(--muted)] font-normal">{formatTime(conv.lastMessageAt)}</span>
                       </div>
-                      <div className="flex items-center justify-between mt-0.5">
-                        <p className="text-xs text-muted-foreground truncate">
-                          {conv.lastMessage?.type === "image" ? "📷 Image" :
-                           conv.lastMessage?.type === "file" ? "📎 File" :
-                           conv.lastMessage?.content || conv.projectTitle || "No messages yet"}
-                        </p>
-                        {conv.unreadCount > 0 && (
-                          <span className="ml-1 shrink-0 h-5 w-5 rounded-full bg-accent text-accent-foreground text-xs font-bold flex items-center justify-center">
-                            {conv.unreadCount}
-                          </span>
-                        )}
-                      </div>
+                      <p className="text-[10px] text-[var(--muted)] truncate">
+                        {conv.lastMessage?.content || "No messages on record"}
+                      </p>
                     </div>
                   </button>
                 ))
               )}
             </div>
+
           </div>
 
-          {/* Chat Area */}
+
+          {/* RIGHT CHAT STREAM */}
           {selectedConv ? (
-            <div className="flex-1 flex flex-col min-w-0">
-              {/* Header */}
-              <div className="flex items-center justify-between px-4 py-3 border-b border-border">
-                <div className="flex items-center gap-3">
-                  <div className="relative">
-                    <Avatar name={otherUser?.name} size="h-9 w-9" />
-                    {isOtherOnline && (
-                      <Circle className="absolute bottom-0 right-0 h-3 w-3 fill-green-500 text-green-500" />
-                    )}
+            <div className="flex-1 flex flex-col min-w-0 bg-[var(--paper)] font-mono-ledger">
+              
+              {/* Active Conversation Header */}
+              <div className="p-4 border-b border-[var(--ink)] flex items-center justify-between bg-[var(--paper-2)]">
+                <div className="flex items-center space-x-3">
+                  <div className="w-8 h-8 bg-[var(--signal)] text-[var(--paper)] font-bold text-[12px] flex items-center justify-center">
+                    {otherUser?.name?.charAt(0) || 'U'}
                   </div>
                   <div>
-                    <p className="font-semibold text-foreground text-sm">{otherUser?.name}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {isTyping ? "typing..." : isOtherOnline ? "Online" : "Offline"}
+                    <h3 className="font-bold text-[13px] text-[var(--ink)]">{otherUser?.name}</h3>
+                    <p className="text-[10px] text-[var(--muted)] uppercase">
+                      {isTyping ? "TYPING MESSAGE..." : isOtherOnline ? "ONLINE NOW" : "OFFLINE"}
                     </p>
                   </div>
                 </div>
-                {searchResults !== null && (
-                  <Button variant="ghost" size="icon" onClick={() => setSearchResults(null)}>
-                    <X className="h-4 w-4" />
-                  </Button>
-                )}
+
+                <div className="text-[10px] text-[var(--signal)] font-bold uppercase">
+                  DISPATCH ID / #{selectedConv.id?.slice(0, 8)}
+                </div>
               </div>
 
-              {/* Messages */}
-              <div className="flex-1 overflow-y-auto p-4 space-y-3">
+              {/* Message Stream */}
+              <div className="flex-1 overflow-y-auto p-6 space-y-4 font-mono-ledger text-[12px]">
                 {msgLoading ? (
-                  <div className="flex items-center justify-center h-full">
-                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-accent"></div>
-                  </div>
-                ) : (searchResults || messages).length === 0 ? (
-                  <div className="flex flex-col items-center justify-center h-full gap-2 text-muted-foreground">
-                    <MessageSquare className="h-10 w-10" />
-                    <p className="text-sm">No messages yet. Say hello!</p>
+                  <div className="p-6 text-center text-[var(--muted)]">SYNCHRONIZING MESSAGES...</div>
+                ) : messages.length === 0 ? (
+                  <div className="p-12 text-center space-y-2">
+                    <p className="font-serif-ledger text-[20px] text-[var(--ink)]">Start your operational dispatch.</p>
+                    <p className="text-[11px] text-[var(--muted)]">Send messages, request scope updates, or share deliverable specs.</p>
                   </div>
                 ) : (
-                  (searchResults || messages).map(msg => {
+                  messages.map((msg) => {
                     const isOwn = msg.senderId === user.id;
                     const isFile = msg.messageType === "file" || msg.messageType === "image";
+
                     return (
                       <div key={msg.id} className={`flex ${isOwn ? "justify-end" : "justify-start"} group`}>
-                        {!isOwn && <Avatar name={msg.senderName} size="h-7 w-7 mr-2 mt-1" />}
-                        <div className="relative max-w-[70%]">
-                          {msg.isDeleted ? (
-                            <div className="rounded-2xl px-4 py-2 text-sm bg-muted text-muted-foreground italic">
-                              This message was deleted
-                            </div>
-                          ) : isFile ? (
-                            <div className={`rounded-2xl px-3 py-2 ${isOwn ? "bg-accent text-accent-foreground" : "bg-secondary"}`}>
+                        <div className={`max-w-[80%] space-y-1 ${isOwn ? "text-right" : "text-left"}`}>
+                          
+                          <div className={`p-3.5 border-2 border-[var(--ink)] ${
+                            isOwn 
+                              ? "bg-[var(--ink)] text-[var(--paper)] font-sans-ledger" 
+                              : "bg-[var(--paper-2)] text-[var(--ink)] font-sans-ledger"
+                          }`}>
+                            {msg.isDeleted ? (
+                              <span className="italic text-[var(--muted)]">[THIS MESSAGE WAS DELETED]</span>
+                            ) : isFile ? (
                               <FileMessage msg={msg} isOwn={isOwn} onLightbox={setLightboxSrc} />
-                              <span className={`block text-xs mt-1 ${isOwn ? "text-accent-foreground/60" : "text-muted-foreground"}`}>
-                                {formatTime(msg.createdAt)}{isOwn && msg.isRead && " ✓✓"}
-                              </span>
-                            </div>
-                          ) : (
-                            <div className={`rounded-2xl px-4 py-2 text-sm ${isOwn ? "bg-accent text-accent-foreground" : "bg-secondary text-foreground"}`}>
-                              {msg.content}
-                              <span className={`block text-xs mt-1 ${isOwn ? "text-accent-foreground/60" : "text-muted-foreground"}`}>
-                                {formatTime(msg.createdAt)}{isOwn && msg.isRead && " ✓✓"}
-                              </span>
-                            </div>
-                          )}
-                          {isOwn && !msg.isDeleted && (
-                            <button
-                              onClick={() => handleDeleteMessage(msg.id)}
-                              className="absolute -top-2 -right-2 hidden group-hover:flex h-6 w-6 items-center justify-center rounded-full bg-background border border-border shadow-sm text-muted-foreground hover:text-red-600"
-                            >
-                              <Trash2 className="h-3 w-3" />
-                            </button>
-                          )}
+                            ) : (
+                              <p className="text-[14px] leading-relaxed whitespace-pre-wrap">{msg.content}</p>
+                            )}
+                          </div>
+
+                          <div className="flex items-center space-x-2 text-[9px] text-[var(--muted)] uppercase font-mono-ledger px-1 justify-end">
+                            <span>{formatTime(msg.createdAt)}</span>
+                            {isOwn && !msg.isDeleted && (
+                              <button 
+                                onClick={() => handleDeleteMessage(msg.id)} 
+                                className="text-[var(--signal)] hover:underline opacity-0 group-hover:opacity-100 transition-opacity"
+                              >
+                                DELETE
+                              </button>
+                            )}
+                          </div>
+
                         </div>
                       </div>
                     );
                   })
                 )}
-                {isTyping && (
-                  <div className="flex items-center gap-2 text-muted-foreground text-xs">
-                    <div className="flex gap-1">
-                      <span className="animate-bounce">●</span>
-                      <span className="animate-bounce" style={{ animationDelay: "0.1s" }}>●</span>
-                      <span className="animate-bounce" style={{ animationDelay: "0.2s" }}>●</span>
-                    </div>
-                    {otherUser?.name} is typing...
-                  </div>
-                )}
                 <div ref={messagesEndRef} />
               </div>
 
-              {/* Image preview before send */}
+              {/* Attachment Preview Banner */}
               {imagePreview && (
-                <div className="px-4 py-2 border-t border-border bg-secondary flex items-center gap-3">
-                  <img src={imagePreview.src} alt="preview" className="h-16 w-16 rounded-xl object-cover" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">{imagePreview.file.name}</p>
-                    <p className="text-xs text-muted-foreground">{formatBytes(imagePreview.file.size)}</p>
+                <div className="p-3 border-t border-[var(--ink)] bg-[var(--paper-2)] flex items-center justify-between">
+                  <div className="flex items-center space-x-3">
+                    <img src={imagePreview.src} alt="preview" className="w-12 h-12 object-cover border border-[var(--ink)]" />
+                    <div>
+                      <p className="font-bold text-[11px] text-[var(--ink)]">{imagePreview.file.name}</p>
+                      <p className="text-[10px] text-[var(--muted)]">{formatBytes(imagePreview.file.size)}</p>
+                    </div>
                   </div>
-                  <Button variant="accent" size="sm" disabled={uploading} onClick={() => sendFile(imagePreview.file)}>
-                    {uploading ? <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" /> : "Send"}
-                  </Button>
-                  <Button variant="ghost" size="icon" onClick={() => { setImagePreview(null); if (fileInputRef.current) fileInputRef.current.value = ""; }}>
-                    <X className="h-4 w-4" />
-                  </Button>
+                  <div className="flex items-center space-x-2">
+                    <button 
+                      onClick={() => sendFile(imagePreview.file)}
+                      className="px-4 py-1.5 bg-[var(--signal)] text-[var(--paper)] font-bold text-[10px] uppercase"
+                    >
+                      SEND IMAGE
+                    </button>
+                    <button 
+                      onClick={() => setImagePreview(null)}
+                      className="px-3 py-1.5 border border-[var(--ink)] text-[10px] uppercase"
+                    >
+                      CANCEL
+                    </button>
+                  </div>
                 </div>
               )}
 
-              {/* Input */}
-              <div className="p-4 border-t border-border">
-                <form onSubmit={handleSend} className="flex items-center gap-2">
+              {/* Message Input Controls */}
+              <div className="p-3 border-t border-[var(--ink)] bg-[var(--paper-2)]">
+                <form onSubmit={handleSend} className="flex gap-2">
                   <input
                     ref={fileInputRef}
                     type="file"
@@ -613,89 +594,72 @@ function ChatContent() {
                     accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt,.zip"
                     onChange={handleFileSelect}
                   />
-                  <Button
+
+                  <button
                     type="button"
-                    variant="ghost"
-                    size="icon"
-                    disabled={uploading}
                     onClick={() => fileInputRef.current?.click()}
-                    title="Attach file"
+                    disabled={uploading}
+                    className="p-3 border-2 border-[var(--ink)] bg-[var(--paper)] hover:bg-[var(--signal)] hover:text-[var(--paper)] transition-colors"
+                    title="Attach File / Deliverable Specimen"
                   >
-                    {uploading
-                      ? <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-accent" />
-                      : <Paperclip className="h-4 w-4" />
-                    }
-                  </Button>
-                  <Input
+                    <Paperclip className="h-4 w-4" />
+                  </button>
+
+                  <input
                     ref={inputRef}
+                    type="text"
                     value={messageText}
                     onChange={handleTyping}
-                    placeholder="Type a message..."
-                    className="flex-1 rounded-xl bg-secondary border-border"
-                    onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) handleSend(e); }}
+                    placeholder="Type operational dispatch message..."
+                    className="flex-1 bg-[var(--paper)] border-2 border-[var(--ink)] p-3 text-[13px] text-[var(--ink)] focus:outline-none focus:border-[var(--signal)] font-sans-ledger"
                   />
-                  <Button type="submit" variant="accent" size="icon" disabled={!messageText.trim()}>
-                    <Send className="h-4 w-4" />
-                  </Button>
+
+                  <button
+                    type="submit"
+                    disabled={!messageText.trim()}
+                    className="bg-[var(--signal)] hover:bg-[var(--signal-dark)] text-[var(--paper)] font-bold px-6 py-3 uppercase transition-colors"
+                  >
+                    SEND →
+                  </button>
                 </form>
               </div>
+
             </div>
           ) : (
-            <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground gap-3">
-              <MessageSquare className="h-16 w-16" />
-              <p className="text-lg font-medium">Select a conversation</p>
-              <p className="text-sm">Choose from your existing conversations or start a new one</p>
+            <div className="flex-1 flex flex-col items-center justify-center p-12 text-center font-mono-ledger text-[12px] text-[var(--muted)] space-y-2">
+              <MessageSquare className="h-10 w-10 text-[var(--ink)]" />
+              <p className="font-bold text-[var(--ink)] text-[14px]">SELECT A DISPATCH CONVERSATION</p>
+              <p>Choose an active engagement from the left sidebar log to enter messaging mode.</p>
             </div>
           )}
-        </div>
-      </div>
 
-      {/* Full-size image lightbox */}
+        </div>
+
+      </main>
+
+      {/* Lightbox Modal */}
       {lightboxSrc && (
-        <div
-          className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4"
-          onClick={() => setLightboxSrc(null)}
-        >
-          <div className="relative max-w-[90vw] max-h-[90vh]" onClick={(e) => e.stopPropagation()}>
-            <img 
-              src={lightboxSrc} 
-              alt="preview" 
-              className="max-w-full max-h-[90vh] rounded-2xl object-contain" 
-            />
-            <div className="absolute top-4 right-4 flex gap-2">
-              <button
-                className="text-white bg-black/50 rounded-full p-2 hover:bg-black/80 transition-colors"
-                onClick={async () => {
-                  try {
-                    const response = await fetch(lightboxSrc);
-                    const blob = await response.blob();
-                    const url = window.URL.createObjectURL(blob);
-                    const link = document.createElement('a');
-                    link.href = url;
-                    link.download = 'image';
-                    document.body.appendChild(link);
-                    link.click();
-                    document.body.removeChild(link);
-                    window.URL.revokeObjectURL(url);
-                  } catch (error) {
-                    console.error('Download error:', error);
-                  }
-                }}
-                title="Download"
-              >
-                <Download className="h-5 w-5" />
-              </button>
-              <button
-                className="text-white bg-black/50 rounded-full p-2 hover:bg-black/80 transition-colors"
-                onClick={() => setLightboxSrc(null)}
-                title="Close"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
+        <div className="fixed inset-0 bg-[var(--ink)]/80 backdrop-blur-xs z-50 flex items-center justify-center p-4" onClick={() => setLightboxSrc(null)}>
+          <div className="relative max-w-4xl max-h-[90vh]" onClick={(e) => e.stopPropagation()}>
+            <img src={lightboxSrc} alt="preview" className="max-w-full max-h-[85vh] border-2 border-[var(--paper)] object-contain" />
+            <button 
+              onClick={() => setLightboxSrc(null)}
+              className="absolute top-2 right-2 bg-[var(--paper)] text-[var(--ink)] font-bold px-3 py-1 text-[11px] font-mono-ledger"
+            >
+              CLOSE ×
+            </button>
           </div>
         </div>
       )}
+
+      {/* Editorial Footer */}
+      <footer className="border-t border-[var(--line)] py-6 text-center mt-12 font-mono-ledger text-[12px] text-[var(--muted)]">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 flex flex-col sm:flex-row items-center justify-between gap-2">
+          <span>FreelanceHub · Operations & Messaging Console</span>
+          <span>Engineered by Nantio Studio (www.nantio.it.com)</span>
+        </div>
+      </footer>
+
     </div>
   );
 }
@@ -703,8 +667,8 @@ function ChatContent() {
 export default function ChatPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-primary"></div>
+      <div className="min-h-screen bg-[var(--paper)] flex items-center justify-center font-mono-ledger">
+        <p className="text-[12px] text-[var(--muted)] uppercase">LOADING MESSAGING DISPATCH...</p>
       </div>
     }>
       <ChatContent />

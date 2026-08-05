@@ -4,9 +4,8 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Navbar from "@/components/layout/Navbar";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import CommandRail from "@/components/layout/CommandRail";
+import EmptyState from "@/components/common/EmptyState";
 import { useAuth } from "@/contexts/AuthContext";
 import { getProjects } from "@/lib/api";
 import {
@@ -15,53 +14,46 @@ import {
   CheckCircle,
   AlertCircle,
   XCircle,
-  MoreHorizontal,
-  MessageSquare,
-  FileText,
   Search,
   Filter,
+  ArrowRight,
+  MapPin,
+  Users,
   Banknote,
+  FileText
 } from "lucide-react";
 import { formatCurrency } from "@/lib/currency";
 
-export default function MyProjectsPage() {
+export default function ProjectsIndexPage() {
   const router = useRouter();
   const { user, loading: authLoading } = useAuth();
-  const [activeTab, setActiveTab] = useState("active");
+  const [activeTab, setActiveTab] = useState("all");
+  const [selectedCategory, setSelectedCategory] = useState("ALL");
   const [searchQuery, setSearchQuery] = useState("");
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  // Redirect if not authenticated or not a freelancer
-  useEffect(() => {
-    if (!authLoading && (!user || user.role !== "FREELANCER")) {
-      router.push("/login");
-    }
-  }, [user, authLoading, router]);
+  const categories = ["ALL", "WEB & SOFTWARE", "MOBILE APPS", "DESIGN & UI", "BACKEND & API", "AI & DATA"];
 
-  // Fetch projects
+  // Fetch projects on mount / tab change
   useEffect(() => {
-    fetchProjects();
+    fetchProjectsData();
   }, [user, authLoading, activeTab]);
 
-  const fetchProjects = async () => {
-    if (!user || user.role !== "FREELANCER") return;
-
+  const fetchProjectsData = async () => {
     try {
       setLoading(true);
       setError("");
 
       const params = {
-        status: activeTab === "active" ? "in_progress" : activeTab,
         sortBy: "created_at",
         sortOrder: "DESC",
         limit: 50
       };
 
-      // Add search query
-      if (searchQuery.trim()) {
-        params.search = searchQuery.trim();
+      if (activeTab === "my") {
+        params.status = "in_progress";
       }
 
       const response = await getProjects(params);
@@ -69,482 +61,263 @@ export default function MyProjectsPage() {
       if (response.success) {
         setProjects(response.projects || []);
       } else {
-        setError(response.error || "Failed to load projects");
+        setError(response.error || "Could not load open project briefs.");
       }
     } catch (err) {
       console.error("Error fetching projects:", err);
-      setError(err.message || "Failed to load projects");
+      setError("Network sync error while retrieving project briefs.");
     } finally {
       setLoading(false);
     }
   };
 
-  const handleSearch = (e) => {
+  const handleSearchSubmit = (e) => {
     e.preventDefault();
-    fetchProjects();
+    fetchProjectsData();
   };
 
-  // Filter projects by search query
+  // Client-side filtering
   const filteredProjects = projects.filter((project) => {
-    if (!searchQuery) return true;
-    const query = searchQuery.toLowerCase();
-    return (
-      project.title.toLowerCase().includes(query) ||
-      project.description.toLowerCase().includes(query) ||
-      (project.skills && project.skills.some((skill) => skill.toLowerCase().includes(query)))
-    );
+    const matchesSearch = !searchQuery || 
+      project.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      project.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      project.skills?.some(s => s.toLowerCase().includes(searchQuery.toLowerCase()));
+
+    const matchesCategory = selectedCategory === "ALL" || 
+      project.category?.toUpperCase()?.includes(selectedCategory.split(' ')[0]);
+
+    return matchesSearch && matchesCategory;
   });
 
-  const tabs = [
-    { id: "active", label: "Active", count: activeTab === "active" ? filteredProjects.length : 0 },
-    { id: "completed", label: "Completed", count: activeTab === "completed" ? filteredProjects.length : 0 },
-    { id: "cancelled", label: "Cancelled", count: activeTab === "cancelled" ? filteredProjects.length : 0 },
-  ];
-
-  const renderActiveProjects = () => {
-    if (loading) {
-      return (
-        <div className="flex items-center justify-center py-12">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-accent"></div>
-        </div>
-      );
-    }
-
-    if (filteredProjects.length === 0) {
-      return (
-        <div className="rounded-2xl border border-border bg-card p-12 text-center">
-          <Briefcase className="mx-auto h-12 w-12 text-muted-foreground" />
-          <h3 className="mt-4 font-display text-xl font-semibold text-foreground">
-            No active projects
-          </h3>
-          <p className="mt-2 text-muted-foreground">
-            {searchQuery
-              ? "Try adjusting your search query"
-              : "You don't have any active projects yet"}
-          </p>
-          {!searchQuery && (
-            <Link href="/freelancer/jobs">
-              <Button variant="accent" className="mt-6">
-                Find Work
-              </Button>
-            </Link>
-          )}
-        </div>
-      );
-    }
-
-    return (
-      <div className="space-y-6">
-        {filteredProjects.map((project) => (
-          <div
-            key={project.id}
-            className="rounded-2xl border border-border bg-card p-6 transition-all hover:shadow-lg"
-          >
-            <div className="flex items-start justify-between gap-4">
-              <div className="flex-1">
-                <div className="flex items-center gap-3">
-                  <h3 className="font-display text-lg font-semibold text-foreground">
-                    {project.title}
-                  </h3>
-                  {project.status === "review" && (
-                    <span className="flex items-center gap-1 rounded-full bg-amber-500/10 px-3 py-1 text-xs font-medium text-amber-600">
-                      <AlertCircle className="h-3 w-3" />
-                      In Review
-                    </span>
-                  )}
-                  {project.status === "in_progress" && (
-                    <span className="flex items-center gap-1 rounded-full bg-accent/10 px-3 py-1 text-xs font-medium text-accent">
-                      <Clock className="h-3 w-3" />
-                      In Progress
-                    </span>
-                  )}
-                </div>
-                <p className="mt-2 text-sm text-muted-foreground">{project.description}</p>
-              </div>
-              <Button variant="ghost" size="icon">
-                <MoreHorizontal className="h-5 w-5" />
-              </Button>
-            </div>
-
-            <div className="mt-4 flex items-center gap-3">
-              <img
-                src={project.client?.avatar || "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop"}
-                alt={project.client?.name || "Client"}
-                className="h-10 w-10 rounded-full object-cover"
-              />
-              <div>
-                <p className="text-sm font-medium text-foreground">{project.client?.name || "Client"}</p>
-                <p className="text-xs text-muted-foreground">Client</p>
-              </div>
-            </div>
-
-            <div className="mt-4 grid grid-cols-2 gap-4 rounded-xl bg-secondary p-4 sm:grid-cols-4">
-              <div>
-                <p className="text-xs text-muted-foreground">Start Date</p>
-                <p className="mt-1 text-sm font-medium text-foreground">
-                  {new Date(project.createdAt).toLocaleDateString()}
-                </p>
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Deadline</p>
-                <p className="mt-1 text-sm font-medium text-foreground">
-                  {project.deadline ? new Date(project.deadline).toLocaleDateString() : "Not set"}
-                </p>
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Budget</p>
-                <p className="mt-1 text-sm font-medium text-accent">
-                  {formatCurrency(project.budget.min)} - {formatCurrency(project.budget.max)}
-                </p>
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Progress</p>
-                <p className="mt-1 text-sm font-medium text-foreground">0%</p>
-              </div>
-            </div>
-
-            {/* Progress Bar */}
-            <div className="mt-4">
-              <div className="h-2 w-full overflow-hidden rounded-full bg-secondary">
-                <div
-                  className="h-full rounded-full bg-accent transition-all duration-500"
-                  style={{ width: `0%` }}
-                />
-              </div>
-            </div>
-
-            <div className="mt-4 flex flex-wrap gap-3">
-              <Button variant="outline" size="sm" className="flex-1">
-                <MessageSquare className="mr-2 h-4 w-4" />
-                Message Client
-              </Button>
-              <Button variant="outline" size="sm" className="flex-1">
-                <FileText className="mr-2 h-4 w-4" />
-                View Details
-              </Button>
-              {project.status === "review" && (
-                <Button variant="accent" size="sm" className="flex-1">
-                  <CheckCircle className="mr-2 h-4 w-4" />
-                  Deliver Work
-                </Button>
-              )}
-            </div>
-          </div>
-        ))}
-      </div>
-    );
-  };
-
-  const renderCompletedProjects = () => {
-    if (loading) {
-      return (
-        <div className="flex items-center justify-center py-12">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-accent"></div>
-        </div>
-      );
-    }
-
-    if (filteredProjects.length === 0) {
-      return (
-        <div className="rounded-2xl border border-border bg-card p-12 text-center">
-          <CheckCircle className="mx-auto h-12 w-12 text-muted-foreground" />
-          <h3 className="mt-4 font-display text-xl font-semibold text-foreground">
-            No completed projects
-          </h3>
-          <p className="mt-2 text-muted-foreground">
-            {searchQuery
-              ? "Try adjusting your search query"
-              : "You haven't completed any projects yet"}
-          </p>
-        </div>
-      );
-    }
-
-    return (
-      <div className="space-y-6">
-        {filteredProjects.map((project) => (
-          <div
-            key={project.id}
-            className="rounded-2xl border border-border bg-card p-6 transition-all hover:shadow-lg"
-          >
-            <div className="flex items-start justify-between gap-4">
-              <div className="flex-1">
-                <div className="flex items-center gap-3">
-                  <h3 className="font-display text-lg font-semibold text-foreground">
-                    {project.title}
-                  </h3>
-                  <span className="flex items-center gap-1 rounded-full bg-green-500/10 px-3 py-1 text-xs font-medium text-green-600">
-                    <CheckCircle className="h-3 w-3" />
-                    Completed
-                  </span>
-                </div>
-              </div>
-              <Button variant="ghost" size="icon">
-                <MoreHorizontal className="h-5 w-5" />
-              </Button>
-            </div>
-
-            <div className="mt-4 flex items-center gap-3">
-              <img
-                src={project.client?.avatar || "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop"}
-                alt={project.client?.name || "Client"}
-                className="h-10 w-10 rounded-full object-cover"
-              />
-              <div>
-                <p className="text-sm font-medium text-foreground">{project.client?.name || "Client"}</p>
-                <p className="text-xs text-muted-foreground">Client</p>
-              </div>
-            </div>
-
-            <div className="mt-4 grid grid-cols-2 gap-4 rounded-xl bg-secondary p-4">
-              <div>
-                <p className="text-xs text-muted-foreground">Completed</p>
-                <p className="mt-1 text-sm font-medium text-foreground">
-                  {project.completedAt ? new Date(project.completedAt).toLocaleDateString() : "N/A"}
-                </p>
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Earned</p>
-                <p className="mt-1 text-sm font-medium text-accent">
-                  {formatCurrency(project.budget.min)} - {formatCurrency(project.budget.max)}
-                </p>
-              </div>
-            </div>
-
-            <div className="mt-4 flex gap-3">
-              <Button variant="outline" size="sm" className="flex-1">
-                <FileText className="mr-2 h-4 w-4" />
-                View Details
-              </Button>
-              <Button variant="outline" size="sm" className="flex-1">
-                <MessageSquare className="mr-2 h-4 w-4" />
-                Contact Client
-              </Button>
-            </div>
-          </div>
-        ))}
-      </div>
-    );
-  };
-
-  const renderCancelledProjects = () => {
-    if (loading) {
-      return (
-        <div className="flex items-center justify-center py-12">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-accent"></div>
-        </div>
-      );
-    }
-
-    if (filteredProjects.length === 0) {
-      return (
-        <div className="rounded-2xl border border-border bg-card p-12 text-center">
-          <XCircle className="mx-auto h-12 w-12 text-muted-foreground" />
-          <h3 className="mt-4 font-display text-xl font-semibold text-foreground">
-            No cancelled projects
-          </h3>
-          <p className="mt-2 text-muted-foreground">
-            {searchQuery
-              ? "Try adjusting your search query"
-              : "You don't have any cancelled projects"}
-          </p>
-        </div>
-      );
-    }
-
-    return (
-      <div className="space-y-6">
-        {filteredProjects.map((project) => (
-          <div
-            key={project.id}
-            className="rounded-2xl border border-border bg-card p-6 opacity-75 transition-all hover:shadow-lg"
-          >
-            <div className="flex items-start justify-between gap-4">
-              <div className="flex-1">
-                <div className="flex items-center gap-3">
-                  <h3 className="font-display text-lg font-semibold text-foreground">
-                    {project.title}
-                  </h3>
-                  <span className="flex items-center gap-1 rounded-full bg-red-500/10 px-3 py-1 text-xs font-medium text-red-600">
-                    <XCircle className="h-3 w-3" />
-                    Cancelled
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-4 flex items-center gap-3">
-              <img
-                src={project.client?.avatar || "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop"}
-                alt={project.client?.name || "Client"}
-                className="h-10 w-10 rounded-full object-cover"
-              />
-              <div>
-                <p className="text-sm font-medium text-foreground">{project.client?.name || "Client"}</p>
-                <p className="text-xs text-muted-foreground">Client</p>
-              </div>
-            </div>
-
-            <div className="mt-4 rounded-xl bg-secondary p-4">
-              <p className="text-xs text-muted-foreground">Cancellation Date</p>
-              <p className="mt-1 text-sm text-foreground">
-                {project.updatedAt ? new Date(project.updatedAt).toLocaleDateString() : "N/A"}
-              </p>
-            </div>
-          </div>
-        ))}
-      </div>
-    );
-  };
-
-  if (authLoading || (loading && projects.length === 0)) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
-      </div>
-    );
-  }
-
-  if (!user || user.role !== "FREELANCER") {
-    return null;
-  }
-
   return (
-    <div className="min-h-screen bg-background">
-      <Navbar userType="freelancer" />
+    <div className="min-h-screen bg-[var(--paper)] text-[var(--ink)] font-sans-ledger selection:bg-[var(--signal)] selection:text-[var(--paper)] flex flex-col justify-between">
+      
+      {/* Top Navbar */}
+      <Navbar userType={user?.role?.toLowerCase() || "freelancer"} />
 
-      {/* Header */}
-      <section className="border-b border-border bg-secondary/30 py-8">
-        <div className="container mx-auto px-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="font-display text-3xl font-bold text-foreground sm:text-4xl">
-                My Projects
+      {/* Floating Tool Rail */}
+      <CommandRail userType={user?.role?.toLowerCase() || "freelancer"} />
+
+      {/* Main Container */}
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 lg:pl-20 py-8 sm:py-12 space-y-10 flex-1 w-full pb-24 lg:pb-12">
+        
+        {/* EDITORIAL HEADER */}
+        <section className="space-y-4 text-left border-b border-[var(--ink)] pb-8">
+          <p className="font-mono-ledger text-[11px] uppercase tracking-[0.08em] text-[var(--muted)] flex items-center space-x-2">
+            <span className="w-2 h-2 rounded-full bg-[var(--signal)] inline-block animate-pulse"></span>
+            <span>FREELANCEHUB ARCHIVE · OPEN PROJECT BRIEFS</span>
+          </p>
+          
+          <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+            <div className="space-y-2">
+              <h1 className="font-serif-ledger text-[38px] sm:text-[50px] leading-[1.05] font-medium tracking-tight text-[var(--ink)]">
+                Browse Open Briefs.
               </h1>
-              <p className="mt-2 text-lg text-muted-foreground">
-                Manage and track all your ongoing and completed projects
+              <p className="text-[15px] text-[var(--muted)] max-w-xl">
+                Explore verified project briefs, compare budgets in NPR, and submit custom proposals directly to clients across Nepal.
               </p>
             </div>
-            <Link href="/freelancer/jobs">
-              <Button variant="accent" className="hidden sm:flex">
-                <Briefcase className="mr-2 h-5 w-5" />
-                Find New Work
-              </Button>
-            </Link>
-          </div>
 
-          {/* Search Bar */}
-          <form onSubmit={handleSearch} className="mt-6 flex gap-3">
+            {user?.role === 'CLIENT' && (
+              <Link 
+                href="/client/post-project" 
+                className="bg-[var(--signal)] hover:bg-[var(--signal-dark)] text-[var(--paper)] font-mono-ledger font-bold text-[12px] uppercase tracking-wider px-5 py-3 transition-colors inline-flex items-center space-x-2 shrink-0 shadow-xs"
+              >
+                <span>POST A NEW BRIEF →</span>
+              </Link>
+            )}
+          </div>
+        </section>
+
+
+        {/* SEARCH & CATEGORY FILTERING */}
+        <section className="space-y-4 text-left font-mono-ledger text-[12px]">
+          
+          {/* Search Input Bar */}
+          <form onSubmit={handleSearchSubmit} className="flex gap-3">
             <div className="relative flex-1">
-              <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                type="search"
-                placeholder="Search projects by title, skills, or description..."
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-[var(--muted)]" />
+              <input
+                type="text"
+                placeholder="Search open briefs by title, required skills, or scope..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="h-12 w-full rounded-xl border-border bg-card pl-12 pr-4 text-base shadow-sm"
+                className="w-full bg-[var(--paper-2)] border-2 border-[var(--ink)] py-3 pl-11 pr-4 text-[13px] text-[var(--ink)] placeholder-[var(--muted)] focus:outline-none focus:border-[var(--signal)]"
               />
             </div>
-            <Button type="submit" variant="accent" size="lg" className="px-8">
-              Search
-            </Button>
+            <button
+              type="submit"
+              className="bg-[var(--ink)] text-[var(--paper)] font-bold px-6 py-3 hover:bg-[var(--signal)] transition-colors uppercase"
+            >
+              SEARCH
+            </button>
           </form>
-        </div>
-      </section>
 
-      {/* Error Message */}
-      {error && (
-        <section className="container mx-auto px-4 pt-6">
-          <Alert className="border-2 border-red-200 bg-red-50">
-            <AlertCircle className="h-5 w-5 text-red-600" />
-            <AlertDescription className="text-red-800 font-semibold">
-              {error}
-            </AlertDescription>
-          </Alert>
-        </section>
-      )}
-
-      {/* Stats */}
-      <section className="border-b border-border bg-background py-6">
-        <div className="container mx-auto px-4">
-          <div className="grid gap-4 sm:grid-cols-3">
-            <div className="rounded-xl border border-border bg-card p-4">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-accent/10">
-                  <Clock className="h-5 w-5 text-accent" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Active Projects</p>
-                  <p className="font-display text-2xl font-bold text-foreground">
-                    {activeTab === "active" ? filteredProjects.length : 0}
-                  </p>
-                </div>
-              </div>
-            </div>
-            <div className="rounded-xl border border-border bg-card p-4">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-green-500/10">
-                  <CheckCircle className="h-5 w-5 text-green-600" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Completed</p>
-                  <p className="font-display text-2xl font-bold text-foreground">
-                    {activeTab === "completed" ? filteredProjects.length : 0}
-                  </p>
-                </div>
-              </div>
-            </div>
-            <div className="rounded-xl border border-border bg-card p-4">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-accent/10">
-                  <Banknote className="h-5 w-5 text-accent" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Total Earned</p>
-                  <p className="font-display text-2xl font-bold text-foreground">Rs. 0</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Tabs */}
-      <section className="border-b border-border bg-background">
-        <div className="container mx-auto px-4">
-          <div className="flex gap-1">
-            {tabs.map((tab) => (
+          {/* Category Filter Pills */}
+          <div className="flex flex-wrap items-center gap-2 pt-2 border-b border-[var(--line)] pb-4">
+            <span className="text-[var(--muted)] text-[10px] uppercase font-bold mr-2">CATEGORIES:</span>
+            {categories.map((cat) => (
               <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-2 border-b-2 px-6 py-4 text-sm font-medium transition-colors ${
-                  activeTab === tab.id
-                    ? "border-accent text-accent"
-                    : "border-transparent text-muted-foreground hover:text-foreground"
+                key={cat}
+                onClick={() => setSelectedCategory(cat)}
+                className={`px-3 py-1 text-[11px] border transition-colors ${
+                  selectedCategory === cat
+                    ? "bg-[var(--ink)] text-[var(--paper)] border-[var(--ink)] font-bold"
+                    : "bg-[var(--paper-2)] text-[var(--ink)] border-[var(--line)] hover:border-[var(--ink)]"
                 }`}
               >
-                {tab.label}
-                <span
-                  className={`rounded-full px-2 py-0.5 text-xs ${
-                    activeTab === tab.id
-                      ? "bg-accent text-accent-foreground"
-                      : "bg-secondary text-muted-foreground"
-                  }`}
-                >
-                  {tab.count}
-                </span>
+                {cat}
               </button>
             ))}
           </div>
-        </div>
-      </section>
 
-      {/* Content */}
-      <main className="container mx-auto px-4 py-8">
-        {activeTab === "active" && renderActiveProjects()}
-        {activeTab === "completed" && renderCompletedProjects()}
-        {activeTab === "cancelled" && renderCancelledProjects()}
+          {/* Navigation Tabs */}
+          <div className="flex items-center space-x-6 border-b border-[var(--ink)] pb-2 text-[11px] uppercase">
+            <button
+              onClick={() => setActiveTab("all")}
+              className={`pb-2 border-b-2 font-bold transition-colors ${
+                activeTab === "all"
+                  ? "border-[var(--signal)] text-[var(--signal)]"
+                  : "border-transparent text-[var(--muted)] hover:text-[var(--ink)]"
+              }`}
+            >
+              ALL BRIEFS ({filteredProjects.length})
+            </button>
+            <button
+              onClick={() => setActiveTab("my")}
+              className={`pb-2 border-b-2 font-bold transition-colors ${
+                activeTab === "my"
+                  ? "border-[var(--signal)] text-[var(--signal)]"
+                  : "border-transparent text-[var(--muted)] hover:text-[var(--ink)]"
+              }`}
+            >
+              MY ACTIVE CONTRACTS
+            </button>
+          </div>
+
+        </section>
+
+
+        {/* ERROR NOTIFICATION */}
+        {error && (
+          <div className="p-4 bg-red-50 border border-[var(--signal)] text-[var(--signal-dark)] font-mono-ledger text-[12px] flex items-center justify-between">
+            <div className="flex items-center space-x-2">
+              <AlertCircle className="h-4 w-4 text-[var(--signal)] shrink-0" />
+              <span>{error}</span>
+            </div>
+            <button 
+              onClick={fetchProjectsData}
+              className="px-3 py-1 bg-[var(--signal)] text-[var(--paper)] font-sans-ledger font-medium text-[12px] hover:bg-[var(--signal-dark)] transition-colors"
+            >
+              Retry Sync
+            </button>
+          </div>
+        )}
+
+
+        {/* PROJECTS GRID / BRIEF SPECIMEN DIRECTORY */}
+        <section className="space-y-6 text-left">
+          {loading ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {[1, 2, 3, 4, 5, 6].map((n) => (
+                <div key={n} className="border-2 border-[var(--line)] bg-[var(--paper-2)] h-48 animate-pulse p-6 space-y-4">
+                  <div className="h-4 bg-[var(--line)] w-1/3"></div>
+                  <div className="h-6 bg-[var(--line)] w-3/4"></div>
+                </div>
+              ))}
+            </div>
+          ) : filteredProjects.length === 0 ? (
+            <EmptyState
+              marker="PROJECT ARCHIVE"
+              title="No project briefs found."
+              description={searchQuery ? "No open projects matched your filter query. Try adjusting your search keywords." : "There are currently no active project briefs posted."}
+              actionLabel={user?.role === 'CLIENT' ? "POST A PROJECT BRIEF →" : "CLEAR SEARCH FILTERS"}
+              actionHref={user?.role === 'CLIENT' ? "/client/post-project" : null}
+              onActionClick={!user || user.role !== 'CLIENT' ? () => { setSearchQuery(""); setSelectedCategory("ALL"); } : null}
+            />
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 items-stretch">
+              {filteredProjects.map((project) => (
+                <div
+                  key={project.id}
+                  className="border-2 border-[var(--ink)] bg-[var(--paper)] p-6 space-y-4 text-left hover:border-[var(--signal)] transition-colors flex flex-col justify-between shadow-xs group"
+                >
+                  <div className="space-y-3">
+                    
+                    {/* Specimen Header & Status */}
+                    <div className="flex items-center justify-between border-b border-[var(--line)] pb-2.5 font-mono-ledger text-[10px] uppercase">
+                      <span className="text-[var(--signal)] font-bold flex items-center space-x-1">
+                        <span>SPECIMEN / #{project.id?.slice(0, 6) || '0042'}</span>
+                      </span>
+                      <span className="text-[var(--ink)] font-bold">
+                        [{project.status?.toUpperCase() || 'OPEN'}]
+                      </span>
+                    </div>
+
+                    {/* Title */}
+                    <h3 className="font-serif-ledger text-[20px] font-medium leading-snug text-[var(--ink)] group-hover:text-[var(--signal)] transition-colors">
+                      {project.title}
+                    </h3>
+
+                    {/* Description */}
+                    <p className="font-sans-ledger text-[13px] text-[var(--muted)] line-clamp-3 leading-relaxed">
+                      {project.description}
+                    </p>
+
+                    {/* Skills Specimen Pills */}
+                    {project.skills && project.skills.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5 pt-2">
+                        {project.skills.slice(0, 4).map((skill, idx) => (
+                          <span 
+                            key={idx} 
+                            className="font-mono-ledger text-[9px] uppercase px-2 py-0.5 bg-[var(--paper-2)] border border-[var(--line)] text-[var(--ink)]"
+                          >
+                            {skill}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+
+                  </div>
+
+                  {/* Footer & Budget Info */}
+                  <div className="pt-4 border-t border-[var(--line)] space-y-3 font-mono-ledger text-[11px]">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[var(--muted)]">BUDGET (NPR):</span>
+                      <span className="font-bold text-[var(--signal)] text-[13px]">
+                        NPR {project.budget_min?.toLocaleString() || project.budget_max?.toLocaleString() || project.budget?.min?.toLocaleString() || 'Agreed'}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center justify-between text-[10px] text-[var(--muted)] pt-1">
+                      <span>POSTED: {project.created_at ? new Date(project.created_at).toLocaleDateString() : 'RECENT'}</span>
+                      <span>{project.proposalsCount || 0} BIDS</span>
+                    </div>
+
+                    <Link
+                      href={`/projects/${project.id}`}
+                      className="w-full bg-[var(--ink)] hover:bg-[var(--signal)] text-[var(--paper)] font-bold text-[11px] uppercase tracking-wider py-2.5 transition-colors flex items-center justify-center space-x-1 text-center block"
+                    >
+                      <span>VIEW BRIEF & SUBMIT →</span>
+                    </Link>
+                  </div>
+
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+
       </main>
+
+      {/* Editorial Footer */}
+      <footer className="border-t border-[var(--line)] py-6 text-center mt-12 font-mono-ledger text-[12px] text-[var(--muted)]">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 flex flex-col sm:flex-row items-center justify-between gap-2">
+          <span>FreelanceHub · Open Project Directory</span>
+          <span>Engineered by Nantio Studio (www.nantio.it.com)</span>
+        </div>
+      </footer>
+
     </div>
   );
 }

@@ -4,9 +4,8 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Navbar from "@/components/layout/Navbar";
-import { Button } from "@/components/ui/button";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import CommandRail from "@/components/layout/CommandRail";
+import EmptyState from "@/components/common/EmptyState";
 import { useAuth } from "@/contexts/AuthContext";
 import { getMyProposals, withdrawProposal } from "@/lib/api";
 import { 
@@ -18,8 +17,8 @@ import {
   MinusCircle,
   User,
   Banknote,
+  ArrowRight
 } from "lucide-react";
-import { Pagination } from "@/components/ui/pagination";
 import { formatCurrency } from "@/lib/currency";
 
 export default function MyProposalsPage() {
@@ -31,10 +30,6 @@ export default function MyProposalsPage() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [actionLoading, setActionLoading] = useState({});
   const [successMessage, setSuccessMessage] = useState("");
-  
-  // Pagination states
-  const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(4);
 
   // Redirect if not authenticated or not a freelancer
   useEffect(() => {
@@ -62,11 +57,11 @@ export default function MyProposalsPage() {
         if (response.success) {
           setProposals(response.proposals || []);
         } else {
-          setError(response.error || "Failed to load proposals");
+          setError(response.error || "Could not load proposal register.");
         }
       } catch (err) {
         console.error("Error fetching proposals:", err);
-        setError(err.message || "Failed to load proposals");
+        setError("Network sync error while loading proposals.");
       } finally {
         setLoading(false);
       }
@@ -79,9 +74,7 @@ export default function MyProposalsPage() {
 
   // Handle withdraw proposal
   const handleWithdraw = async (proposalId) => {
-    if (!confirm("Are you sure you want to withdraw this proposal?")) {
-      return;
-    }
+    if (!confirm("Are you sure you want to withdraw this proposal?")) return;
 
     try {
       setActionLoading({ ...actionLoading, [proposalId]: "withdrawing" });
@@ -95,7 +88,7 @@ export default function MyProposalsPage() {
         setProposals(proposals.map(p => 
           p.id === proposalId ? { ...p, status: "withdrawn" } : p
         ));
-        setTimeout(() => setSuccessMessage(""), 3000);
+        setTimeout(() => setSuccessMessage(""), 3500);
       } else {
         setError(response.error || "Failed to withdraw proposal");
       }
@@ -107,255 +100,203 @@ export default function MyProposalsPage() {
     }
   };
 
-  const getStatusBadge = (status) => {
-    const badges = {
-      pending: { bg: "bg-yellow-100", text: "text-yellow-700", icon: Clock, label: "Pending" },
-      accepted: { bg: "bg-green-100", text: "text-green-700", icon: CheckCircle, label: "Accepted" },
-      rejected: { bg: "bg-red-100", text: "text-red-700", icon: XCircle, label: "Rejected" },
-      withdrawn: { bg: "bg-gray-100", text: "text-gray-700", icon: MinusCircle, label: "Withdrawn" }
-    };
-    
-    const badge = badges[status] || badges.pending;
-    const Icon = badge.icon;
-    
-    return (
-      <div className={`flex items-center gap-2 rounded-full px-3 py-1 text-sm font-medium ${badge.bg} ${badge.text}`}>
-        <Icon className="h-4 w-4" />
-        {badge.label}
-      </div>
-    );
-  };
-
-  if (authLoading || (loading && proposals.length === 0)) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
-      </div>
-    );
-  }
-
-  if (!user || user.role !== "FREELANCER") {
-    return null;
-  }
-
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-[var(--paper)] text-[var(--ink)] font-sans-ledger selection:bg-[var(--signal)] selection:text-[var(--paper)] flex flex-col justify-between">
+      
+      {/* Top Navbar */}
       <Navbar userType="freelancer" />
 
-      <main className="container mx-auto px-4 py-8">
-        <div className="max-w-6xl mx-auto">
-          {/* Header */}
-          <div className="mb-6">
-            <h1 className="font-display text-3xl font-bold text-foreground">
-              My <span className="text-amber-500">Proposals</span>
-            </h1>
-            <p className="text-muted-foreground mt-1">
-              Track and manage your submitted proposals
-            </p>
-          </div>
+      {/* Floating Tool Rail */}
+      <CommandRail userType="freelancer" />
 
-          {/* Filters */}
-          <div className="flex flex-wrap gap-2 mb-6">
-            <Button 
-              variant={statusFilter === "all" ? "accent" : "outline"} 
-              size="sm"
-              onClick={() => setStatusFilter("all")}
-            >
-              All
-            </Button>
-            <Button 
-              variant={statusFilter === "pending" ? "accent" : "outline"} 
-              size="sm"
-              onClick={() => setStatusFilter("pending")}
-            >
-              Pending
-            </Button>
-            <Button 
-              variant={statusFilter === "accepted" ? "accent" : "outline"} 
-              size="sm"
-              onClick={() => setStatusFilter("accepted")}
-            >
-              Accepted
-            </Button>
-            <Button 
-              variant={statusFilter === "rejected" ? "accent" : "outline"} 
-              size="sm"
-              onClick={() => setStatusFilter("rejected")}
-            >
-              Rejected
-            </Button>
-            <Button 
-              variant={statusFilter === "withdrawn" ? "accent" : "outline"} 
-              size="sm"
-              onClick={() => setStatusFilter("withdrawn")}
-            >
-              Withdrawn
-            </Button>
-          </div>
-
-          {/* Error Message */}
-          {error && (
-            <Alert className="mb-6 border-2 border-red-200 bg-red-50">
-              <AlertCircle className="h-5 w-5 text-red-600" />
-              <AlertDescription className="text-red-800 font-semibold">
-                {error}
-              </AlertDescription>
-            </Alert>
-          )}
-
-          {/* Success Message */}
-          {successMessage && (
-            <Alert className="mb-6 border-2 border-green-200 bg-green-50">
-              <CheckCircle className="h-5 w-5 text-green-600" />
-              <AlertDescription className="text-green-800 font-semibold">
-                {successMessage}
-              </AlertDescription>
-            </Alert>
-          )}
-
-          {/* Loading State */}
-          {loading && (
-            <div className="flex items-center justify-center py-12">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+      {/* Main Container */}
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 lg:pl-20 py-8 sm:py-12 space-y-10 flex-1 w-full pb-24 lg:pb-12">
+        
+        {/* EDITORIAL HEADER */}
+        <section className="space-y-4 text-left border-b border-[var(--ink)] pb-8">
+          <p className="font-mono-ledger text-[11px] uppercase tracking-[0.08em] text-[var(--muted)] flex items-center space-x-2">
+            <span className="w-2 h-2 rounded-full bg-[var(--signal)] inline-block animate-pulse"></span>
+            <span>FREELANCEHUB PROPOSAL REGISTER · SUBMITTED BIDS</span>
+          </p>
+          
+          <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+            <div className="space-y-2">
+              <h1 className="font-serif-ledger text-[38px] sm:text-[50px] leading-[1.05] font-medium tracking-tight text-[var(--ink)]">
+                Submitted Proposals.
+              </h1>
+              <p className="text-[15px] text-[var(--muted)] max-w-xl">
+                Track your active proposals, review client statuses, and manage bid specifications across open project briefs.
+              </p>
             </div>
-          )}
 
-          {/* Empty State */}
-          {!loading && proposals.length === 0 ? (
-            <Card className="border-border">
-              <CardContent className="py-12 text-center">
-                <FileText className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-                <h3 className="font-display text-xl font-semibold text-foreground mb-2">
-                  No proposals found
-                </h3>
-                <p className="text-muted-foreground mb-6">
-                  Start browsing projects and submit your first proposal
-                </p>
-                <Link href="/freelancer/jobs">
-                  <Button variant="accent">
-                    Browse Projects
-                  </Button>
-                </Link>
-              </CardContent>
-            </Card>
+            <Link 
+              href="/projects" 
+              className="bg-[var(--signal)] hover:bg-[var(--signal-dark)] text-[var(--paper)] font-mono-ledger font-bold text-[12px] uppercase tracking-wider px-5 py-3 transition-colors inline-flex items-center space-x-2 shrink-0 shadow-xs"
+            >
+              <span>BROWSE OPEN BRIEFS →</span>
+            </Link>
+          </div>
+        </section>
+
+
+        {/* FILTER TABS */}
+        <section className="space-y-4 text-left font-mono-ledger text-[11px] uppercase">
+          <div className="flex flex-wrap items-center gap-2 border-b border-[var(--ink)] pb-3">
+            <span className="text-[var(--muted)] font-bold mr-2">STATUS FILTER:</span>
+            {[
+              { id: "all", label: "ALL PROPOSALS" },
+              { id: "pending", label: "PENDING REVIEW" },
+              { id: "accepted", label: "ACCEPTED & CONTRACTED" },
+              { id: "rejected", label: "REJECTED" },
+              { id: "withdrawn", label: "WITHDRAWN" }
+            ].map((t) => (
+              <button
+                key={t.id}
+                onClick={() => setStatusFilter(t.id)}
+                className={`px-3.5 py-1.5 border transition-colors ${
+                  statusFilter === t.id
+                    ? "bg-[var(--ink)] text-[var(--paper)] border-[var(--ink)] font-bold"
+                    : "bg-[var(--paper-2)] text-[var(--ink)] border-[var(--line)] hover:border-[var(--ink)]"
+                }`}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
+        </section>
+
+
+        {/* NOTIFICATIONS */}
+        {error && (
+          <div className="p-4 bg-red-50 border border-[var(--signal)] text-[var(--signal-dark)] font-mono-ledger text-[12px] flex items-center space-x-2">
+            <AlertCircle className="h-4 w-4 text-[var(--signal)] shrink-0" />
+            <span>{error}</span>
+          </div>
+        )}
+
+        {successMessage && (
+          <div className="p-4 bg-green-50 border border-green-600 text-green-800 font-mono-ledger text-[12px] flex items-center space-x-2">
+            <CheckCircle className="h-4 w-4 text-green-600 shrink-0" />
+            <span className="font-bold">{successMessage}</span>
+          </div>
+        )}
+
+
+        {/* PROPOSALS SPECIMEN LIST */}
+        <section className="space-y-6 text-left">
+          {loading ? (
+            <div className="space-y-4">
+              {[1, 2, 3].map((n) => (
+                <div key={n} className="border-2 border-[var(--line)] bg-[var(--paper-2)] h-44 animate-pulse p-6"></div>
+              ))}
+            </div>
+          ) : proposals.length === 0 ? (
+            <EmptyState
+              marker="PROPOSAL ARCHIVE"
+              title="No proposals submitted yet."
+              description="Explore verified open project briefs and submit tailored proposals with your rate in NPR."
+              actionLabel="BROWSE OPEN PROJECTS →"
+              actionHref="/projects"
+            />
           ) : (
-            <>
-              <div className="grid gap-4 md:grid-cols-2">
-                {proposals
-                  .slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
-                  .map((proposal) => (
-                <Card
+            <div className="space-y-6">
+              {proposals.map((proposal) => (
+                <div
                   key={proposal.id}
-                  className="border-border hover:shadow-lg transition-shadow"
+                  className="border-2 border-[var(--ink)] bg-[var(--paper)] p-6 space-y-4 text-left hover:border-[var(--signal)] transition-colors shadow-xs group"
                 >
-                  <CardHeader>
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <Link href={`/projects/${proposal.projectId}`}>
-                          <CardTitle className="font-display text-lg hover:text-accent transition-colors cursor-pointer">
-                            {proposal.project.title}
-                          </CardTitle>
-                        </Link>
-                        <p className="text-sm text-muted-foreground mt-1">
-                          Submitted {new Date(proposal.createdAt).toLocaleDateString()}
-                        </p>
-                      </div>
-                      {getStatusBadge(proposal.status)}
+                  {/* Header Strip */}
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-[var(--line)] pb-3 gap-2 font-mono-ledger text-[11px] uppercase">
+                    <span className="text-[var(--signal)] font-bold flex items-center space-x-1.5">
+                      <span>PROPOSAL SPECIMEN / #{proposal.id?.slice(0, 8) || '0001'}</span>
+                    </span>
+
+                    <div className="flex items-center space-x-3 text-[10px]">
+                      <span>SUBMITTED: {new Date(proposal.createdAt || Date.now()).toLocaleDateString()}</span>
+                      <span className="px-2 py-0.5 border border-[var(--ink)] bg-[var(--paper-2)] font-bold text-[var(--ink)]">
+                        [{proposal.status?.toUpperCase() || 'PENDING'}]
+                      </span>
                     </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-3">
-                      {/* Client Info */}
+                  </div>
+
+                  {/* Body Grid */}
+                  <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-6">
+                    
+                    <div className="space-y-2 max-w-2xl">
+                      <Link href={`/projects/${proposal.projectId}`}>
+                        <h3 className="font-serif-ledger text-[22px] font-medium text-[var(--ink)] leading-snug group-hover:text-[var(--signal)] transition-colors">
+                          {proposal.project?.title || "Project Brief Specimen"}
+                        </h3>
+                      </Link>
+
                       {proposal.client && (
-                        <div className="flex items-center gap-2 pb-3 border-b border-border">
-                          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-accent">
-                            <User className="h-4 w-4" />
-                          </div>
-                          <div>
-                            <p className="text-sm font-medium text-foreground">{proposal.client.name}</p>
-                            {proposal.client.company && (
-                              <p className="text-xs text-muted-foreground">{proposal.client.company}</p>
-                            )}
-                          </div>
-                        </div>
+                        <p className="font-mono-ledger text-[11px] text-[var(--muted)] uppercase">
+                          CLIENT: {proposal.client.name} {proposal.client.company && `(${proposal.client.company})`}
+                        </p>
                       )}
 
-                      {/* Proposal Details */}
+                      {proposal.coverLetter && (
+                        <p className="font-sans-ledger text-[13px] text-[var(--muted)] line-clamp-2 leading-relaxed pt-1">
+                          "{proposal.coverLetter}"
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="text-left lg:text-right font-mono-ledger space-y-1 shrink-0">
                       {proposal.proposedBudget && (
-                        <div className="flex items-center gap-2">
-                          <Banknote className="h-4 w-4 text-accent" />
-                          <span className="text-sm text-muted-foreground">Budget:</span>
-                          <span className="font-semibold text-foreground">
+                        <div>
+                          <span className="text-[10px] text-[var(--muted)] uppercase block">PROPOSED BID (NPR)</span>
+                          <span className="text-[22px] font-bold text-[var(--signal)] block tracking-tight">
                             {formatCurrency(proposal.proposedBudget)}
                           </span>
                         </div>
                       )}
-                      
+
                       {proposal.proposedTimeline && (
-                        <div className="flex items-center gap-2">
-                          <Clock className="h-4 w-4 text-accent" />
-                          <span className="text-sm text-muted-foreground">Timeline:</span>
-                          <span className="font-semibold text-foreground">
-                            {proposal.proposedTimeline}
-                          </span>
-                        </div>
+                        <span className="text-[11px] text-[var(--ink)] font-bold block">
+                          TIMELINE: {proposal.proposedTimeline}
+                        </span>
                       )}
-
-                      {/* Cover Letter Preview */}
-                      <div className="pt-3 border-t border-border">
-                        <p className="text-xs font-semibold text-foreground mb-1">Cover Letter:</p>
-                        <p className="text-xs text-muted-foreground line-clamp-2">
-                          {proposal.coverLetter}
-                        </p>
-                      </div>
-
-                      {/* Actions */}
-                      <div className="flex gap-2 pt-3 border-t border-border">
-                        <Link href={`/projects/${proposal.projectId}`} className="flex-1">
-                          <Button variant="outline" size="sm" className="w-full">
-                            View Project
-                          </Button>
-                        </Link>
-                        {proposal.status === "pending" && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleWithdraw(proposal.id)}
-                            disabled={actionLoading[proposal.id] === "withdrawing"}
-                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                          >
-                            {actionLoading[proposal.id] === "withdrawing" ? (
-                              <>
-                                <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-red-600 mr-1"></div>
-                                Withdrawing...
-                              </>
-                            ) : (
-                              "Withdraw"
-                            )}
-                          </Button>
-                        )}
-                      </div>
                     </div>
-                  </CardContent>
-                </Card>
+
+                  </div>
+
+                  {/* Actions Footer */}
+                  <div className="pt-4 border-t border-[var(--line)] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 font-mono-ledger text-[11px]">
+                    <Link
+                      href={`/projects/${proposal.projectId}`}
+                      className="text-[var(--ink)] hover:text-[var(--signal)] font-bold uppercase underline text-[11px]"
+                    >
+                      VIEW PROJECT SPECIMEN BRIEF →
+                    </Link>
+
+                    {proposal.status === "pending" && (
+                      <button
+                        onClick={() => handleWithdraw(proposal.id)}
+                        disabled={actionLoading[proposal.id] === "withdrawing"}
+                        className="px-4 py-2 border border-[var(--ink)] bg-[var(--paper-2)] text-[var(--signal)] hover:bg-red-50 font-bold uppercase transition-colors"
+                      >
+                        {actionLoading[proposal.id] === "withdrawing" ? "WITHDRAWING..." : "WITHDRAW PROPOSAL"}
+                      </button>
+                    )}
+                  </div>
+
+                </div>
               ))}
-              </div>
-              
-              {/* Pagination */}
-              <Pagination
-                currentPage={currentPage}
-                totalPages={Math.ceil(proposals.length / itemsPerPage)}
-                onPageChange={(page) => {
-                  setCurrentPage(page);
-                  window.scrollTo({ top: 0, behavior: 'smooth' });
-                }}
-                itemsPerPage={itemsPerPage}
-                totalItems={proposals.length}
-              />
-            </>
+            </div>
           )}
-        </div>
+        </section>
+
       </main>
+
+      {/* Editorial Footer */}
+      <footer className="border-t border-[var(--line)] py-6 text-center mt-12 font-mono-ledger text-[12px] text-[var(--muted)]">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 flex flex-col sm:flex-row items-center justify-between gap-2">
+          <span>FreelanceHub · Proposal Register & Bids Archive</span>
+          <span>Engineered by Nantio Studio (www.nantio.it.com)</span>
+        </div>
+      </footer>
+
     </div>
   );
 }

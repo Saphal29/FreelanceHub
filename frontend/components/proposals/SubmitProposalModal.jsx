@@ -1,10 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import { submitProposal } from "@/lib/api";
 import { X, Send, AlertCircle, CheckCircle } from "lucide-react";
 import FileUpload from "@/components/files/FileUpload";
@@ -22,7 +18,6 @@ export default function SubmitProposalModal({ project, onClose, onSuccess }) {
   const [proposalFiles, setProposalFiles] = useState([]);
   const [filesUploading, setFilesUploading] = useState(false);
 
-  // Lock body scroll when modal is open
   useEffect(() => {
     document.body.style.overflow = 'hidden';
     return () => {
@@ -55,209 +50,163 @@ export default function SubmitProposalModal({ project, onClose, onSuccess }) {
         coverLetter: formData.coverLetter,
         proposedBudget: formData.proposedBudget ? parseFloat(formData.proposedBudget) : null,
         proposedTimeline: formData.proposedTimeline || null,
-        fileIds: proposalFiles.map(f => f.file.id) // Add file IDs
+        fileIds: proposalFiles.map(f => f.file?.id || f.id).filter(Boolean)
       });
-
-      console.log('Submitting proposal with fileIds:', proposalFiles.map(f => f.file.id));
 
       if (response.success) {
         setSuccess(true);
         setTimeout(() => {
           onSuccess && onSuccess(response.proposal);
           onClose();
-        }, 2000);
+        }, 1800);
       } else {
-        setError(response.error || "Failed to submit proposal");
+        setError(response.error || "Failed to submit proposal brief");
       }
     } catch (err) {
       console.error("Error submitting proposal:", err);
-      setError(err.message || "Failed to submit proposal");
+      setError(err.message || "Failed to submit proposal brief");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="relative w-full max-w-2xl rounded-2xl border border-border bg-card shadow-xl my-8 max-h-[90vh] flex flex-col">
-        {/* Header - Fixed */}
-        <div className="bg-card rounded-t-2xl border-b border-border p-6">
-          <div className="flex items-start justify-between">
-            <div>
-              <h2 className="font-display text-2xl font-bold text-foreground">
-                Submit Proposal
-              </h2>
-              <p className="mt-1 text-sm text-muted-foreground">
-                {project.title}
-              </p>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--ink)]/60 backdrop-blur-xs p-4 text-left font-sans-ledger">
+      <div className="relative w-full max-w-2xl border-2 border-[var(--ink)] bg-[var(--paper)] shadow-2xl max-h-[90vh] flex flex-col">
+        
+        {/* Modal Header */}
+        <div className="border-b border-[var(--ink)] p-5 bg-[var(--paper-2)] flex items-center justify-between font-mono-ledger text-[11px] uppercase tracking-wider">
+          <div>
+            <span className="text-[var(--signal)] font-bold block">PROPOSAL SUBMISSION SPECIMEN</span>
+            <span className="text-[var(--ink)] font-bold text-[13px]">{project.title}</span>
+          </div>
+          <button
+            onClick={onClose}
+            className="text-[var(--muted)] hover:text-[var(--ink)] font-bold text-[14px]"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        {/* Scrollable Form Body */}
+        <div className="p-6 overflow-y-auto flex-1 space-y-6">
+          
+          {success && (
+            <div className="p-4 bg-green-50 border border-green-600 text-green-800 font-mono-ledger text-[12px] flex items-center space-x-2">
+              <CheckCircle className="h-4 w-4 text-green-600 shrink-0" />
+              <span className="font-bold">Proposal brief submitted on record! Closing window...</span>
             </div>
-            <button
-              onClick={onClose}
-              className="rounded-lg p-2 hover:bg-secondary transition-colors"
-            >
-              <X className="h-5 w-5" />
-            </button>
-          </div>
-        </div>
+          )}
 
-        {/* Scrollable Content */}
-        <div className="p-6 overflow-y-auto flex-1">
-        {/* Success Message */}
-        {success && (
-          <Alert className="mb-6 border-2 border-green-200 bg-green-50">
-            <CheckCircle className="h-5 w-5 text-green-600" />
-            <AlertDescription className="text-green-800 font-semibold">
-              Proposal submitted successfully! Redirecting...
-            </AlertDescription>
-          </Alert>
-        )}
+          {error && (
+            <div className="p-4 bg-red-50 border border-[var(--signal)] text-[var(--signal-dark)] font-mono-ledger text-[12px] flex items-center space-x-2">
+              <AlertCircle className="h-4 w-4 text-[var(--signal)] shrink-0" />
+              <span className="font-bold">{error}</span>
+            </div>
+          )}
 
-        {/* Error Message */}
-        {error && (
-          <Alert className="mb-6 border-2 border-red-200 bg-red-50">
-            <AlertCircle className="h-5 w-5 text-red-600" />
-            <AlertDescription className="text-red-800 font-semibold">
-              {error}
-            </AlertDescription>
-          </Alert>
-        )}
-
-        {/* Form */}
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Cover Letter */}
-          <div>
-            <Label htmlFor="coverLetter" className="text-foreground font-semibold">
-              Cover Letter <span className="text-red-500">*</span>
-            </Label>
-            <p className="text-sm text-muted-foreground mb-2">
-              Explain why you're the best fit for this project (minimum 50 characters)
-            </p>
-            <textarea
-              id="coverLetter"
-              name="coverLetter"
-              value={formData.coverLetter}
-              onChange={handleChange}
-              rows={6}
-              className="w-full rounded-xl border border-border bg-background px-4 py-3 text-foreground focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
-              placeholder="Dear Client,&#10;&#10;I am excited to submit my proposal for your project...&#10;&#10;I have extensive experience in..."
-              required
-            />
-            <p className="mt-1 text-xs text-muted-foreground">
-              {formData.coverLetter.length} / 5000 characters
-            </p>
-          </div>
-
-          {/* Proposed Budget */}
-          <div>
-            <Label htmlFor="proposedBudget" className="text-foreground font-semibold">
-              Proposed Budget (NPR)
-            </Label>
-            <p className="text-sm text-muted-foreground mb-2">
-              Project budget: {formatCurrency(project.budget?.min)} - {formatCurrency(project.budget?.max)}
-            </p>
-            <Input
-              id="proposedBudget"
-              name="proposedBudget"
-              type="number"
-              min="0"
-              step="0.01"
-              value={formData.proposedBudget}
-              onChange={handleChange}
-              placeholder="Enter your proposed budget"
-              className="h-12"
-            />
-          </div>
-
-          {/* Proposed Timeline */}
-          <div>
-            <Label htmlFor="proposedTimeline" className="text-foreground font-semibold">
-              Proposed Timeline
-            </Label>
-            <p className="text-sm text-muted-foreground mb-2">
-              How long will it take to complete this project?
-            </p>
-            <Input
-              id="proposedTimeline"
-              name="proposedTimeline"
-              type="text"
-              value={formData.proposedTimeline}
-              onChange={handleChange}
-              placeholder="e.g., 2-3 weeks, 1 month"
-              className="h-12"
-            />
-          </div>
-
-          {/* Attachments */}
-          <div>
-            <Label className="text-foreground font-semibold">
-              Attachments (Optional)
-            </Label>
-            <p className="text-sm text-muted-foreground mb-2">
-              Attach your portfolio, resume, or work samples (files upload automatically)
-            </p>
-            <FileUpload
-              category="proposal_attachment"
-              maxSize={25}
-              multiple={true}
-              onUploadStart={() => {
-                setFilesUploading(true);
-              }}
-              onUploadSuccess={(files) => {
-                console.log('Files uploaded:', files);
-                setProposalFiles(prev => [...prev, ...files]);
-                setFilesUploading(false);
-              }}
-              onUploadError={() => {
-                setFilesUploading(false);
-              }}
-            />
-            {proposalFiles.length > 0 && (
-              <div className="mt-2 text-sm text-green-600">
-                ✓ {proposalFiles.length} file(s) uploaded successfully
+          <form onSubmit={handleSubmit} className="space-y-6">
+            
+            {/* Cover Letter */}
+            <div className="space-y-1.5 font-mono-ledger">
+              <div className="flex justify-between items-center text-[11px] uppercase font-bold text-[var(--ink)]">
+                <label htmlFor="coverLetter">COVER LETTER & APPROACH (MIN 50 CHARS) *</label>
+                <span className="text-[var(--muted)]">{formData.coverLetter.length}/5000</span>
               </div>
-            )}
-          </div>
-        </form>
+              <textarea
+                id="coverLetter"
+                name="coverLetter"
+                value={formData.coverLetter}
+                onChange={handleChange}
+                rows={6}
+                placeholder="Dear Client, I am writing to submit my technical proposal..."
+                className="w-full bg-[var(--paper-2)] border-2 border-[var(--ink)] p-3 text-[14px] text-[var(--ink)] focus:outline-none focus:border-[var(--signal)] font-sans-ledger leading-relaxed"
+                required
+              />
+            </div>
+
+            {/* Proposed Budget */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 font-mono-ledger">
+              <div className="space-y-1">
+                <label htmlFor="proposedBudget" className="text-[10px] text-[var(--muted)] uppercase font-bold block">
+                  PROPOSED BID (NPR)
+                </label>
+                <input
+                  id="proposedBudget"
+                  name="proposedBudget"
+                  type="number"
+                  step="0.01"
+                  value={formData.proposedBudget}
+                  onChange={handleChange}
+                  placeholder="e.g. 45000"
+                  className="w-full bg-[var(--paper-2)] border-2 border-[var(--ink)] p-3 text-[14px] font-bold focus:outline-none"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label htmlFor="proposedTimeline" className="text-[10px] text-[var(--muted)] uppercase font-bold block">
+                  ESTIMATED TIMELINE
+                </label>
+                <input
+                  id="proposedTimeline"
+                  name="proposedTimeline"
+                  type="text"
+                  value={formData.proposedTimeline}
+                  onChange={handleChange}
+                  placeholder="e.g. 3 Weeks"
+                  className="w-full bg-[var(--paper-2)] border-2 border-[var(--ink)] p-3 text-[13px] focus:outline-none"
+                />
+              </div>
+            </div>
+
+            {/* Attachments */}
+            <div className="space-y-2 font-mono-ledger">
+              <label className="text-[10px] text-[var(--muted)] uppercase font-bold block">
+                PORTFOLIO & SPECIMEN ATTACHMENTS (OPTIONAL)
+              </label>
+              <FileUpload
+                category="proposal_attachment"
+                maxSize={25}
+                multiple={true}
+                onUploadStart={() => setFilesUploading(true)}
+                onUploadSuccess={(files) => {
+                  setProposalFiles(prev => [...prev, ...files]);
+                  setFilesUploading(false);
+                }}
+                onUploadError={() => setFilesUploading(false)}
+              />
+              {proposalFiles.length > 0 && (
+                <p className="text-[11px] text-green-700 font-bold">
+                  ✓ {proposalFiles.length} specimen file(s) attached
+                </p>
+              )}
+            </div>
+
+          </form>
+
         </div>
 
-        {/* Footer - Fixed */}
-        <div className="bg-card rounded-b-2xl border-t border-border p-6">
-          <div className="flex gap-3">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={onClose}
-              disabled={loading}
-              className="flex-1"
-            >
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              variant="accent"
-              disabled={loading || success || filesUploading}
-              onClick={handleSubmit}
-              className="flex-1"
-            >
-              {loading ? (
-                <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                  Submitting...
-                </>
-              ) : filesUploading ? (
-                <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                  Uploading files...
-                </>
-              ) : (
-                <>
-                  <Send className="h-4 w-4 mr-2" />
-                  Submit Proposal
-                </>
-              )}
-            </Button>
-          </div>
+        {/* Modal Footer */}
+        <div className="border-t border-[var(--ink)] p-4 bg-[var(--paper-2)] flex justify-end gap-3 font-mono-ledger text-[11px]">
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={loading}
+            className="px-5 py-2.5 border border-[var(--ink)] bg-[var(--paper)] text-[var(--ink)] font-bold uppercase"
+          >
+            CANCEL
+          </button>
+
+          <button
+            type="submit"
+            onClick={handleSubmit}
+            disabled={loading || success || filesUploading}
+            className="px-6 py-2.5 bg-[var(--signal)] hover:bg-[var(--signal-dark)] text-[var(--paper)] font-bold uppercase transition-colors"
+          >
+            {loading ? "SUBMITTING..." : filesUploading ? "UPLOADING..." : "SUBMIT PROPOSAL BRIEF →"}
+          </button>
         </div>
+
       </div>
     </div>
   );

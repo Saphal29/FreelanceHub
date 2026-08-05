@@ -1,13 +1,24 @@
-import { Inter } from 'next/font/google'
+import { Fraunces, JetBrains_Mono } from 'next/font/google'
 import './globals.css'
 import { ClientProviders } from './ClientProviders'
 
-const inter = Inter({ subsets: ['latin'] })
+const fraunces = Fraunces({
+  subsets: ['latin'],
+  weight: ['400', '500', '600'],
+  variable: '--font-fraunces',
+  display: 'swap',
+})
+
+const jetbrainsMono = JetBrains_Mono({
+  subsets: ['latin'],
+  variable: '--font-mono',
+  display: 'swap',
+})
 
 export const metadata = {
-  title: 'FreelanceHub - Connect Talent with Opportunity',
-  description: 'A comprehensive platform connecting talented freelancers with amazing clients. Build your career, grow your business, and create something extraordinary together.',
-  keywords: 'freelance, freelancer, client, jobs, projects, remote work',
+  title: 'FreelanceHub — Nepal’s Editorial Freelance Ledger | Nantio',
+  description: 'A two-sided freelance marketplace for Nepal. Designed like an open ledger written in real time. Transparent escrow, recorded proposals, direct local payment.',
+  keywords: 'freelance hub, nepal freelancers, nantio, ledger, escrow, nepal tech jobs, freelance marketplace',
   icons: {
     icon: '/favicon.svg',
     shortcut: '/favicon.svg',
@@ -17,8 +28,8 @@ export const metadata = {
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en">
-      <body className={inter.className} suppressHydrationWarning={true}>
+    <html lang="en" className={`${fraunces.variable} ${jetbrainsMono.variable}`}>
+      <body className="font-sans antialiased bg-[var(--paper)] text-[var(--ink)]" suppressHydrationWarning={true}>
         <ClientProviders>
           {children}
         </ClientProviders>

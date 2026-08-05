@@ -3,29 +3,37 @@
 import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
 import Navbar from "@/components/layout/Navbar";
-import { Button } from "@/components/ui/button";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import CommandRail from "@/components/layout/CommandRail";
 import { useAuth } from "@/contexts/AuthContext";
 import {
-  getContractById, signContract,
-  initiatePayment, initiateEsewaPayment, initiateStripePayment,
-  getContractPayments, getContractEscrow,
-  releaseEscrow, refundEscrow,
+  getContractById, 
+  signContract,
+  initiatePayment, 
+  initiateEsewaPayment, 
+  initiateStripePayment,
+  getContractPayments, 
+  getContractEscrow,
+  releaseEscrow, 
+  refundEscrow,
   getMilestones
 } from "@/lib/api";
 import {
-  FileText, Clock, CheckCircle, AlertCircle,
-  ArrowLeft, User, Briefcase, Shield, CreditCard, RefreshCw, MessageSquare, Video, Star,
+  FileText, 
+  Clock, 
+  CheckCircle, 
+  AlertCircle,
+  ArrowLeft, 
+  User, 
+  Briefcase, 
+  Shield, 
+  CreditCard, 
+  RefreshCw, 
+  MessageSquare, 
+  Video, 
+  Star,
   Banknote,
+  Send,
+  X
 } from "lucide-react";
 import Link from "next/link";
 import { formatCurrency } from "@/lib/currency";
@@ -33,7 +41,7 @@ import { formatCurrency } from "@/lib/currency";
 export default function ContractDetailPage() {
   const router = useRouter();
   const params = useParams();
-  const contractId = params.id;
+  const contractId = params?.id;
   const { user, loading: authLoading } = useAuth();
 
   const [contract, setContract] = useState(null);
@@ -46,12 +54,10 @@ export default function ContractDetailPage() {
   const [signing, setSigning] = useState(false);
 
   const [esewaFormData, setEsewaFormData] = useState(null);
-  const [esewaUrl, setEsewaUrl] = useState("");
-  const [showDepositDialog, setShowDepositDialog] = useState(false);
+  const [showDepositModal, setShowDepositModal] = useState(false);
   const [payAmount, setPayAmount] = useState("");
   const [payDescription, setPayDescription] = useState("");
   const [payLoading, setPayLoading] = useState(false);
-  const [confirmDialog, setConfirmDialog] = useState({ open: false, type: null, data: null });
 
   useEffect(() => {
     if (!authLoading && !user) router.push("/login");
@@ -59,11 +65,11 @@ export default function ContractDetailPage() {
 
   useEffect(() => {
     if (user && contractId) {
-      fetchAll();
+      fetchAllData();
     }
   }, [user, contractId]);
 
-  // Auto-submit eSewa form when formData is ready
+  // Auto-submit eSewa hidden form
   useEffect(() => {
     if (esewaFormData) {
       const form = document.getElementById('esewa-payment-form');
@@ -71,119 +77,104 @@ export default function ContractDetailPage() {
     }
   }, [esewaFormData]);
 
-  const fetchAll = async () => {
+  const fetchAllData = async () => {
     try {
       setLoading(true);
       setError("");
-      const [contractRes, paymentsRes, escrowRes] = await Promise.all([
+      const [contractRes, paymentsRes, escrowRes] = await Promise.allSettled([
         getContractById(contractId),
-        getContractPayments(contractId).catch(() => ({ payments: [] })),
-        getContractEscrow(contractId).catch(() => ({ escrow: [] }))
+        getContractPayments(contractId),
+        getContractEscrow(contractId)
       ]);
-      if (contractRes.success) {
-        setContract(contractRes.contract);
-        // Fetch milestones for the project
-        if (contractRes.contract.projectId) {
-          const milestonesRes = await getMilestones(contractRes.contract.projectId).catch(() => ({ milestones: [] }));
-          // Deduplicate milestones by ID to prevent duplicate key errors
+
+      if (contractRes.status === 'fulfilled' && contractRes.value?.success) {
+        const contractObj = contractRes.value.contract;
+        setContract(contractObj);
+
+        if (contractObj.projectId) {
+          const milestonesRes = await getMilestones(contractObj.projectId).catch(() => ({ milestones: [] }));
           const uniqueMilestones = Array.from(
             new Map((milestonesRes.milestones || []).map(m => [m.id, m])).values()
           );
           setMilestones(uniqueMilestones);
         }
+      } else {
+        setError("Failed to load contract specification.");
       }
-      else setError(contractRes.error || "Failed to load contract");
-      setPayments(paymentsRes.payments || []);
-      setEscrowList(escrowRes.escrow || []);
+
+      if (paymentsRes.status === 'fulfilled' && paymentsRes.value?.payments) {
+        setPayments(paymentsRes.value.payments);
+      }
+
+      if (escrowRes.status === 'fulfilled' && escrowRes.value?.escrow) {
+        setEscrowList(escrowRes.value.escrow);
+      }
+
     } catch (err) {
-      setError(err.message || "Failed to load contract");
+      setError(err.message || "Failed to load contract workspace.");
     } finally {
       setLoading(false);
     }
   };
 
-  const handleSign = async () => {
-    setConfirmDialog({ open: true, type: 'sign', data: null });
-  };
-
-  const handleRelease = async (escrowId) => {
-    setConfirmDialog({ open: true, type: 'release', data: escrowId });
-  };
-
-  const handleRefund = async (escrowId) => {
-    setConfirmDialog({ open: true, type: 'refund', data: escrowId });
-  };
-
-  const confirmAction = async () => {
-    const { type, data } = confirmDialog;
-    setConfirmDialog({ open: false, type: null, data: null });
-
-    if (type === 'sign') {
-      await executeSign();
-    } else if (type === 'release') {
-      await executeRelease(data);
-    } else if (type === 'refund') {
-      await executeRefund(data);
-    }
-  };
-
-  const executeSign = async () => {
+  const handleSignContract = async () => {
     try {
       setSigning(true);
       setError("");
       const response = await signContract(contractId);
       if (response.success) {
-        setSuccessMessage("Contract signed successfully!");
+        setSuccessMessage("Digital contract executed successfully!");
         setContract(response.contract);
-        setTimeout(() => setSuccessMessage(""), 3000);
+        setTimeout(() => setSuccessMessage(""), 4000);
       } else {
-        setError(response.error || "Failed to sign contract");
+        setError(response.error || "Failed to execute contract signature.");
       }
     } catch (err) {
-      setError(err.message || "Failed to sign contract");
+      setError(err.message || "Failed to execute signature.");
     } finally {
       setSigning(false);
     }
   };
 
-  const executeRelease = async (escrowId) => {
+  const handleReleaseEscrow = async (escrowId) => {
     try {
       setError("");
-      const res = await releaseEscrow(escrowId, "Milestone approved");
+      const res = await releaseEscrow(escrowId, "Milestone approved by client");
       if (res.success) {
-        setSuccessMessage("Funds released to freelancer!");
-        fetchAll();
-        setTimeout(() => setSuccessMessage(""), 3000);
+        setSuccessMessage("Escrow funds released to freelancer balance!");
+        fetchAllData();
+        setTimeout(() => setSuccessMessage(""), 4000);
       } else {
-        setError(res.error || "Failed to release escrow");
+        setError(res.error || "Failed to release escrow funds.");
       }
     } catch (err) {
-      setError(err.message || "Failed to release escrow");
+      setError(err.message || "Failed to release escrow.");
     }
   };
 
-  const executeRefund = async (escrowId) => {
+  const handleRefundEscrow = async (escrowId) => {
     try {
       setError("");
-      const res = await refundEscrow(escrowId, "Refunded by client");
+      const res = await refundEscrow(escrowId, "Escrow refunded by client");
       if (res.success) {
         setSuccessMessage("Escrow refunded successfully!");
-        fetchAll();
-        setTimeout(() => setSuccessMessage(""), 3000);
+        fetchAllData();
+        setTimeout(() => setSuccessMessage(""), 4000);
       } else {
-        setError(res.error || "Failed to refund escrow");
+        setError(res.error || "Failed to refund escrow.");
       }
     } catch (err) {
-      setError(err.message || "Failed to refund escrow");
+      setError(err.message || "Failed to refund escrow.");
     }
   };
 
-  const handleInitiatePayment = async (e, gateway) => {
+  const handleDepositSubmit = async (e, gateway) => {
     e.preventDefault();
     if (!payAmount || parseFloat(payAmount) <= 0) {
-      setError("Please enter a valid amount");
+      setError("Please enter a valid deposit amount.");
       return;
     }
+
     try {
       setPayLoading(true);
       setError("");
@@ -196,30 +187,27 @@ export default function ContractDetailPage() {
       if (gateway === 'esewa') {
         const res = await initiateEsewaPayment(payData);
         if (res.success) {
-          // Set form data in state - hidden form will auto-submit
-          setEsewaUrl(res.payment.esewaUrl);
           setEsewaFormData(res.payment.formData);
         } else {
-          setError(res.error || "Failed to initiate eSewa payment");
+          setError(res.error || "Failed to initiate eSewa deposit.");
         }
       } else if (gateway === 'stripe') {
         const res = await initiateStripePayment(payData);
         if (res.success && res.payment.sessionUrl) {
-          // Redirect to Stripe Checkout
           window.location.href = res.payment.sessionUrl;
         } else {
-          setError(res.error || "Failed to initiate Stripe payment");
+          setError(res.error || "Failed to initiate Stripe deposit.");
         }
       } else {
         const res = await initiatePayment(payData);
         if (res.success && res.payment.paymentUrl) {
           window.location.href = res.payment.paymentUrl;
         } else {
-          setError(res.error || "Failed to initiate payment");
+          setError(res.error || "Failed to initiate deposit.");
         }
       }
     } catch (err) {
-      setError(err.message || "Failed to initiate payment");
+      setError(err.message || "Failed to initiate deposit.");
     } finally {
       setPayLoading(false);
     }
@@ -227,8 +215,11 @@ export default function ContractDetailPage() {
 
   if (authLoading || loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
+      <div className="min-h-screen bg-[var(--paper)] flex items-center justify-center font-mono-ledger">
+        <div className="space-y-3 text-center">
+          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[var(--signal)] mx-auto"></div>
+          <p className="text-[12px] text-[var(--muted)] uppercase">LOADING CONTRACT SPECIMEN...</p>
+        </div>
       </div>
     );
   }
@@ -237,14 +228,21 @@ export default function ContractDetailPage() {
 
   if (error && !contract) {
     return (
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen bg-[var(--paper)] text-[var(--ink)] font-sans-ledger">
         <Navbar userType={user.role === "CLIENT" ? "client" : "freelancer"} />
-        <div className="container mx-auto px-4 py-8">
-          <Alert className="border-2 border-red-200 bg-red-50">
-            <AlertCircle className="h-5 w-5 text-red-600" />
-            <AlertDescription className="text-red-800 font-semibold">{error}</AlertDescription>
-          </Alert>
-        </div>
+        <CommandRail userType={user.role === "CLIENT" ? "client" : "freelancer"} />
+        <main className="max-w-4xl mx-auto px-4 py-16 space-y-6 text-left font-mono-ledger text-[12px]">
+          <div className="p-4 bg-red-50 border border-[var(--signal)] text-[var(--signal-dark)]">
+            {error}
+          </div>
+          <Link 
+            href="/contracts"
+            className="inline-flex items-center space-x-2 bg-[var(--ink)] text-[var(--paper)] font-bold px-5 py-2.5 uppercase"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            <span>RETURN TO CONTRACT REGISTER</span>
+          </Link>
+        </main>
       </div>
     );
   }
@@ -256,817 +254,430 @@ export default function ContractDetailPage() {
   const isActive = contract.status === "active";
 
   const heldEscrow = escrowList.filter((e) => e.status === "held");
-  const totalHeld = heldEscrow.reduce((sum, e) => sum + e.amount, 0);
-
-  const getStatusBadge = (status) => {
-    const badges = {
-      draft: { bg: "bg-gray-100", text: "text-gray-700", label: "Draft" },
-      pending: { bg: "bg-yellow-100", text: "text-yellow-700", label: "Pending Signatures" },
-      active: { bg: "bg-green-100", text: "text-green-700", label: "Active" },
-      completed: { bg: "bg-blue-100", text: "text-blue-700", label: "Completed" },
-      cancelled: { bg: "bg-red-100", text: "text-red-700", label: "Cancelled" },
-      disputed: { bg: "bg-orange-100", text: "text-orange-700", label: "Disputed" }
-    };
-    const badge = badges[status] || badges.draft;
-    return (
-      <span className={`rounded-full px-3 py-1 text-sm font-medium ${badge.bg} ${badge.text}`}>
-        {badge.label}
-      </span>
-    );
-  };
-
-  const getEscrowBadge = (status) => {
-    const map = {
-      held: "bg-yellow-100 text-yellow-700",
-      released: "bg-green-100 text-green-700",
-      refunded: "bg-gray-100 text-gray-700",
-      disputed: "bg-red-100 text-red-700"
-    };
-    return (
-      <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${map[status] || "bg-gray-100 text-gray-700"}`}>
-        {status.charAt(0).toUpperCase() + status.slice(1)}
-      </span>
-    );
-  };
+  const totalHeld = heldEscrow.reduce((sum, e) => sum + (e.amount || 0), 0);
+  const releasedEscrow = escrowList.filter((e) => e.status === "released");
+  const totalReleased = releasedEscrow.reduce((sum, e) => sum + (e.netAmount || e.amount || 0), 0);
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Confirmation Dialog */}
-      <Dialog open={confirmDialog.open} onOpenChange={(open) => !open && setConfirmDialog({ open: false, type: null, data: null })}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              {confirmDialog.type === 'sign' && (
-                <>
-                  <CheckCircle className="h-5 w-5 text-green-600" />
-                  Sign Contract
-                </>
-              )}
-              {confirmDialog.type === 'release' && (
-                <>
-                  <CheckCircle className="h-5 w-5 text-green-600" />
-                  Release Escrow Funds
-                </>
-              )}
-              {confirmDialog.type === 'refund' && (
-                <>
-                  <AlertCircle className="h-5 w-5 text-yellow-600" />
-                  Refund Escrow
-                </>
-              )}
-            </DialogTitle>
-            <DialogDescription>
-              {confirmDialog.type === 'sign' && 
-                "Are you sure you want to sign this contract? By signing, you agree to all terms and conditions outlined in the contract. This action cannot be undone."}
-              {confirmDialog.type === 'release' && 
-                "Are you sure you want to release these funds to the freelancer? Once released, the funds will be transferred and this action cannot be undone."}
-              {confirmDialog.type === 'refund' && 
-                "Are you sure you want to refund this escrow back to your account? This will cancel the associated milestone or payment."}
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setConfirmDialog({ open: false, type: null, data: null })}
-            >
-              Cancel
-            </Button>
-            <Button
-              variant={confirmDialog.type === 'refund' ? 'outline' : 'accent'}
-              onClick={confirmAction}
-            >
-              {confirmDialog.type === 'sign' && 'Sign Contract'}
-              {confirmDialog.type === 'release' && 'Release Funds'}
-              {confirmDialog.type === 'refund' && 'Refund Escrow'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
+    <div className="min-h-screen bg-[var(--paper)] text-[var(--ink)] font-sans-ledger selection:bg-[var(--signal)] selection:text-[var(--paper)] flex flex-col justify-between">
+      
+      {/* Top Navbar */}
       <Navbar userType={userType} />
-      <main className="container mx-auto px-4 py-8">
-        <div className="max-w-4xl mx-auto">
-          <Link href="/contracts" className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors mb-6">
-            <ArrowLeft className="h-4 w-4" />
-            <span>Back to Contracts</span>
-          </Link>
 
-          {successMessage && (
-            <Alert className="mb-6 border-2 border-green-200 bg-green-50">
-              <CheckCircle className="h-5 w-5 text-green-600" />
-              <AlertDescription className="text-green-800 font-semibold">{successMessage}</AlertDescription>
-            </Alert>
-          )}
-          {error && (
-            <Alert className="mb-6 border-2 border-red-200 bg-red-50">
-              <AlertCircle className="h-5 w-5 text-red-600" />
-              <AlertDescription className="text-red-800 font-semibold">{error}</AlertDescription>
-            </Alert>
-          )}
+      {/* Floating Tool Rail */}
+      <CommandRail userType={userType} />
 
-          <div className="flex items-start justify-between mb-6">
-            <div>
-              <h1 className="font-display text-3xl font-bold text-foreground">{contract.projectTitle}</h1>
-              <p className="text-muted-foreground mt-1">Contract #{contract.id.slice(0, 8)}</p>
+      {/* Main Specimen Container */}
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 lg:pl-20 py-8 sm:py-12 space-y-10 flex-1 w-full pb-24 lg:pb-12">
+        
+        {/* CONTRACT HEADER */}
+        <section className="space-y-4 text-left border-b border-[var(--ink)] pb-8">
+          
+          <div className="flex items-center justify-between font-mono-ledger text-[11px] uppercase tracking-wider">
+            <Link 
+              href="/contracts" 
+              className="text-[var(--muted)] hover:text-[var(--ink)] flex items-center space-x-1"
+            >
+              <ArrowLeft className="h-3.5 w-3.5" />
+              <span>CONTRACT REGISTER</span>
+            </Link>
+            <span className="text-[var(--signal)] font-bold">
+              SPECIMEN / #{contract.id?.slice(0, 8) || '0001'}
+            </span>
+          </div>
+
+          <div className="space-y-3">
+            <h1 className="font-serif-ledger text-[34px] sm:text-[48px] leading-[1.1] font-medium tracking-tight text-[var(--ink)]">
+              {contract.projectTitle}
+            </h1>
+
+            <div className="flex flex-wrap items-center gap-4 font-mono-ledger text-[11px] text-[var(--muted)] border-t border-[var(--line)] pt-3">
+              <span>CREATED: {new Date(contract.createdAt || contract.created_at || Date.now()).toLocaleDateString()}</span>
+              <span>•</span>
+              <span>
+                STATUS: <strong className="text-[var(--ink)] font-bold">[{contract.status?.toUpperCase() || 'REGISTERED'}]</strong>
+              </span>
+              <span>•</span>
+              <span>
+                SIGNATURES: <strong className={fullyExecuted ? "text-green-700 font-bold" : "text-[var(--signal)] font-bold"}>
+                  [{fullyExecuted ? "FULLY EXECUTED" : userHasSigned ? "AWAITING OTHER PARTY" : "NEEDS YOUR SIGNATURE"}]
+                </strong>
+              </span>
             </div>
-            {getStatusBadge(contract.status)}
           </div>
 
-          {/* Quick Actions */}
-          <div className="flex flex-wrap gap-2 mb-6">
-            <Link href={`/${userType}/projects/${contract.projectId}`}>
-              <Button variant="outline" size="sm" className="gap-2">
-                <Briefcase className="h-4 w-4" />
-                View Project
-              </Button>
+          {/* Quick Action Strip */}
+          <div className="flex flex-wrap items-center gap-3 pt-2 font-mono-ledger text-[11px]">
+            <Link 
+              href={`/chat?userId=${isClient ? contract.freelancerId : contract.clientId}&contractId=${contractId}`}
+              className="px-4 py-2.5 border border-[var(--ink)] bg-[var(--paper-2)] text-[var(--ink)] hover:bg-[var(--paper)] transition-colors inline-flex items-center space-x-1.5 font-bold uppercase"
+            >
+              <MessageSquare className="h-3.5 w-3.5 text-[var(--signal)]" />
+              <span>MESSAGE {isClient ? "FREELANCER" : "CLIENT"}</span>
             </Link>
-            <Link href={`/chat?userId=${isClient ? contract.freelancerId : contract.clientId}&contractId=${contractId}`}>
-              <Button variant="outline" size="sm" className="gap-2">
-                <MessageSquare className="h-4 w-4" />
-                Message {isClient ? "Freelancer" : "Client"}
-              </Button>
-            </Link>
+
             {isActive && (
-              <Link href={`/video-meeting?contractId=${contractId}&userId=${isClient ? contract.freelancerId : contract.clientId}`}>
-                <Button variant="outline" size="sm" className="gap-2">
-                  <Video className="h-4 w-4" />
-                  Schedule a Meeting
-                </Button>
+              <Link 
+                href={`/video-meeting?contractId=${contractId}&userId=${isClient ? contract.freelancerId : contract.clientId}`}
+                className="px-4 py-2.5 border border-[var(--ink)] bg-[var(--paper-2)] text-[var(--ink)] hover:bg-[var(--paper)] transition-colors inline-flex items-center space-x-1.5 font-bold uppercase"
+              >
+                <Video className="h-3.5 w-3.5 text-[var(--ink)]" />
+                <span>SCHEDULE MEETING</span>
               </Link>
             )}
-            {contract.status === "completed" && (
-              <Link href={`/contracts/${contractId}/review`}>
-                <Button variant="accent" size="sm" className="gap-2">
-                  <Star className="h-4 w-4" />
-                  Leave Review
-                </Button>
-              </Link>
+
+            {isClient && (
+              <button
+                onClick={() => {
+                  setShowDepositModal(true);
+                  setPayAmount(contract.agreedBudget?.toString() || "");
+                  setPayDescription(`Escrow deposit for ${contract.projectTitle}`);
+                }}
+                className="px-5 py-2.5 bg-[var(--signal)] hover:bg-[var(--signal-dark)] text-[var(--paper)] font-bold transition-colors uppercase inline-flex items-center space-x-1 shadow-xs"
+              >
+                <CreditCard className="h-3.5 w-3.5" />
+                <span>DEPOSIT ESCROW FUNDS →</span>
+              </button>
             )}
           </div>
 
-          {!fullyExecuted && (
-            <Alert className="mb-6 border-2 border-yellow-200 bg-yellow-50">
-              <AlertCircle className="h-5 w-5 text-yellow-600" />
-              <AlertDescription className="text-yellow-800">
-                {userHasSigned
-                  ? `Waiting for ${isClient ? "freelancer" : "client"} to sign the contract`
-                  : "This contract requires your signature to proceed"}
-              </AlertDescription>
-            </Alert>
-          )}
+        </section>
 
-          {fullyExecuted && isActive && (
-            <Alert className="mb-6 border-2 border-green-200 bg-green-50">
-              <CheckCircle className="h-5 w-5 text-green-600" />
-              <AlertDescription className="text-green-800 font-semibold">
-                Contract is fully executed and active!
-              </AlertDescription>
-            </Alert>
-          )}
 
-          <div className="grid gap-6 lg:grid-cols-3">
-            <div className="lg:col-span-2 space-y-6">
-              {/* Contract Terms */}
-              <Card className="border-border">
-                <CardHeader>
-                  <CardTitle className="flex items-center font-display text-xl">
-                    <FileText className="h-5 w-5 mr-2 text-accent" />
-                    Contract Terms
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
+        {/* NOTIFICATIONS & EXECUTION BANNERS */}
+        {successMessage && (
+          <div className="p-4 bg-green-50 border border-green-600 text-green-800 font-mono-ledger text-[12px] flex items-center space-x-2">
+            <CheckCircle className="h-4 w-4 text-green-600 shrink-0" />
+            <span className="font-bold">{successMessage}</span>
+          </div>
+        )}
+
+        {error && (
+          <div className="p-4 bg-red-50 border border-[var(--signal)] text-[var(--signal-dark)] font-mono-ledger text-[12px] flex items-center space-x-2">
+            <AlertCircle className="h-4 w-4 text-[var(--signal)] shrink-0" />
+            <span className="font-bold">{error}</span>
+          </div>
+        )}
+
+        {!userHasSigned && contract.status === "pending" && (
+          <div className="p-5 border-2 border-[var(--signal)] bg-red-50 space-y-3 font-mono-ledger text-[12px] text-left">
+            <div className="flex items-center space-x-2 text-[var(--signal-dark)] font-bold uppercase">
+              <AlertCircle className="h-4 w-4 shrink-0" />
+              <span>DIGITAL SIGNATURE REQUIRED</span>
+            </div>
+            <p className="text-[var(--ink)]">
+              This contract requires your official digital signature to activate milestone escrow and begin work.
+            </p>
+            <button
+              onClick={handleSignContract}
+              disabled={signing}
+              className="bg-[var(--signal)] hover:bg-[var(--signal-dark)] text-[var(--paper)] font-bold px-6 py-2.5 uppercase transition-colors"
+            >
+              {signing ? "EXECUTING SIGNATURE..." : "EXECUTE DIGITAL SIGNATURE →"}
+            </button>
+          </div>
+        )}
+
+
+        {/* ASYMMETRIC 2-COLUMN WORKSPACE (70% Contract Terms & Milestones / 30% Escrow Instrument) */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-start text-left">
+          
+          {/* Left Column (70% Width: Cols 1 to 8) - CONTRACT TERMS & MILESTONES */}
+          <div className="lg:col-span-8 space-y-10">
+            
+            {/* 01 / CONTRACT TERMS */}
+            <div className="space-y-4">
+              <div className="border-b border-[var(--ink)] pb-2 font-mono-ledger text-[11px] uppercase tracking-wider font-bold text-[var(--ink)] flex items-center justify-between">
+                <span>01 / CONTRACT TERMS & SPECIFICATIONS</span>
+                <span className="text-[var(--signal)]">AGREED BUDGET: NPR {contract.agreedBudget?.toLocaleString()}</span>
+              </div>
+
+              <div className="border-2 border-[var(--ink)] bg-[var(--paper)] p-6 space-y-4 font-mono-ledger text-[12px]">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 border-b border-[var(--line)] pb-4">
                   <div>
-                    <h4 className="text-sm font-semibold text-foreground mb-2">Agreed Budget</h4>
-                    <div className="flex items-center gap-2">
-                      <Banknote className="h-5 w-5 text-accent" />
-                      <span className="text-2xl font-bold text-foreground">
-                        {formatCurrency(contract.agreedBudget)}
-                      </span>
-                    </div>
+                    <span className="text-[var(--muted)] text-[10px] uppercase block">TOTAL AGREED BUDGET</span>
+                    <span className="text-[20px] font-bold text-[var(--signal)]">
+                      NPR {contract.agreedBudget?.toLocaleString()}
+                    </span>
                   </div>
+
                   {contract.agreedTimeline && (
                     <div>
-                      <h4 className="text-sm font-semibold text-foreground mb-2">Timeline</h4>
-                      <div className="flex items-center gap-2">
-                        <Clock className="h-5 w-5 text-accent" />
-                        <span className="text-lg font-semibold text-foreground">{contract.agreedTimeline}</span>
-                      </div>
+                      <span className="text-[var(--muted)] text-[10px] uppercase block">AGREED TIMELINE</span>
+                      <span className="text-[20px] font-bold text-[var(--ink)]">
+                        {contract.agreedTimeline}
+                      </span>
                     </div>
                   )}
-                  {contract.paymentTerms && (
-                    <div>
-                      <h4 className="text-sm font-semibold text-foreground mb-2">Payment Terms</h4>
-                      <p className="text-muted-foreground whitespace-pre-wrap">{contract.paymentTerms}</p>
-                    </div>
-                  )}
-                  {contract.deliverables && (
-                    <div>
-                      <h4 className="text-sm font-semibold text-foreground mb-2">Deliverables</h4>
-                      <p className="text-muted-foreground whitespace-pre-wrap">{contract.deliverables}</p>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
+                </div>
 
-              {/* Sign Button */}
-              {!userHasSigned && contract.status === "pending" && (
-                <Card className="border-border border-accent/50">
-                  <CardContent className="p-6">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <h3 className="font-semibold text-foreground mb-1">Ready to sign?</h3>
-                        <p className="text-sm text-muted-foreground">
-                          By signing, you agree to the terms and conditions outlined above
-                        </p>
-                      </div>
-                      <Button onClick={handleSign} disabled={signing} size="lg" variant="accent">
-                        {signing ? (
-                          <>
-                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                            Signing...
-                          </>
-                        ) : (
-                          <>
-                            <CheckCircle className="h-5 w-5 mr-2" />
-                            Sign Contract
-                          </>
-                        )}
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
+                {contract.paymentTerms && (
+                  <div className="space-y-1 pt-2">
+                    <span className="text-[var(--muted)] text-[10px] uppercase font-bold block">PAYMENT TERMS</span>
+                    <p className="font-sans-ledger text-[14px] text-[var(--ink)] whitespace-pre-wrap leading-relaxed">
+                      {contract.paymentTerms}
+                    </p>
+                  </div>
+                )}
 
-              {/* Escrow / Payment Section - show for active and completed contracts */}
-              {(isActive || contract.status === 'completed') && (
-                <>
-                  {/* Payment Summary */}
-                  {milestones.length > 0 && (
-                    <Card className="border-border">
-                      <CardHeader>
-                        <CardTitle className="flex items-center font-display text-xl">
-                          <Banknote className="h-5 w-5 mr-2 text-accent" />
-                          Payment Summary
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                          {/* Total Contract Amount */}
-                          <div className="bg-white rounded-lg p-4 border border-border">
-                            <p className="text-xs text-muted-foreground mb-1">Total Contract</p>
-                            <p className="text-2xl font-bold text-foreground">{formatCurrency(contract.agreedBudget)}</p>
-                          </div>
-                          
-                          {/* Paid to Freelancer */}
-                          <div className="bg-green-50 rounded-lg p-4 border border-green-200">
-                            <p className="text-xs text-green-700 mb-1">Paid to Freelancer</p>
-                            <p className="text-2xl font-bold text-green-700">
-                              {formatCurrency(
-                                escrowList
-                                  .filter(e => e.status === 'released')
-                                  .reduce((sum, e) => sum + e.netAmount, 0)
-                              )}
-                            </p>
-                            <p className="text-xs text-green-600 mt-1">
-                              {escrowList.filter(e => e.status === 'released').length} milestone(s) completed
-                            </p>
-                          </div>
-                          
-                          {/* In Escrow */}
-                          <div className="bg-yellow-50 rounded-lg p-4 border border-yellow-200">
-                            <p className="text-xs text-yellow-700 mb-1">Held in Escrow</p>
-                            <p className="text-2xl font-bold text-yellow-700">{formatCurrency(totalHeld)}</p>
-                            <p className="text-xs text-yellow-600 mt-1">
-                              {heldEscrow.length} milestone(s) funded
-                            </p>
-                          </div>
-                        </div>
+                {contract.deliverables && (
+                  <div className="space-y-1 pt-2 border-t border-[var(--line)]">
+                    <span className="text-[var(--muted)] text-[10px] uppercase font-bold block">DELIVERABLES SPECIFICATION</span>
+                    <p className="font-sans-ledger text-[14px] text-[var(--ink)] whitespace-pre-wrap leading-relaxed">
+                      {contract.deliverables}
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+
+            {/* 02 / MILESTONE ESCROW & DELIVERABLE REGISTER */}
+            <div className="space-y-4">
+              <div className="border-b border-[var(--ink)] pb-2 font-mono-ledger text-[11px] uppercase tracking-wider font-bold text-[var(--ink)] flex items-center justify-between">
+                <span>02 / MILESTONE ESCROW & DELIVERABLE REGISTER</span>
+                <span className="text-[var(--signal)]">{milestones.length} MILESTONES</span>
+              </div>
+
+              {milestones.length === 0 ? (
+                <div className="border-2 border-[var(--ink)] bg-[var(--paper-2)] p-6 text-left font-mono-ledger text-[12px] space-y-2">
+                  <p className="font-bold text-[var(--ink)]">No specific milestones configured.</p>
+                  <p className="text-[var(--muted)]">This contract uses single-sum milestone escrow upon completion.</p>
+                </div>
+              ) : (
+                <div className="border-2 border-[var(--ink)] bg-[var(--paper)] divide-y divide-[var(--line)] font-mono-ledger text-[12px]">
+                  {milestones.map((milestone, idx) => {
+                    const mEscrow = escrowList.filter(e => e.milestoneId === milestone.id);
+                    const isHeld = mEscrow.find(e => e.status === 'held');
+                    const isReleased = mEscrow.find(e => e.status === 'released');
+
+                    return (
+                      <div key={milestone.id || idx} className="p-5 space-y-3">
                         
-                        {/* Progress Bar */}
-                        <div className="mt-4">
-                          <div className="flex items-center justify-between text-xs text-muted-foreground mb-2">
-                            <span>Payment Progress</span>
-                            <span>
-                              {Math.round(
-                                (escrowList.reduce((sum, e) => sum + e.amount, 0) / contract.agreedBudget) * 100
-                              )}% funded
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[var(--line)] pb-2">
+                          <div className="space-y-0.5">
+                            <span className="text-[10px] text-[var(--muted)] uppercase font-bold">MILESTONE 0{idx + 1}</span>
+                            <h4 className="font-serif-ledger text-[18px] font-medium text-[var(--ink)]">
+                              {milestone.title}
+                            </h4>
+                          </div>
+
+                          <div className="flex items-center space-x-3 text-right">
+                            <span className="font-bold text-[var(--signal)] text-[14px]">
+                              NPR {milestone.amount?.toLocaleString()}
+                            </span>
+                            <span className="px-2 py-0.5 border border-[var(--ink)] bg-[var(--paper-2)] font-bold text-[10px] uppercase">
+                              [{milestone.status?.toUpperCase() || 'PENDING'}]
                             </span>
                           </div>
-                          <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
-                            <div className="flex h-full">
-                              {/* Released (Green) */}
-                              <div 
-                                className="bg-green-500 transition-all duration-500"
-                                style={{ 
-                                  width: `${(escrowList.filter(e => e.status === 'released').reduce((sum, e) => sum + e.amount, 0) / contract.agreedBudget) * 100}%` 
-                                }}
-                                title="Paid to Freelancer"
-                              />
-                              {/* Held (Yellow) */}
-                              <div 
-                                className="bg-yellow-500 transition-all duration-500"
-                                style={{ 
-                                  width: `${(totalHeld / contract.agreedBudget) * 100}%` 
-                                }}
-                                title="Held in Escrow"
-                              />
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-4 mt-2 text-xs">
-                            <div className="flex items-center gap-1">
-                              <div className="w-3 h-3 bg-green-500 rounded"></div>
-                              <span className="text-muted-foreground">Paid</span>
-                            </div>
-                            <div className="flex items-center gap-1">
-                              <div className="w-3 h-3 bg-yellow-500 rounded"></div>
-                              <span className="text-muted-foreground">In Escrow</span>
-                            </div>
-                          </div>
                         </div>
-                      </CardContent>
-                    </Card>
-                  )}
-                  
-                  {/* Milestone-Based Escrow Display */}
-                  {milestones.length > 0 && (
-                    <Card className="border-border">
-                      <CardHeader>
-                        <CardTitle className="flex items-center font-display text-xl">
-                          <Shield className="h-5 w-5 mr-2 text-accent" />
-                          Milestone Escrow Funds
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent className="space-y-4">
-                        {milestones.map((milestone, index) => {
-                          // Find escrow for this milestone
-                          const milestoneEscrow = escrowList.filter(e => e.milestoneId === milestone.id);
-                          const heldEscrow = milestoneEscrow.find(e => e.status === 'held');
-                          const releasedEscrow = milestoneEscrow.find(e => e.status === 'released');
-                          const totalEscrowAmount = milestoneEscrow.reduce((sum, e) => sum + e.amount, 0);
-                          
-                          return (
-                            <div key={milestone.id} className="border border-border rounded-lg p-4 bg-secondary/20">
-                              <div className="flex items-start justify-between mb-3">
-                                <div className="flex-1">
-                                  <div className="flex items-center gap-2 mb-1">
-                                    <span className="flex items-center justify-center w-6 h-6 rounded-full bg-accent/10 text-accent font-semibold text-xs">
-                                      {index + 1}
-                                    </span>
-                                    <h4 className="font-semibold text-foreground">{milestone.title}</h4>
-                                  </div>
-                                  <p className="text-sm text-muted-foreground ml-8">
-                                    Amount: {formatCurrency(milestone.amount)}
-                                  </p>
-                                  {milestone.dueDate && (
-                                    <p className="text-xs text-muted-foreground ml-8">
-                                      Due: {new Date(milestone.dueDate).toLocaleDateString()}
-                                    </p>
-                                  )}
-                                </div>
-                                <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                                  milestone.status === 'completed' ? 'bg-green-100 text-green-700' :
-                                  milestone.status === 'under_review' ? 'bg-amber-100 text-amber-700' :
-                                  milestone.status === 'in_progress' ? 'bg-blue-100 text-blue-700' :
-                                  'bg-gray-100 text-gray-700'
-                                }`}>
-                                  {milestone.status.replace('_', ' ')}
-                                </span>
-                              </div>
-                              
-                              {/* Escrow Status for this Milestone */}
-                              <div className="ml-8 space-y-2">
-                                {heldEscrow ? (
-                                  <div className="flex items-center justify-between p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                                    <div>
-                                      <p className="text-sm font-semibold text-foreground">
-                                        {formatCurrency(heldEscrow.amount)} in Escrow
-                                      </p>
-                                      <p className="text-xs text-muted-foreground">
-                                        Freelancer gets: {formatCurrency(heldEscrow.netAmount)} (after 10% fee)
-                                      </p>
-                                    </div>
-                                    {isClient && (
-                                      <div className="flex gap-2">
-                                        <Button
-                                          size="sm"
-                                          variant="accent"
-                                          onClick={() => handleRelease(heldEscrow.id)}
-                                          disabled={milestone.status !== 'completed'}
-                                          title={milestone.status !== 'completed' ? 'Milestone must be completed first' : 'Release funds to freelancer'}
-                                        >
-                                          Release
-                                        </Button>
-                                        <Button
-                                          size="sm"
-                                          variant="outline"
-                                          onClick={() => handleRefund(heldEscrow.id)}
-                                        >
-                                          Refund
-                                        </Button>
-                                      </div>
-                                    )}
-                                  </div>
-                                ) : releasedEscrow ? (
-                                  <div className="flex items-center gap-2 p-3 bg-green-50 border border-green-200 rounded-lg">
-                                    <CheckCircle className="h-4 w-4 text-green-600" />
-                                    <div>
-                                      <p className="text-sm font-semibold text-green-700">
-                                        {formatCurrency(releasedEscrow.amount)} Released
-                                      </p>
-                                      <p className="text-xs text-green-600">
-                                        Released on {new Date(releasedEscrow.releasedAt).toLocaleDateString()}
-                                      </p>
-                                    </div>
-                                  </div>
-                                ) : (
-                                  <div className="flex items-center gap-2 p-3 bg-gray-50 border border-gray-200 rounded-lg">
-                                    <AlertCircle className="h-4 w-4 text-gray-500" />
-                                    <div>
-                                      <p className="text-sm font-medium text-gray-700">No funds deposited</p>
-                                      {isClient && (
-                                        <p className="text-xs text-gray-600">
-                                          Deposit {formatCurrency(milestone.amount)} to start this milestone
-                                        </p>
-                                      )}
-                                    </div>
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          );
-                        })}
-                        
-                        {/* Summary */}
-                        <div className="pt-4 border-t border-border">
-                          <div className="flex items-center justify-between text-sm">
-                            <span className="font-medium text-foreground">Total Held in Escrow:</span>
-                            <span className="text-lg font-bold text-accent">{formatCurrency(totalHeld)}</span>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  )}
-                  
-                  {/* Escrow Summary for contracts without milestones */}
-                  {milestones.length === 0 && heldEscrow.length > 0 && (
-                    <Card className="border-border">
-                      <CardHeader>
-                        <CardTitle className="flex items-center font-display text-xl">
-                          <Shield className="h-5 w-5 mr-2 text-accent" />
-                          Escrow Funds
-                          <span className="ml-auto text-base font-bold text-green-600">
-                            {formatCurrency(totalHeld)} held
-                          </span>
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent className="space-y-3">
-                        {escrowList.map((escrow) => (
-                          <div key={escrow.id} className="flex items-center justify-between p-3 bg-muted rounded-xl">
-                            <div>
-                              <p className="font-semibold text-foreground text-sm">
-                                {formatCurrency(escrow.amount)}
-                              </p>
-                              <p className="text-xs text-muted-foreground">
-                                Freelancer gets: {formatCurrency(escrow.netAmount)} (after 10% fee)
-                              </p>
-                              {escrow.milestoneTitle && (
-                                <p className="text-xs text-muted-foreground">Milestone: {escrow.milestoneTitle}</p>
-                              )}
-                            </div>
-                            <div className="flex items-center gap-2">
-                              {getEscrowBadge(escrow.status)}
-                              {isClient && escrow.status === "held" && (
-                                <div className="flex gap-1">
-                                  <Button
-                                    size="sm"
-                                    variant="accent"
-                                    onClick={() => handleRelease(escrow.id)}
-                                  >
-                                    Release
-                                  </Button>
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => handleRefund(escrow.id)}
-                                  >
-                                    Refund
-                                  </Button>
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        ))}
-                      </CardContent>
-                    </Card>
-                  )}
 
-                  {/* Deposit to Escrow - client only */}
-                  {isClient && (
-                    <Card className="border-border">
-                      <CardHeader>
-                        <CardTitle className="flex items-center font-display text-xl">
-                          <CreditCard className="h-5 w-5 mr-2 text-accent" />
-                          Deposit Funds to Escrow
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        {!showDepositDialog ? (
-                          <div className="space-y-4">
-                            <div className="flex items-center justify-between p-4 bg-secondary/30 rounded-lg border border-border">
+                        {milestone.description && (
+                          <p className="font-sans-ledger text-[13px] text-[var(--muted)]">
+                            {milestone.description}
+                          </p>
+                        )}
+
+                        {/* Escrow Status Actions */}
+                        <div className="pt-2 font-mono-ledger text-[11px]">
+                          {isHeld ? (
+                            <div className="p-3 bg-amber-50 border border-amber-300 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                               <div>
-                                <p className="text-sm font-medium text-foreground">Total Contract Amount</p>
-                                <p className="text-2xl font-bold text-foreground">{formatCurrency(contract.agreedBudget)}</p>
+                                <span className="font-bold text-amber-900 block">NPR {isHeld.amount?.toLocaleString()} HELD IN ESCROW</span>
+                                <span className="text-[10px] text-amber-700 block">FreelanceHub fee 10% applied upon release</span>
                               </div>
-                              <Button 
-                                variant="accent" 
-                                size="lg" 
-                                onClick={() => {
-                                  setShowDepositDialog(true);
-                                  setPayAmount(contract.agreedBudget.toString());
-                                  setPayDescription(`Full payment for ${contract.projectTitle}`);
-                                }}
-                                className="h-12 px-6"
-                              >
-                                <CreditCard className="h-5 w-5 mr-2" />
-                                Deposit Funds
-                              </Button>
-                            </div>
-                            
-                            {/* Milestone Breakdown */}
-                            {milestones.length > 0 && (
-                              <div className="mt-4">
-                                <h4 className="text-sm font-semibold text-foreground mb-3">Milestone Payment Breakdown</h4>
-                                <div className="space-y-2">
-                                  {milestones.map((milestone, index) => (
-                                    <div key={milestone.id} className="flex items-center justify-between p-3 bg-secondary/30 rounded-lg border border-border">
-                                      <div className="flex-1">
-                                        <p className="text-sm font-medium text-foreground">{index + 1}. {milestone.title}</p>
-                                        <p className="text-xs text-muted-foreground">Due: {new Date(milestone.dueDate).toLocaleDateString()}</p>
-                                      </div>
-                                      <div className="text-right">
-                                        <p className="text-sm font-bold text-foreground">{formatCurrency(milestone.amount)}</p>
-                                        <span className={`text-xs px-2 py-0.5 rounded-full ${
-                                          milestone.status === 'completed' ? 'bg-green-100 text-green-700' :
-                                          milestone.status === 'under_review' ? 'bg-yellow-100 text-yellow-700' :
-                                          'bg-gray-100 text-gray-700'
-                                        }`}>
-                                          {milestone.status.replace('_', ' ')}
-                                        </span>
-                                      </div>
-                                    </div>
-                                  ))}
-                                  <div className="flex items-center justify-between p-3 bg-accent/5 rounded-lg border-2 border-accent/20">
-                                    <p className="text-sm font-bold text-foreground">Total Milestones</p>
-                                    <p className="text-lg font-bold text-accent">
-                                      {formatCurrency(milestones.reduce((sum, m) => sum + m.amount, 0))}
-                                    </p>
-                                  </div>
-                                  {Math.abs(milestones.reduce((sum, m) => sum + m.amount, 0) - contract.agreedBudget) > 0.01 && (
-                                    <Alert className="border-yellow-200 bg-yellow-50">
-                                      <AlertCircle className="h-4 w-4 text-yellow-600" />
-                                      <AlertDescription className="text-yellow-800 text-xs">
-                                        Warning: Milestone total ({formatCurrency(milestones.reduce((sum, m) => sum + m.amount, 0))}) 
-                                        doesn't match contract amount ({formatCurrency(contract.agreedBudget)})
-                                      </AlertDescription>
-                                    </Alert>
-                                  )}
-                                </div>
-                              </div>
-                            )}
-                            
-                            <p className="text-xs text-muted-foreground">
-                              💡 Funds are held securely in escrow until you approve the work. Platform fee: 10%
-                            </p>
-                            <p className="text-xs text-muted-foreground mt-1">
-                              Payment methods: eSewa (Nepal) • Stripe (International cards)
-                            </p>
-                          </div>
-                        ) : (
-                          <div className="space-y-4">
-                            <div className="p-4 bg-accent/10 rounded-lg">
-                              <p className="text-sm font-medium text-foreground mb-2">Deposit Amount</p>
-                              <div className="flex items-baseline gap-2">
-                                <span className="text-3xl font-bold text-accent">{formatCurrency(parseFloat(payAmount) || 0)}</span>
-                              </div>
-                              {payAmount && parseFloat(payAmount) > 0 && (
-                                <div className="mt-3 space-y-1 text-xs text-muted-foreground">
-                                  <p>• Platform fee (10%): {formatCurrency(parseFloat(payAmount) * 0.1)}</p>
-                                  <p>• Freelancer receives: {formatCurrency(parseFloat(payAmount) * 0.9)}</p>
-                                  <p className="text-blue-600 font-medium mt-2">
-                                    • Stripe amount: ${(parseFloat(payAmount) * 0.0075).toFixed(2)} USD
-                                    <span className="text-xs text-muted-foreground ml-1">(1 NPR ≈ 0.0075 USD)</span>
-                                  </p>
+
+                              {isClient && (
+                                <div className="flex items-center space-x-2">
+                                  <button
+                                    onClick={() => handleReleaseEscrow(isHeld.id)}
+                                    className="bg-[var(--signal)] hover:bg-[var(--signal-dark)] text-[var(--paper)] font-bold px-3 py-1.5 uppercase transition-colors"
+                                  >
+                                    RELEASE FUNDS →
+                                  </button>
+                                  <button
+                                    onClick={() => handleRefundEscrow(isHeld.id)}
+                                    className="bg-[var(--paper)] border border-[var(--ink)] text-[var(--ink)] font-bold px-3 py-1.5 uppercase hover:bg-red-50 transition-colors"
+                                  >
+                                    REFUND
+                                  </button>
                                 </div>
                               )}
                             </div>
-                            
-                            <div>
-                              <label className="block text-sm font-medium text-foreground mb-2">
-                                Amount (NPR) *
-                              </label>
-                              <input
-                                type="number"
-                                min="1"
-                                step="0.01"
-                                value={payAmount}
-                                onChange={(e) => setPayAmount(e.target.value)}
-                                placeholder="Enter amount"
-                                className="w-full border border-border rounded-lg px-4 py-2 text-sm bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-accent"
-                                required
-                              />
+                          ) : isReleased ? (
+                            <div className="p-3 bg-green-50 border border-green-300 text-green-800 font-bold flex items-center justify-between">
+                              <span>✓ NPR {isReleased.amount?.toLocaleString()} RELEASED TO FREELANCER</span>
+                              <span className="text-[10px] text-green-700 font-normal">
+                                RELEASED: {new Date(isReleased.releasedAt || Date.now()).toLocaleDateString()}
+                              </span>
                             </div>
-                            
-                            <div>
-                              <label className="block text-sm font-medium text-foreground mb-2">
-                                Description (optional)
-                              </label>
-                              <input
-                                type="text"
-                                value={payDescription}
-                                onChange={(e) => setPayDescription(e.target.value)}
-                                placeholder="e.g. Payment for milestone 1"
-                                className="w-full border border-border rounded-lg px-4 py-2 text-sm bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-accent"
-                              />
+                          ) : (
+                            <div className="p-2.5 bg-[var(--paper-2)] border border-[var(--line)] text-[var(--muted)] text-[10px]">
+                              STATUS: NO ESCROW FUNDS DEPOSITED YET
                             </div>
-                            
-                            <div className="pt-4 border-t border-border">
-                              <p className="text-sm font-medium text-foreground mb-3">Select Payment Method</p>
-                              <div className="flex gap-3 flex-wrap">
-                                <Button
-                                  type="button"
-                                  disabled={payLoading || !payAmount || parseFloat(payAmount) <= 0}
-                                  onClick={(e) => handleInitiatePayment(e, 'esewa')}
-                                  className="flex-1 bg-green-600 hover:bg-green-700 text-white h-12"
-                                  size="lg"
-                                >
-                                  {payLoading ? (
-                                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-                                  ) : (
-                                    <CreditCard className="h-5 w-5 mr-2" />
-                                  )}
-                                  Pay with eSewa
-                                </Button>
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  disabled={payLoading || !payAmount || parseFloat(payAmount) <= 0}
-                                  onClick={(e) => handleInitiatePayment(e, 'stripe')}
-                                  className="flex-1 h-12 bg-indigo-600 hover:bg-indigo-700 text-white border-indigo-600"
-                                  size="lg"
-                                >
-                                  {payLoading ? (
-                                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-                                  ) : (
-                                    <CreditCard className="h-5 w-5 mr-2" />
-                                  )}
-                                  Pay with Stripe
-                                </Button>
-                              </div>
-                              <Button 
-                                type="button" 
-                                variant="outline" 
-                                onClick={() => setShowDepositDialog(false)}
-                                className="w-full mt-2"
-                              >
-                                Cancel
-                              </Button>
-                            </div>
-                          </div>
-                        )}
-                      </CardContent>
-                    </Card>
-                  )}
+                          )}
+                        </div>
 
-                  {/* Payment History */}
-                  {payments.length > 0 && (
-                    <Card className="border-border">
-                      <CardHeader>
-                        <CardTitle className="flex items-center font-display text-xl">
-                          <RefreshCw className="h-5 w-5 mr-2 text-accent" />
-                          Payment History
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent className="space-y-2">
-                        {payments.map((p) => (
-                          <div key={p.id} className="flex items-center justify-between p-3 bg-muted rounded-xl text-sm">
-                            <div>
-                              <p className="font-semibold text-foreground">{formatCurrency(p.amount)}</p>
-                              <p className="text-xs text-muted-foreground">{p.description}</p>
-                              <p className="text-xs text-muted-foreground">
-                                {new Date(p.createdAt).toLocaleDateString()}
-                              </p>
-                            </div>
-                            <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-                              p.status === "completed" ? "bg-green-100 text-green-700" :
-                              p.status === "failed" ? "bg-red-100 text-red-700" :
-                              p.status === "refunded" ? "bg-gray-100 text-gray-700" :
-                              "bg-yellow-100 text-yellow-700"
-                            }`}>
-                              {p.status.charAt(0).toUpperCase() + p.status.slice(1)}
-                            </span>
-                          </div>
-                        ))}
-                      </CardContent>
-                    </Card>
-                  )}
-                </>
+                      </div>
+                    );
+                  })}
+                </div>
               )}
             </div>
 
-            {/* Sidebar */}
-            <div className="lg:col-span-1">
-              <div className="sticky top-20 space-y-6">
-                {/* Signature Status */}
-                <Card className="border-border">
-                  <CardHeader>
-                    <CardTitle className="font-display text-lg">Signatures</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <User className="h-4 w-4 text-muted-foreground" />
-                        <span className="text-sm text-foreground">Client</span>
-                      </div>
-                      {contract.signedByClient ? (
-                        <div className="flex items-center gap-1 text-green-600">
-                          <CheckCircle className="h-4 w-4" />
-                          <span className="text-xs font-medium">Signed</span>
-                        </div>
-                      ) : (
-                        <span className="text-xs text-muted-foreground">Pending</span>
-                      )}
-                    </div>
-                    {contract.clientSignedAt && (
-                      <p className="text-xs text-muted-foreground pl-6">
-                        {new Date(contract.clientSignedAt).toLocaleString()}
-                      </p>
-                    )}
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <User className="h-4 w-4 text-muted-foreground" />
-                        <span className="text-sm text-foreground">Freelancer</span>
-                      </div>
-                      {contract.signedByFreelancer ? (
-                        <div className="flex items-center gap-1 text-green-600">
-                          <CheckCircle className="h-4 w-4" />
-                          <span className="text-xs font-medium">Signed</span>
-                        </div>
-                      ) : (
-                        <span className="text-xs text-muted-foreground">Pending</span>
-                      )}
-                    </div>
-                    {contract.freelancerSignedAt && (
-                      <p className="text-xs text-muted-foreground pl-6">
-                        {new Date(contract.freelancerSignedAt).toLocaleString()}
-                      </p>
-                    )}
-                  </CardContent>
-                </Card>
+          </div>
 
-                {/* Contract Info */}
-                <Card className="border-border">
-                  <CardHeader>
-                    <CardTitle className="font-display text-lg">Details</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-3 text-sm">
-                    <div>
-                      <p className="text-muted-foreground">Created</p>
-                      <p className="font-semibold text-foreground">
-                        {new Date(contract.createdAt).toLocaleDateString()}
-                      </p>
-                    </div>
-                    {contract.startedAt && (
-                      <div>
-                        <p className="text-muted-foreground">Started</p>
-                        <p className="font-semibold text-foreground">
-                          {new Date(contract.startedAt).toLocaleDateString()}
-                        </p>
-                      </div>
-                    )}
-                    {contract.completedAt && (
-                      <div>
-                        <p className="text-muted-foreground">Completed</p>
-                        <p className="font-semibold text-foreground">
-                          {new Date(contract.completedAt).toLocaleDateString()}
-                        </p>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
+
+          {/* Right Column (30% Width: Cols 9 to 12) - ESCROW FINANCIAL INSTRUMENT */}
+          <div className="lg:col-span-4 space-y-8 font-mono-ledger text-[12px]">
+            
+            {/* ESCROW SUMMARY INSTRUMENT */}
+            <div className="border-2 border-[var(--ink)] bg-[var(--paper-2)] p-6 space-y-4">
+              <div className="border-b border-[var(--ink)] pb-2 text-[11px] uppercase tracking-wider font-bold text-[var(--ink)] flex items-center justify-between">
+                <span>ESCROW FINANCIAL RECORD</span>
+                <span className="text-[var(--signal)]">[NPR]</span>
+              </div>
+
+              <div className="space-y-3">
+                <div>
+                  <span className="text-[var(--muted)] text-[10px] uppercase block">TOTAL CONTRACT BUDGET</span>
+                  <span className="font-bold text-[20px] text-[var(--ink)]">
+                    NPR {contract.agreedBudget?.toLocaleString()}
+                  </span>
+                </div>
+
+                <div className="border-t border-[var(--line)] pt-2 space-y-1">
+                  <span className="text-[var(--muted)] text-[10px] uppercase block">FUNDS HELD IN ESCROW</span>
+                  <span className="font-bold text-[18px] text-[var(--signal)] block">
+                    NPR {totalHeld.toLocaleString()}
+                  </span>
+                  <span className="text-[10px] text-[var(--muted)] block">Protected in local reserve</span>
+                </div>
+
+                <div className="border-t border-[var(--line)] pt-2 space-y-1">
+                  <span className="text-[var(--muted)] text-[10px] uppercase block">RELEASED TO FREELANCER</span>
+                  <span className="font-bold text-[18px] text-green-700 block">
+                    NPR {totalReleased.toLocaleString()}
+                  </span>
+                </div>
+
+                {isClient && (
+                  <div className="pt-3 border-t border-[var(--ink)]">
+                    <button
+                      onClick={() => {
+                        setShowDepositModal(true);
+                        setPayAmount(contract.agreedBudget?.toString() || "");
+                        setPayDescription(`Escrow deposit for ${contract.projectTitle}`);
+                      }}
+                      className="w-full bg-[var(--signal)] hover:bg-[var(--signal-dark)] text-[var(--paper)] font-bold text-[11px] uppercase tracking-wider py-2.5 transition-colors shadow-xs"
+                    >
+                      DEPOSIT ESCROW FUNDS →
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+
+
+            {/* DIGITAL SIGNATURE RECORD */}
+            <div className="border-2 border-[var(--ink)] bg-[var(--paper)] p-6 space-y-4">
+              <div className="border-b border-[var(--ink)] pb-2 text-[11px] uppercase tracking-wider font-bold text-[var(--ink)] flex items-center justify-between">
+                <span>DIGITAL SIGNATURES</span>
+                <span className="text-[var(--signal)]">• RECORD</span>
+              </div>
+
+              <div className="space-y-3 text-[11px]">
+                <div className="flex items-center justify-between py-1.5 border-b border-[var(--line)]">
+                  <span className="text-[var(--muted)]">CLIENT SIGNATURE</span>
+                  <span className={contract.signedByClient ? "font-bold text-green-700" : "font-bold text-[var(--signal)]"}>
+                    {contract.signedByClient ? "[SIGNED]" : "[PENDING]"}
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between py-1.5 border-b border-[var(--line)]">
+                  <span className="text-[var(--muted)]">FREELANCER SIGNATURE</span>
+                  <span className={contract.signedByFreelancer ? "font-bold text-green-700" : "font-bold text-[var(--signal)]"}>
+                    {contract.signedByFreelancer ? "[SIGNED]" : "[PENDING]"}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+
+      </main>
+
+      {/* DEPOSIT MODAL */}
+      {showDepositModal && (
+        <div className="fixed inset-0 bg-[var(--ink)]/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+          <div className="bg-[var(--paper)] border-2 border-[var(--ink)] max-w-md w-full p-6 space-y-6 shadow-xl text-left font-sans-ledger">
+            <div className="flex items-center justify-between border-b border-[var(--line)] pb-3 font-mono-ledger text-[11px] uppercase tracking-wider">
+              <span className="text-[var(--ink)] font-bold">ESCROW DEPOSIT WINDOW</span>
+              <button onClick={() => setShowDepositModal(false)} className="text-[var(--muted)] hover:text-[var(--ink)]">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <h3 className="font-serif-ledger text-[24px] font-normal text-[var(--ink)]">
+              Deposit Funds into Escrow
+            </h3>
+
+            <div className="space-y-4 font-mono-ledger text-[12px]">
+              <div className="space-y-1">
+                <label className="text-[10px] text-[var(--muted)] uppercase font-bold">DEPOSIT AMOUNT (NPR)</label>
+                <input
+                  type="number"
+                  value={payAmount}
+                  onChange={(e) => setPayAmount(e.target.value)}
+                  className="w-full bg-[var(--paper-2)] border-2 border-[var(--ink)] p-3 font-bold text-[16px] focus:outline-none"
+                  placeholder="45000"
+                />
+              </div>
+
+              <div className="space-y-2 pt-2">
+                <span className="text-[10px] text-[var(--muted)] uppercase font-bold block">SELECT PAYMENT GATEWAY</span>
+                <button
+                  type="button"
+                  onClick={(e) => handleDepositSubmit(e, 'esewa')}
+                  disabled={payLoading}
+                  className="w-full bg-green-700 text-white font-bold py-3 uppercase hover:bg-green-800 transition-colors flex items-center justify-center space-x-2"
+                >
+                  <span>PAY WITH ESEWA (NPR) →</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={(e) => handleDepositSubmit(e, 'stripe')}
+                  disabled={payLoading}
+                  className="w-full bg-[var(--ink)] text-[var(--paper)] font-bold py-3 uppercase hover:bg-[var(--signal)] transition-colors flex items-center justify-center space-x-2"
+                >
+                  <span>PAY WITH CARD / STRIPE →</span>
+                </button>
               </div>
             </div>
           </div>
         </div>
-      </main>
+      )}
 
-      {/* Hidden eSewa auto-submit form */}
+      {/* Hidden eSewa Auto-Submit Form */}
       {esewaFormData && (
-        <form id="esewa-payment-form" method="POST" action={esewaUrl} style={{ display: 'none' }}>
+        <form id="esewa-payment-form" method="POST" action="https://rc-epay.esewa.com.np/api/epay/main/v2/form" className="hidden">
           {Object.entries(esewaFormData).map(([key, value]) => (
             <input key={key} type="hidden" name={key} value={value} />
           ))}
         </form>
       )}
+
+      {/* Editorial Footer */}
+      <footer className="border-t border-[var(--line)] py-6 text-center mt-12 font-mono-ledger text-[12px] text-[var(--muted)]">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 flex flex-col sm:flex-row items-center justify-between gap-2">
+          <span>FreelanceHub · Contract Execution & Escrow Workspace</span>
+          <span>Engineered by Nantio Studio (www.nantio.it.com)</span>
+        </div>
+      </footer>
+
     </div>
   );
 }

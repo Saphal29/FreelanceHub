@@ -3,7 +3,6 @@
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button";
 import { 
   Search, 
   Menu, 
@@ -15,7 +14,10 @@ import {
   Clock,
   AlertCircle,
   LogOut,
-  Users
+  Users,
+  PlusCircle,
+  MessageSquare,
+  LayoutDashboard
 } from "lucide-react";
 import NotificationBell from "@/components/notifications/NotificationBell";
 import { useAuth } from "@/contexts/AuthContext";
@@ -51,19 +53,18 @@ const Navbar = ({ userType = "client" }) => {
     router.push('/login');
   };
 
-  // Navigation structure with dropdowns
   const freelancerNav = [
-    { label: "Find Work", href: "/freelancer/jobs", icon: Search },
+    { label: "Find Work", href: "/projects", icon: Search },
     {
       label: "My Work",
       icon: Briefcase,
       dropdown: [
-        { label: "My Projects", href: "/freelancer/my-projects" },
-        { label: "My Proposals", href: "/freelancer/proposals" },
-        { label: "Contracts", href: "/contracts" },
-        { label: "Time Tracking", href: "/time-tracking" },
+        { label: "My Proposals", href: "/freelancer/proposals", icon: FileText },
+        { label: "Active Contracts", href: "/contracts", icon: Briefcase },
+        { label: "Time Tracking", href: "/time-tracking", icon: Clock },
       ]
     },
+    { label: "Messages", href: "/chat", icon: MessageSquare },
     { label: "Disputes", href: "/disputes", icon: AlertCircle },
   ];
 
@@ -73,16 +74,17 @@ const Navbar = ({ userType = "client" }) => {
       label: "Projects",
       icon: Briefcase,
       dropdown: [
-        { label: "My Projects", href: "/client/projects" },
-        { label: "Post Project", href: "/client/post-project" },
-        { label: "Contracts", href: "/contracts" },
+        { label: "My Projects", href: "/client/projects", icon: FileText },
+        { label: "Post a Project", href: "/client/post-project", icon: PlusCircle },
+        { label: "Contracts", href: "/contracts", icon: Briefcase },
       ]
     },
+    { label: "Messages", href: "/chat", icon: MessageSquare },
     { label: "Disputes", href: "/disputes", icon: AlertCircle },
   ];
 
   const adminNav = [
-    { label: "Dashboard", href: "/admin", icon: Briefcase },
+    { label: "Dashboard", href: "/admin", icon: LayoutDashboard },
     { label: "Users", href: "/admin/users", icon: User },
     { label: "Projects", href: "/admin/projects", icon: FileText },
     { label: "Disputes", href: "/admin/disputes", icon: AlertCircle },
@@ -104,51 +106,59 @@ const Navbar = ({ userType = "client" }) => {
   };
 
   return (
-    <nav className="sticky top-0 z-50 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
-      <div className="container mx-auto px-4">
-        <div className="flex h-16 items-center justify-between gap-4">
+    <header className="sticky top-0 z-50 w-full border-b border-[var(--line)] bg-[var(--paper)]/95 backdrop-blur-sm font-sans-ledger">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12">
+        <div className="flex h-16 items-center justify-between">
+          
           {/* Logo */}
-          <Link 
-            href={userType === "client" ? "/client" : userType === "admin" ? "/admin" : "/freelancer"} 
-            className="flex items-center gap-2"
-          >
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-accent">
-              <span className="font-display text-lg font-bold text-accent-foreground">F</span>
-            </div>
-            <span className="hidden font-display text-xl font-bold text-foreground sm:block">
-              Freelance<span className="text-accent">Hub</span>
+          <Link href={userType === 'freelancer' ? '/freelancer' : '/dashboard'} className="flex items-center space-x-2.5">
+            <span className="font-serif-ledger text-[20px] font-semibold tracking-tight text-[var(--ink)] hover:text-[var(--signal)] transition-colors">
+              FreelanceHub
+            </span>
+            <span className="font-mono-ledger text-[9px] uppercase px-1.5 py-0.5 bg-[var(--paper-2)] border border-[var(--line)] text-[var(--muted)]">
+              {userType}
             </span>
           </Link>
 
-          {/* Desktop Navigation */}
-          <div className="hidden items-center gap-1 lg:flex" ref={navDropdownRef}>
-            {navItems.map((item, index) => (
-              item.dropdown ? (
+          {/* Desktop Navigation Links with Icons */}
+          <div className="hidden items-center space-x-1 lg:flex" ref={navDropdownRef}>
+            {navItems.map((item, index) => {
+              const ItemIcon = item.icon;
+              return item.dropdown ? (
                 <div key={index} className="relative">
                   <button
                     onClick={() => setOpenDropdown(openDropdown === index ? null : index)}
-                    className={`flex items-center gap-1 rounded-lg px-3 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground ${
-                      isActive(item) ? "text-primary" : "text-muted-foreground"
+                    className={`flex items-center space-x-1.5 px-3 py-2 text-[13px] font-mono-ledger tracking-wide transition-colors ${
+                      isActive(item) 
+                        ? "text-[var(--signal)] font-bold" 
+                        : "text-[var(--ink)] hover:text-[var(--signal)]"
                     }`}
                   >
-                    <item.icon className="h-4 w-4" />
-                    {item.label}
+                    {ItemIcon && <ItemIcon className="h-3.5 w-3.5 shrink-0" />}
+                    <span>{item.label}</span>
                     <ChevronDown className={`h-3 w-3 transition-transform ${openDropdown === index ? 'rotate-180' : ''}`} />
                   </button>
+
                   {openDropdown === index && (
-                    <div className="absolute left-0 top-full mt-1 w-48 rounded-lg border border-border bg-background shadow-lg">
-                      {item.dropdown.map((subItem) => (
-                        <Link
-                          key={subItem.href}
-                          href={subItem.href}
-                          onClick={() => setOpenDropdown(null)}
-                          className={`block px-4 py-2 text-sm transition-colors hover:bg-accent first:rounded-t-lg last:rounded-b-lg ${
-                            pathname === subItem.href ? "bg-accent text-accent-foreground font-medium" : "text-foreground"
-                          }`}
-                        >
-                          {subItem.label}
-                        </Link>
-                      ))}
+                    <div className="absolute left-0 top-full mt-1 w-52 border border-[var(--ink)] bg-[var(--paper)] shadow-md font-mono-ledger text-[12px] z-50">
+                      {item.dropdown.map((subItem) => {
+                        const SubIcon = subItem.icon;
+                        return (
+                          <Link
+                            key={subItem.href}
+                            href={subItem.href}
+                            onClick={() => setOpenDropdown(null)}
+                            className={`flex items-center space-x-2 px-4 py-2.5 transition-colors border-b border-[var(--line)] last:border-0 ${
+                              pathname === subItem.href 
+                                ? "bg-[var(--paper-2)] text-[var(--signal)] font-bold" 
+                                : "text-[var(--ink)] hover:bg-[var(--paper-2)] hover:text-[var(--signal)]"
+                            }`}
+                          >
+                            {SubIcon && <SubIcon className="h-3.5 w-3.5 shrink-0" />}
+                            <span>{subItem.label}</span>
+                          </Link>
+                        );
+                      })}
                     </div>
                   )}
                 </div>
@@ -156,76 +166,69 @@ const Navbar = ({ userType = "client" }) => {
                 <Link
                   key={item.href}
                   href={item.href}
-                  className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground ${
-                    isActive(item) ? "text-primary" : "text-muted-foreground"
+                  className={`flex items-center space-x-1.5 px-3 py-2 text-[13px] font-mono-ledger tracking-wide transition-colors ${
+                    isActive(item) 
+                      ? "text-[var(--signal)] font-bold" 
+                      : "text-[var(--ink)] hover:text-[var(--signal)]"
                   }`}
                 >
-                  <item.icon className="h-4 w-4" />
-                  {item.label}
+                  {ItemIcon && <ItemIcon className="h-3.5 w-3.5 shrink-0" />}
+                  <span>{item.label}</span>
                 </Link>
-              )
-            ))}
+              );
+            })}
           </div>
 
-          {/* Right Side Actions */}
-          <div className="flex items-center gap-2">
-            {/* Notifications */}
+          {/* Right Actions */}
+          <div className="flex items-center space-x-3">
             <NotificationBell />
 
-            {/* User Menu */}
+            {/* Profile Dropdown */}
             <div className="relative" ref={profileDropdownRef}>
               <button
                 onClick={() => setOpenDropdown(openDropdown === 'profile' ? null : 'profile')}
-                className="flex items-center gap-2 rounded-lg px-3 py-2 transition-colors hover:bg-accent/50"
+                className="flex items-center space-x-2 p-1.5 border border-[var(--line)] bg-[var(--paper-2)] hover:border-[var(--ink)] transition-all text-left"
               >
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-accent text-accent-foreground">
-                  <User className="h-4 w-4" />
+                <div className="w-7 h-7 bg-[var(--ink)] text-[var(--paper)] font-mono-ledger text-[11px] font-bold flex items-center justify-center">
+                  {user?.fullName?.charAt(0) || 'U'}
                 </div>
-                <div className="hidden flex-col items-start sm:flex">
-                  <span className="text-sm font-medium text-foreground leading-tight">
-                    {user?.fullName || 'User'}
+                <div className="hidden sm:flex flex-col text-[11px] font-mono-ledger leading-tight pr-1">
+                  <span className="font-bold text-[var(--ink)] truncate max-w-[100px]">
+                    {user?.fullName?.split(' ')[0] || 'User'}
                   </span>
-                  <span className="text-xs text-muted-foreground leading-tight">
-                    {userType === 'client' ? 'Client' : userType === 'admin' ? 'Admin' : 'Freelancer'}
+                  <span className="text-[var(--muted)] text-[9px] uppercase">
+                    {userType}
                   </span>
                 </div>
-                <ChevronDown className={`hidden h-4 w-4 text-muted-foreground transition-transform sm:block ${openDropdown === 'profile' ? 'rotate-180' : ''}`} />
+                <ChevronDown className="h-3 w-3 text-[var(--muted)] hidden sm:block" />
               </button>
+
               {openDropdown === 'profile' && (
-                <div className="absolute right-0 top-full mt-2 w-56 rounded-lg border border-border bg-background shadow-lg z-50">
-                  <div className="border-b border-border px-4 py-3">
-                    <p className="text-sm font-semibold text-foreground">{user?.fullName || 'User'}</p>
-                    <p className="text-xs text-muted-foreground">{user?.email}</p>
+                <div className="absolute right-0 top-full mt-2 w-56 border-2 border-[var(--ink)] bg-[var(--paper)] shadow-md z-50 font-mono-ledger text-[12px]">
+                  <div className="border-b border-[var(--line)] p-3 bg-[var(--paper-2)] space-y-0.5">
+                    <p className="font-bold text-[var(--ink)] truncate">{user?.fullName || 'Authenticated User'}</p>
+                    <p className="text-[10px] text-[var(--muted)] truncate">{user?.email}</p>
                   </div>
-                  <div className="py-1">
+                  
+                  <div className="py-1 divide-y divide-[var(--line)]">
                     {profileMenuItems.map((item) => (
-                      <a
+                      <Link
                         key={item.href}
                         href={item.href}
-                        onClick={(e) => {
-                          e.preventDefault();
-                          setOpenDropdown(null);
-                          router.push(item.href);
-                        }}
-                        className="flex items-center gap-3 px-4 py-2.5 text-sm text-foreground transition-colors hover:bg-accent cursor-pointer"
+                        onClick={() => setOpenDropdown(null)}
+                        className="flex items-center space-x-2 px-3.5 py-2.5 text-[var(--ink)] hover:bg-[var(--paper-2)] hover:text-[var(--signal)] transition-colors"
                       >
-                        <item.icon className="h-4 w-4 text-muted-foreground" />
-                        {item.label}
-                      </a>
+                        <item.icon className="h-3.5 w-3.5 shrink-0" />
+                        <span>{item.label}</span>
+                      </Link>
                     ))}
-                  </div>
-                  <div className="border-t border-border">
+                    
                     <button
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        setOpenDropdown(null);
-                        handleLogout();
-                      }}
-                      className="flex w-full items-center gap-3 rounded-b-lg px-4 py-2.5 text-sm text-destructive transition-colors hover:bg-accent cursor-pointer"
+                      onClick={handleLogout}
+                      className="flex items-center space-x-2 w-full text-left px-3.5 py-2.5 text-[var(--signal)] hover:bg-red-50 transition-colors"
                     >
-                      <LogOut className="h-4 w-4" />
-                      Logout
+                      <LogOut className="h-3.5 w-3.5 shrink-0" />
+                      <span>Sign Out</span>
                     </button>
                   </div>
                 </div>
@@ -233,78 +236,61 @@ const Navbar = ({ userType = "client" }) => {
             </div>
 
             {/* Mobile Menu Button */}
-            <Button
-              variant="ghost"
-              size="icon"
-              className="lg:hidden"
+            <button
               onClick={() => setIsMenuOpen(!isMenuOpen)}
+              className="lg:hidden p-2 border border-[var(--line)] bg-[var(--paper-2)] text-[var(--ink)]"
             >
               {isMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-            </Button>
+            </button>
           </div>
-        </div>
 
-        {/* Mobile Menu */}
-        <div
-          className={`overflow-hidden transition-all duration-300 ease-in-out lg:hidden ${
-            isMenuOpen ? "max-h-[600px] opacity-100" : "max-h-0 opacity-0"
-          }`}
-        >
-          <div className="border-t border-border py-4">
-            {/* Mobile Links */}
-            <div className="flex flex-col gap-1">
-              {navItems.map((item, index) => (
-                item.dropdown ? (
-                  <div key={index}>
-                    <button
-                      onClick={() => setOpenDropdown(openDropdown === `mobile-${index}` ? null : `mobile-${index}`)}
-                      className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
-                    >
-                      <div className="flex items-center gap-2">
-                        <item.icon className="h-4 w-4" />
-                        {item.label}
-                      </div>
-                      <ChevronDown className={`h-4 w-4 transition-transform ${openDropdown === `mobile-${index}` ? 'rotate-180' : ''}`} />
-                    </button>
-                    {openDropdown === `mobile-${index}` && (
-                      <div className="ml-6 mt-1 flex flex-col gap-1">
-                        {item.dropdown.map((subItem) => (
-                          <Link
-                            key={subItem.href}
-                            href={subItem.href}
-                            className={`rounded-lg px-3 py-2 text-sm transition-colors hover:bg-accent ${
-                              pathname === subItem.href ? "bg-accent text-accent-foreground font-medium" : "text-muted-foreground"
-                            }`}
-                            onClick={() => {
-                              setIsMenuOpen(false);
-                              setOpenDropdown(null);
-                            }}
-                          >
-                            {subItem.label}
-                          </Link>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors hover:bg-accent ${
-                      pathname === item.href ? "bg-accent text-accent-foreground" : "text-foreground"
-                    }`}
-                    onClick={() => setIsMenuOpen(false)}
-                  >
-                    <item.icon className="h-4 w-4" />
-                    {item.label}
-                  </Link>
-                )
-              ))}
-            </div>
-          </div>
         </div>
       </div>
-    </nav>
+
+      {/* Mobile Drawer */}
+      {isMenuOpen && (
+        <div className="lg:hidden border-t border-[var(--line)] bg-[var(--paper)] p-4 space-y-3 font-mono-ledger text-[13px]">
+          {navItems.map((item, index) => {
+            const ItemIcon = item.icon;
+            return (
+              <div key={index} className="space-y-1">
+                {item.dropdown ? (
+                  <>
+                    <div className="font-bold text-[var(--muted)] uppercase text-[10px] tracking-wider pt-2 flex items-center space-x-1.5">
+                      {ItemIcon && <ItemIcon className="h-3.5 w-3.5" />}
+                      <span>{item.label}</span>
+                    </div>
+                    {item.dropdown.map((subItem) => {
+                      const SubIcon = subItem.icon;
+                      return (
+                        <Link
+                          key={subItem.href}
+                          href={subItem.href}
+                          onClick={() => setIsMenuOpen(false)}
+                          className="flex items-center space-x-2 py-1.5 pl-4 text-[var(--ink)] hover:text-[var(--signal)]"
+                        >
+                          {SubIcon && <SubIcon className="h-3.5 w-3.5" />}
+                          <span>{subItem.label}</span>
+                        </Link>
+                      );
+                    })}
+                  </>
+                ) : (
+                  <Link
+                    href={item.href}
+                    onClick={() => setIsMenuOpen(false)}
+                    className="flex items-center space-x-2 py-2 text-[var(--ink)] hover:text-[var(--signal)] font-bold"
+                  >
+                    {ItemIcon && <ItemIcon className="h-3.5 w-3.5" />}
+                    <span>{item.label}</span>
+                  </Link>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </header>
   );
 };
 

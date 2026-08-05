@@ -3,20 +3,36 @@
 import { useState, useEffect, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Navbar from "@/components/layout/Navbar";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import CommandRail from "@/components/layout/CommandRail";
+import EmptyState from "@/components/common/EmptyState";
 import { useAuth } from "@/contexts/AuthContext";
 import {
-  startTimer, stopTimer, getActiveTimer,
-  createManualTimeEntry, updateTimeEntry, deleteTimeEntry,
-  getContractTimeEntries, submitTimeEntriesForApproval,
-  approveTimeEntry, rejectTimeEntry, getContractTimeSummary
+  startTimer, 
+  stopTimer, 
+  getActiveTimer,
+  createManualTimeEntry, 
+  updateTimeEntry, 
+  deleteTimeEntry,
+  getContractTimeEntries, 
+  submitTimeEntriesForApproval,
+  approveTimeEntry, 
+  rejectTimeEntry, 
+  getContractTimeSummary,
+  getUserContracts
 } from "@/lib/api";
-import { getUserContracts } from "@/lib/api";
 import {
-  Play, Square, Plus, Clock, DollarSign, CheckCircle,
-  XCircle, AlertCircle, Trash2, Edit2, Send, Timer
+  Play, 
+  Square, 
+  Plus, 
+  Clock, 
+  DollarSign, 
+  CheckCircle,
+  AlertCircle, 
+  Trash2, 
+  Edit2, 
+  Send, 
+  Timer,
+  ArrowRight
 } from "lucide-react";
 
 const formatDuration = (minutes) => {
@@ -32,14 +48,6 @@ const formatElapsed = (startTime) => {
   const m = Math.floor((diff % 3600) / 60);
   const s = diff % 60;
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
-};
-
-const STATUS_STYLES = {
-  draft: "bg-gray-100 text-gray-700",
-  submitted: "bg-yellow-100 text-yellow-700",
-  approved: "bg-green-100 text-green-700",
-  rejected: "bg-red-100 text-red-700",
-  disputed: "bg-orange-100 text-orange-700"
 };
 
 function TimeTrackingContent() {
@@ -58,23 +66,17 @@ function TimeTrackingContent() {
   const [success, setSuccess] = useState("");
   const [selectedEntries, setSelectedEntries] = useState([]);
 
-  // Timer start form
+  // Forms
   const [showStartForm, setShowStartForm] = useState(false);
   const [timerDesc, setTimerDesc] = useState("");
   const [timerRate, setTimerRate] = useState("");
 
-  // Manual entry form
   const [showManualForm, setShowManualForm] = useState(false);
   const [manualForm, setManualForm] = useState({
     description: "", startTime: "", endTime: "", hourlyRate: "", isBillable: true
   });
 
-  // Edit form
   const [editingEntry, setEditingEntry] = useState(null);
-
-  // Reject modal
-  const [rejectingEntry, setRejectingEntry] = useState(null);
-  const [rejectReason, setRejectReason] = useState("");
 
   const timerRef = useRef(null);
   const isFreelancer = user?.role === "FREELANCER";
@@ -100,10 +102,7 @@ function TimeTrackingContent() {
     if (selectedContract) {
       fetchTimeEntries();
       fetchSummary();
-      // Also refresh active timer when contract changes
-      if (isFreelancer) {
-        fetchActiveTimer();
-      }
+      if (isFreelancer) fetchActiveTimer();
     }
   }, [selectedContract, isFreelancer]);
 
@@ -111,7 +110,6 @@ function TimeTrackingContent() {
     if (isFreelancer) fetchActiveTimer();
   }, [isFreelancer]);
 
-  // Tick elapsed timer
   useEffect(() => {
     if (activeTimer) {
       timerRef.current = setInterval(() => {
@@ -140,17 +138,10 @@ function TimeTrackingContent() {
 
   const fetchActiveTimer = async () => {
     try {
-      console.log('[TimeTracking] Fetching active timer...');
       const res = await getActiveTimer();
-      console.log('[TimeTracking] Active timer response:', res);
       setActiveTimer(res.activeTimer);
-      if (res.activeTimer) {
-        console.log('[TimeTracking] Active timer found:', res.activeTimer);
-      } else {
-        console.log('[TimeTracking] No active timer');
-      }
     } catch (err) {
-      console.error('[TimeTracking] Error fetching active timer:', err);
+      console.error(err);
     }
   };
 
@@ -170,7 +161,7 @@ function TimeTrackingContent() {
     } catch {}
   };
 
-  const showSuccess = (msg) => { setSuccess(msg); setTimeout(() => setSuccess(""), 3000); };
+  const showSuccess = (msg) => { setSuccess(msg); setTimeout(() => setSuccess(""), 3500); };
 
   const handleStartTimer = async (e) => {
     e.preventDefault();
@@ -187,24 +178,12 @@ function TimeTrackingContent() {
         setShowStartForm(false);
         setTimerDesc("");
         setTimerRate("");
-        showSuccess("Timer started!");
+        showSuccess("Stopwatch timer initiated!");
       } else {
-        // If there's an active timer error, fetch it to show details
-        if (res.error && res.error.includes("active timer")) {
-          await fetchActiveTimer();
-          setError("You already have an active timer running. Please stop it before starting a new one.");
-        } else {
-          setError(res.error);
-        }
+        setError(res.error || "Could not start timer");
       }
     } catch (err) {
-      // If there's an active timer error, fetch it to show details
-      if (err.message && err.message.includes("active timer")) {
-        await fetchActiveTimer();
-        setError("You already have an active timer running. Please stop it before starting a new one.");
-      } else {
-        setError(err.message);
-      }
+      setError(err.message);
     }
   };
 
@@ -217,7 +196,7 @@ function TimeTrackingContent() {
         setActiveTimer(null);
         fetchTimeEntries();
         fetchSummary();
-        showSuccess("Timer stopped!");
+        showSuccess("Timer stopped and logged into timesheet.");
       } else {
         setError(res.error);
       }
@@ -241,59 +220,9 @@ function TimeTrackingContent() {
         setManualForm({ description: "", startTime: "", endTime: "", hourlyRate: "", isBillable: true });
         fetchTimeEntries();
         fetchSummary();
-        showSuccess("Time entry added!");
+        showSuccess("Manual time entry added to log!");
       } else {
         setError(res.error);
-      }
-    } catch (err) {
-      setError(err.message);
-    }
-  };
-
-  const handleUpdateEntry = async (e) => {
-    e.preventDefault();
-    try {
-      setError("");
-      const res = await updateTimeEntry(editingEntry.id, {
-        description: editingEntry.description,
-        hourlyRate: editingEntry.hourlyRate,
-        isBillable: editingEntry.isBillable
-      });
-      if (res.success) {
-        setEditingEntry(null);
-        fetchTimeEntries();
-        fetchSummary();
-        showSuccess("Entry updated!");
-      } else {
-        setError(res.error);
-      }
-    } catch (err) {
-      setError(err.message);
-    }
-  };
-
-  const handleDelete = async (id) => {
-    if (!confirm("Delete this time entry?")) return;
-    try {
-      const res = await deleteTimeEntry(id);
-      if (res.success) {
-        fetchTimeEntries();
-        fetchSummary();
-        showSuccess("Entry deleted!");
-      }
-    } catch (err) {
-      setError(err.message);
-    }
-  };
-
-  const handleSubmitSelected = async () => {
-    if (!selectedEntries.length) return;
-    try {
-      const res = await submitTimeEntriesForApproval(selectedEntries);
-      if (res.success) {
-        setSelectedEntries([]);
-        fetchTimeEntries();
-        showSuccess(`${res.timeEntries.length} entries submitted for approval!`);
       }
     } catch (err) {
       setError(err.message);
@@ -303,543 +232,307 @@ function TimeTrackingContent() {
   const handleApprove = async (id) => {
     try {
       const res = await approveTimeEntry(id);
-      if (res.success) { fetchTimeEntries(); fetchSummary(); showSuccess("Entry approved!"); }
+      if (res.success) { fetchTimeEntries(); fetchSummary(); showSuccess("Time entry approved for billing!"); }
     } catch (err) { setError(err.message); }
   };
 
-  const handleReject = async () => {
-    if (!rejectingEntry) return;
-    try {
-      const res = await rejectTimeEntry(rejectingEntry, rejectReason);
-      if (res.success) {
-        setRejectingEntry(null);
-        setRejectReason("");
-        fetchTimeEntries();
-        showSuccess("Entry rejected.");
-      }
-    } catch (err) { setError(err.message); }
-  };
-
-  const toggleSelectEntry = (id) => {
-    setSelectedEntries(prev =>
-      prev.includes(id) ? prev.filter(e => e !== id) : [...prev, id]
-    );
-  };
+  const userType = isClient ? "client" : "freelancer";
 
   if (authLoading || loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-primary"></div>
+      <div className="min-h-screen bg-[var(--paper)] flex items-center justify-center font-mono-ledger">
+        <p className="text-[12px] text-[var(--muted)] uppercase">LOADING TIMESHEET REGISTER...</p>
       </div>
     );
   }
 
   if (!user) return null;
 
-  const draftEntries = timeEntries.filter(e => e.status === 'draft' && e.endTime);
-
   return (
-    <div className="min-h-screen bg-background">
-      <Navbar userType={isClient ? "client" : "freelancer"} />
-      <main className="container mx-auto px-4 py-8">
-        <div className="max-w-5xl mx-auto">
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <h1 className="font-display text-3xl font-bold text-foreground">Time Tracking</h1>
-              <p className="text-muted-foreground mt-1">Track and manage billable hours</p>
+    <div className="min-h-screen bg-[var(--paper)] text-[var(--ink)] font-sans-ledger selection:bg-[var(--signal)] selection:text-[var(--paper)] flex flex-col justify-between">
+      
+      {/* Top Navbar */}
+      <Navbar userType={userType} />
+
+      {/* Floating Tool Rail */}
+      <CommandRail userType={userType} />
+
+      {/* Main Container */}
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 lg:pl-20 py-8 sm:py-12 space-y-10 flex-1 w-full pb-24 lg:pb-12 text-left">
+        
+        {/* EDITORIAL HEADER */}
+        <section className="space-y-4 border-b border-[var(--ink)] pb-8">
+          <p className="font-mono-ledger text-[11px] uppercase tracking-[0.08em] text-[var(--muted)] flex items-center space-x-2">
+            <span className="w-2 h-2 rounded-full bg-[var(--signal)] inline-block animate-pulse"></span>
+            <span>FREELANCEHUB AUDIT · HOURLY WORK LOG & TIMESHEET</span>
+          </p>
+          
+          <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+            <div className="space-y-2">
+              <h1 className="font-serif-ledger text-[38px] sm:text-[50px] leading-[1.05] font-medium tracking-tight text-[var(--ink)]">
+                Time Tracking.
+              </h1>
+              <p className="text-[15px] text-[var(--muted)] max-w-xl">
+                Log billable development hours, manage stopwatch timers, and review milestone timesheet approvals in NPR.
+              </p>
             </div>
-            {isFreelancer && (
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    fetchActiveTimer();
-                    showSuccess("Refreshed active timer status");
-                  }}
-                >
-                  <Timer className="h-4 w-4 mr-2" />
-                  Refresh Timer
-                </Button>
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  onClick={async () => {
-                    if (confirm("Stop ALL active timers? This will end any running timers.")) {
-                      try {
-                        const res = await fetch('/api/time/stop-all', {
-                          method: 'POST',
-                          headers: {
-                            'Authorization': `Bearer ${localStorage.getItem('token')}`,
-                            'Content-Type': 'application/json'
-                          }
-                        });
-                        const data = await res.json();
-                        if (data.success) {
-                          showSuccess(data.message);
-                          setActiveTimer(null);
-                          fetchTimeEntries();
-                        } else {
-                          setError(data.error);
-                        }
-                      } catch (err) {
-                        setError("Failed to stop timers");
-                      }
-                    }
-                  }}
-                >
-                  <Square className="h-4 w-4 mr-2" />
-                  Stop All Timers
-                </Button>
-              </div>
-            )}
           </div>
+        </section>
 
-          {success && (
-            <Alert className="mb-4 border-green-200 bg-green-50">
-              <CheckCircle className="h-4 w-4 text-green-600" />
-              <AlertDescription className="text-green-800">{success}</AlertDescription>
-            </Alert>
-          )}
-          {error && (
-            <Alert className="mb-4 border-red-200 bg-red-50">
-              <AlertCircle className="h-4 w-4 text-red-600" />
-              <AlertDescription className="text-red-800">
-                {error}
-                {error.includes("active timer") && activeTimer && (
-                  <div className="mt-2">
-                    <p className="font-semibold">Active timer details:</p>
-                    <p className="text-sm">Project: {activeTimer.projectTitle}</p>
-                    <p className="text-sm">Description: {activeTimer.description || "No description"}</p>
-                    <Button
-                      size="sm"
-                      variant="destructive"
-                      className="mt-2"
-                      onClick={handleStopTimer}
-                    >
-                      Stop This Timer
-                    </Button>
-                  </div>
-                )}
-                {error.includes("active timer") && !activeTimer && (
-                  <div className="mt-2">
-                    <p className="text-sm">Click the "Refresh Timer" button above to load the active timer details.</p>
-                  </div>
-                )}
-              </AlertDescription>
-            </Alert>
-          )}
 
-          {/* Debug info - remove in production */}
-          {isFreelancer && process.env.NODE_ENV === 'development' && (
-            <Alert className="mb-4 border-blue-200 bg-blue-50">
-              <AlertCircle className="h-4 w-4 text-blue-600" />
-              <AlertDescription className="text-blue-800 text-xs">
-                <strong>Debug:</strong> Active Timer State = {activeTimer ? 'EXISTS' : 'NULL'}
-                {activeTimer && ` (ID: ${activeTimer.id}, Project: ${activeTimer.projectTitle})`}
-              </AlertDescription>
-            </Alert>
-          )}
+        {/* NOTIFICATIONS */}
+        {success && (
+          <div className="p-4 bg-green-50 border border-green-600 text-green-800 font-mono-ledger text-[12px] flex items-center space-x-2">
+            <CheckCircle className="h-4 w-4 text-green-600 shrink-0" />
+            <span className="font-bold">{success}</span>
+          </div>
+        )}
 
-          {/* Contract Selector */}
-          {contracts.length > 0 && (
-            <div className="mb-6">
-              <label className="block text-sm font-medium text-foreground mb-2">Select Contract</label>
+        {error && (
+          <div className="p-4 bg-red-50 border border-[var(--signal)] text-[var(--signal-dark)] font-mono-ledger text-[12px] flex items-center space-x-2">
+            <AlertCircle className="h-4 w-4 text-[var(--signal)] shrink-0" />
+            <span>{error}</span>
+          </div>
+        )}
+
+
+        {/* CONTRACT SELECTOR & ACTIVE TIMER */}
+        <div className="space-y-6 font-mono-ledger">
+          
+          {contracts.length > 0 ? (
+            <div className="border-2 border-[var(--ink)] bg-[var(--paper-2)] p-4 space-y-2">
+              <label className="text-[10px] text-[var(--muted)] uppercase font-bold block">SELECT CONTRACT ENGAGEMENT</label>
               <select
                 value={selectedContract?.id || ""}
                 onChange={(e) => {
                   const c = contracts.find(c => c.id === e.target.value);
                   setSelectedContract(c);
                 }}
-                className="border border-border rounded-xl px-3 py-2 text-sm bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-accent w-full max-w-md"
+                className="w-full max-w-md bg-[var(--paper)] border border-[var(--ink)] p-3 text-[13px] font-bold focus:outline-none"
               >
                 {contracts.map(c => (
                   <option key={c.id} value={c.id}>{c.projectTitle}</option>
                 ))}
               </select>
             </div>
+          ) : (
+            <EmptyState
+              marker="HOURLY LOG"
+              title="No active contracts found."
+              description="Time tracking requires an active, signed contract engagement."
+              actionLabel="VIEW CONTRACT REGISTER →"
+              actionHref="/contracts"
+            />
           )}
 
-          {contracts.length === 0 && (
-            <Card className="border-border">
-              <CardContent className="p-8 text-center">
-                <Timer className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
-                <p className="text-muted-foreground">No active contracts found.</p>
-              </CardContent>
-            </Card>
-          )}
+          {/* ACTIVE STOPWATCH TIMER BANNER */}
+          {isFreelancer && activeTimer && (
+            <div className="border-2 border-[var(--signal)] bg-red-50 p-6 space-y-4">
+              <div className="flex items-center justify-between border-b border-[var(--signal)] pb-2 text-[11px] uppercase font-bold text-[var(--signal-dark)]">
+                <span>[LIVE STOPWATCH TIMER RUNNING]</span>
+                <span>PROJECT: {activeTimer.projectTitle}</span>
+              </div>
 
-          {selectedContract && (
-            <div className="space-y-6">
-              {/* Summary Cards */}
-              {summary && (
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  {[
-                    { label: "Total Hours", value: `${summary.totalHours}h`, icon: Clock },
-                    { label: "Billable Hours", value: `${summary.billableHours}h`, icon: DollarSign },
-                    { label: "Billable Amount", value: `NPR ${summary.totalBillableAmount.toLocaleString()}`, icon: DollarSign },
-                    { label: "Approved", value: `NPR ${summary.approvedAmount.toLocaleString()}`, icon: CheckCircle }
-                  ].map(({ label, value, icon: Icon }) => (
-                    <Card key={label} className="border-border">
-                      <CardContent className="p-4">
-                        <div className="flex items-center gap-2 mb-1">
-                          <Icon className="h-4 w-4 text-accent" />
-                          <span className="text-xs text-muted-foreground">{label}</span>
-                        </div>
-                        <p className="text-lg font-bold text-foreground">{value}</p>
-                      </CardContent>
-                    </Card>
-                  ))}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="space-y-1">
+                  <span className="text-[40px] font-bold tracking-tight text-[var(--signal)] font-mono-ledger">
+                    {elapsed}
+                  </span>
+                  <p className="text-[12px] text-[var(--ink)] font-sans-ledger">
+                    {activeTimer.description || "Work in progress..."}
+                  </p>
                 </div>
-              )}
 
-              {/* Active Timer (freelancer only) - Always show if exists */}
-              {isFreelancer && activeTimer && (
-                <Card className="border-2 border-accent bg-accent/5">
-                  <CardHeader>
-                    <CardTitle className="flex items-center font-display text-xl">
-                      <Timer className="h-5 w-5 mr-2 text-accent animate-pulse" />
-                      Active Timer
-                      {activeTimer.contractId !== selectedContract?.id && (
-                        <span className="ml-2 text-sm font-normal text-yellow-600">
-                          (Different Project)
-                        </span>
-                      )}
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-4xl font-mono font-bold text-foreground">{elapsed}</p>
-                        <p className="text-sm text-muted-foreground mt-1">
-                          {activeTimer.description || "No description"}
-                        </p>
-                        <p className="text-sm font-medium text-foreground mt-1">
-                          Project: {activeTimer.projectTitle}
-                        </p>
-                        {activeTimer.hourlyRate && (
-                          <p className="text-xs text-muted-foreground">
-                            NPR {activeTimer.hourlyRate}/hr
-                          </p>
-                        )}
-                      </div>
-                      <Button
-                        onClick={handleStopTimer}
-                        className="bg-red-600 hover:bg-red-700 text-white"
-                        size="lg"
-                      >
-                        <Square className="h-5 w-5 mr-2" />
-                        Stop Timer
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
+                <button
+                  onClick={handleStopTimer}
+                  className="bg-[var(--signal)] hover:bg-[var(--signal-dark)] text-[var(--paper)] font-bold text-[12px] uppercase tracking-wider px-6 py-3.5 transition-colors"
+                >
+                  STOP TIMER & LOG HOURS →
+                </button>
+              </div>
+            </div>
+          )}
 
-              {/* Start Timer Section (freelancer only) - Only show if no active timer */}
-              {isFreelancer && !activeTimer && (
-                <Card className="border-border">
-                  <CardHeader>
-                    <CardTitle className="flex items-center font-display text-xl">
-                      <Timer className="h-5 w-5 mr-2 text-accent" />
-                      Start Timer
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    {!showStartForm ? (
-                      <div className="flex gap-3">
-                        <Button variant="accent" onClick={() => setShowStartForm(true)}>
-                          <Play className="h-4 w-4 mr-2" />
-                          Start Timer
-                        </Button>
-                        <Button variant="outline" onClick={() => setShowManualForm(true)}>
-                          <Plus className="h-4 w-4 mr-2" />
-                          Add Manual Entry
-                        </Button>
-                      </div>
-                    ) : (
-                      <form onSubmit={handleStartTimer} className="space-y-3">
-                        <input
-                          type="text"
-                          placeholder="What are you working on?"
-                          value={timerDesc}
-                          onChange={e => setTimerDesc(e.target.value)}
-                          className="w-full border border-border rounded-xl px-3 py-2 text-sm bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-accent"
-                        />
-                        <input
-                          type="number"
-                          placeholder="Hourly rate (NPR, optional)"
-                          value={timerRate}
-                          onChange={e => setTimerRate(e.target.value)}
-                          className="w-full border border-border rounded-xl px-3 py-2 text-sm bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-accent"
-                        />
-                        <div className="flex gap-2">
-                          <Button type="submit" variant="accent">
-                            <Play className="h-4 w-4 mr-2" />
-                            Start
-                          </Button>
-                          <Button type="button" variant="outline" onClick={() => setShowStartForm(false)}>
-                            Cancel
-                          </Button>
-                        </div>
-                      </form>
-                    )}
-                  </CardContent>
-                </Card>
-              )}
+          {/* START TIMER CONTROLS */}
+          {isFreelancer && !activeTimer && selectedContract && (
+            <div className="border-2 border-[var(--ink)] bg-[var(--paper)] p-6 space-y-4">
+              <div className="border-b border-[var(--ink)] pb-2 text-[11px] uppercase font-bold text-[var(--ink)]">
+                INITIATE NEW WORK LOG
+              </div>
 
-              {/* Manual Entry Form */}
-              {showManualForm && isFreelancer && (
-                <Card className="border-border">
-                  <CardHeader>
-                    <CardTitle className="font-display text-lg">Add Manual Entry</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <form onSubmit={handleManualEntry} className="space-y-3">
+              {!showStartForm && !showManualForm ? (
+                <div className="flex flex-wrap gap-3 text-[11px]">
+                  <button
+                    onClick={() => setShowStartForm(true)}
+                    className="bg-[var(--signal)] hover:bg-[var(--signal-dark)] text-[var(--paper)] font-bold px-6 py-3 uppercase transition-colors flex items-center space-x-1"
+                  >
+                    <Play className="h-3.5 w-3.5" />
+                    <span>START INSTANT STOPWATCH →</span>
+                  </button>
+
+                  <button
+                    onClick={() => setShowManualForm(true)}
+                    className="bg-[var(--paper-2)] border border-[var(--ink)] text-[var(--ink)] hover:bg-[var(--paper)] font-bold px-6 py-3 uppercase transition-colors"
+                  >
+                    + ADD MANUAL TIME ENTRY
+                  </button>
+                </div>
+              ) : showStartForm ? (
+                <form onSubmit={handleStartTimer} className="space-y-3">
+                  <input
+                    type="text"
+                    placeholder="Work description (e.g. Refactoring API Endpoint Architecture)"
+                    value={timerDesc}
+                    onChange={e => setTimerDesc(e.target.value)}
+                    className="w-full bg-[var(--paper-2)] border-2 border-[var(--ink)] p-3 text-[13px] focus:outline-none"
+                  />
+                  <div className="flex gap-2">
+                    <button type="submit" className="bg-[var(--signal)] text-[var(--paper)] font-bold px-6 py-2.5 uppercase text-[11px]">
+                      START TIMER NOW
+                    </button>
+                    <button type="button" onClick={() => setShowStartForm(false)} className="px-4 py-2.5 border border-[var(--ink)] text-[11px]">
+                      CANCEL
+                    </button>
+                  </div>
+                </form>
+              ) : (
+                <form onSubmit={handleManualEntry} className="space-y-3 text-[12px]">
+                  <input
+                    type="text"
+                    placeholder="Description of work completed"
+                    value={manualForm.description}
+                    onChange={e => setManualForm(p => ({ ...p, description: e.target.value }))}
+                    className="w-full bg-[var(--paper-2)] border-2 border-[var(--ink)] p-3 text-[13px] focus:outline-none"
+                    required
+                  />
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-[10px] text-[var(--muted)] uppercase block">START TIME</label>
                       <input
-                        type="text"
-                        placeholder="Description"
-                        value={manualForm.description}
-                        onChange={e => setManualForm(p => ({ ...p, description: e.target.value }))}
-                        className="w-full border border-border rounded-xl px-3 py-2 text-sm bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-accent"
+                        type="datetime-local"
+                        value={manualForm.startTime}
+                        onChange={e => setManualForm(p => ({ ...p, startTime: e.target.value }))}
+                        className="w-full bg-[var(--paper-2)] border border-[var(--ink)] p-2.5"
                         required
                       />
-                      <div className="grid grid-cols-2 gap-3">
-                        <div>
-                          <label className="text-xs text-muted-foreground mb-1 block">Start Time</label>
-                          <input
-                            type="datetime-local"
-                            value={manualForm.startTime}
-                            onChange={e => setManualForm(p => ({ ...p, startTime: e.target.value }))}
-                            className="w-full border border-border rounded-xl px-3 py-2 text-sm bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-accent"
-                            required
-                          />
-                        </div>
-                        <div>
-                          <label className="text-xs text-muted-foreground mb-1 block">End Time</label>
-                          <input
-                            type="datetime-local"
-                            value={manualForm.endTime}
-                            onChange={e => setManualForm(p => ({ ...p, endTime: e.target.value }))}
-                            className="w-full border border-border rounded-xl px-3 py-2 text-sm bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-accent"
-                            required
-                          />
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-2 gap-3">
-                        <input
-                          type="number"
-                          placeholder="Hourly rate (NPR)"
-                          value={manualForm.hourlyRate}
-                          onChange={e => setManualForm(p => ({ ...p, hourlyRate: e.target.value }))}
-                          className="w-full border border-border rounded-xl px-3 py-2 text-sm bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-accent"
-                        />
-                        <label className="flex items-center gap-2 text-sm text-foreground cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={manualForm.isBillable}
-                            onChange={e => setManualForm(p => ({ ...p, isBillable: e.target.checked }))}
-                            className="rounded"
-                          />
-                          Billable
-                        </label>
-                      </div>
-                      <div className="flex gap-2">
-                        <Button type="submit" variant="accent">Add Entry</Button>
-                        <Button type="button" variant="outline" onClick={() => setShowManualForm(false)}>Cancel</Button>
-                      </div>
-                    </form>
-                  </CardContent>
-                </Card>
-              )}
-
-              {/* Submit for Approval */}
-              {isFreelancer && draftEntries.length > 0 && (
-                <div className="flex items-center justify-between bg-yellow-50 border border-yellow-200 rounded-xl p-4">
-                  <p className="text-sm text-yellow-800">
-                    {selectedEntries.length > 0
-                      ? `${selectedEntries.length} entries selected`
-                      : `${draftEntries.length} draft entries ready to submit`}
-                  </p>
-                  <Button
-                    variant="accent"
-                    size="sm"
-                    disabled={selectedEntries.length === 0}
-                    onClick={handleSubmitSelected}
-                  >
-                    <Send className="h-4 w-4 mr-2" />
-                    Submit for Approval
-                  </Button>
-                </div>
-              )}
-
-              {/* Time Entries List */}
-              <Card className="border-border">
-                <CardHeader>
-                  <CardTitle className="font-display text-xl flex items-center">
-                    <Clock className="h-5 w-5 mr-2 text-accent" />
-                    Time Entries
-                    <span className="ml-auto text-sm font-normal text-muted-foreground">
-                      {timeEntries.length} entries
-                    </span>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {timeEntries.length === 0 ? (
-                    <p className="text-center text-muted-foreground py-8">No time entries yet.</p>
-                  ) : (
-                    <div className="space-y-2">
-                      {timeEntries.map(entry => (
-                        <div key={entry.id} className="flex items-start gap-3 p-3 bg-muted rounded-xl">
-                          {/* Checkbox for freelancer draft entries */}
-                          {isFreelancer && entry.status === 'draft' && entry.endTime && (
-                            <input
-                              type="checkbox"
-                              checked={selectedEntries.includes(entry.id)}
-                              onChange={() => toggleSelectEntry(entry.id)}
-                              className="mt-1 rounded"
-                            />
-                          )}
-
-                          <div className="flex-1 min-w-0">
-                            {editingEntry?.id === entry.id ? (
-                              <form onSubmit={handleUpdateEntry} className="space-y-2">
-                                <input
-                                  type="text"
-                                  value={editingEntry.description}
-                                  onChange={e => setEditingEntry(p => ({ ...p, description: e.target.value }))}
-                                  className="w-full border border-border rounded-lg px-2 py-1 text-sm bg-background"
-                                />
-                                <div className="flex gap-2 items-center">
-                                  <input
-                                    type="number"
-                                    value={editingEntry.hourlyRate || ""}
-                                    onChange={e => setEditingEntry(p => ({ ...p, hourlyRate: e.target.value }))}
-                                    placeholder="Rate"
-                                    className="w-24 border border-border rounded-lg px-2 py-1 text-sm bg-background"
-                                  />
-                                  <label className="flex items-center gap-1 text-xs">
-                                    <input
-                                      type="checkbox"
-                                      checked={editingEntry.isBillable}
-                                      onChange={e => setEditingEntry(p => ({ ...p, isBillable: e.target.checked }))}
-                                    />
-                                    Billable
-                                  </label>
-                                  <Button type="submit" size="sm" variant="accent">Save</Button>
-                                  <Button type="button" size="sm" variant="outline" onClick={() => setEditingEntry(null)}>Cancel</Button>
-                                </div>
-                              </form>
-                            ) : (
-                              <>
-                                <p className="font-medium text-foreground text-sm truncate">
-                                  {entry.description || "No description"}
-                                </p>
-                                <div className="flex flex-wrap gap-3 mt-1 text-xs text-muted-foreground">
-                                  <span>{new Date(entry.startTime).toLocaleDateString()}</span>
-                                  {entry.endTime && (
-                                    <span className="flex items-center gap-1">
-                                      <Clock className="h-3 w-3" />
-                                      {formatDuration(entry.durationMinutes)}
-                                    </span>
-                                  )}
-                                  {!entry.endTime && (
-                                    <span className="text-green-600 font-medium">Running...</span>
-                                  )}
-                                  {entry.isBillable && entry.totalAmount > 0 && (
-                                    <span className="flex items-center gap-1">
-                                      <DollarSign className="h-3 w-3" />
-                                      NPR {entry.totalAmount.toLocaleString()}
-                                    </span>
-                                  )}
-                                  {!entry.isBillable && (
-                                    <span className="text-muted-foreground">Non-billable</span>
-                                  )}
-                                </div>
-                                {entry.rejectionReason && (
-                                  <p className="text-xs text-red-600 mt-1">Rejected: {entry.rejectionReason}</p>
-                                )}
-                              </>
-                            )}
-                          </div>
-
-                          <div className="flex items-center gap-2 shrink-0">
-                            <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_STYLES[entry.status] || STATUS_STYLES.draft}`}>
-                              {entry.status}
-                            </span>
-
-                            {/* Freelancer actions */}
-                            {isFreelancer && ['draft', 'rejected'].includes(entry.status) && entry.endTime && (
-                              <>
-                                <button
-                                  onClick={() => setEditingEntry(entry)}
-                                  className="text-muted-foreground hover:text-foreground"
-                                >
-                                  <Edit2 className="h-4 w-4" />
-                                </button>
-                                <button
-                                  onClick={() => handleDelete(entry.id)}
-                                  className="text-muted-foreground hover:text-red-600"
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </button>
-                              </>
-                            )}
-
-                            {/* Client actions */}
-                            {isClient && entry.status === 'submitted' && (
-                              <>
-                                <button
-                                  onClick={() => handleApprove(entry.id)}
-                                  className="text-green-600 hover:text-green-700"
-                                  title="Approve"
-                                >
-                                  <CheckCircle className="h-4 w-4" />
-                                </button>
-                                <button
-                                  onClick={() => setRejectingEntry(entry.id)}
-                                  className="text-red-600 hover:text-red-700"
-                                  title="Reject"
-                                >
-                                  <XCircle className="h-4 w-4" />
-                                </button>
-                              </>
-                            )}
-                          </div>
-                        </div>
-                      ))}
                     </div>
-                  )}
-                </CardContent>
-              </Card>
+                    <div>
+                      <label className="text-[10px] text-[var(--muted)] uppercase block">END TIME</label>
+                      <input
+                        type="datetime-local"
+                        value={manualForm.endTime}
+                        onChange={e => setManualForm(p => ({ ...p, endTime: e.target.value }))}
+                        className="w-full bg-[var(--paper-2)] border border-[var(--ink)] p-2.5"
+                        required
+                      />
+                    </div>
+                  </div>
+                  <div className="flex gap-2 pt-2">
+                    <button type="submit" className="bg-[var(--ink)] text-[var(--paper)] font-bold px-6 py-2.5 uppercase text-[11px]">
+                      LOG MANUAL ENTRY →
+                    </button>
+                    <button type="button" onClick={() => setShowManualForm(false)} className="px-4 py-2.5 border border-[var(--ink)] text-[11px]">
+                      CANCEL
+                    </button>
+                  </div>
+                </form>
+              )}
             </div>
           )}
+
         </div>
+
+
+        {/* SUMMARY CARDS */}
+        {summary && selectedContract && (
+          <section className="grid grid-cols-2 lg:grid-cols-4 gap-4 font-mono-ledger text-left">
+            <div className="border-2 border-[var(--ink)] bg-[var(--paper)] p-5 space-y-1">
+              <span className="text-[10px] text-[var(--muted)] uppercase font-bold block">TOTAL HOURS</span>
+              <span className="text-[22px] font-bold text-[var(--ink)]">{summary.totalHours}h</span>
+            </div>
+
+            <div className="border-2 border-[var(--ink)] bg-[var(--paper-2)] p-5 space-y-1">
+              <span className="text-[10px] text-[var(--muted)] uppercase font-bold block">BILLABLE HOURS</span>
+              <span className="text-[22px] font-bold text-[var(--signal)]">{summary.billableHours}h</span>
+            </div>
+
+            <div className="border-2 border-[var(--ink)] bg-[var(--paper)] p-5 space-y-1">
+              <span className="text-[10px] text-[var(--muted)] uppercase font-bold block">BILLABLE (NPR)</span>
+              <span className="text-[20px] font-bold text-[var(--ink)]">NPR {summary.totalBillableAmount?.toLocaleString()}</span>
+            </div>
+
+            <div className="border-2 border-[var(--ink)] bg-[var(--paper-2)] p-5 space-y-1">
+              <span className="text-[10px] text-[var(--muted)] uppercase font-bold block">APPROVED (NPR)</span>
+              <span className="text-[20px] font-bold text-green-700">NPR {summary.approvedAmount?.toLocaleString()}</span>
+            </div>
+          </section>
+        )}
+
+
+        {/* TIME ENTRIES LEDGER */}
+        {selectedContract && (
+          <section className="space-y-4 text-left font-mono-ledger">
+            <div className="border-b border-[var(--ink)] pb-2 text-[11px] uppercase tracking-wider font-bold text-[var(--ink)] flex items-center justify-between">
+              <span>TIMESHEET WORK LOGS</span>
+              <span className="text-[var(--signal)]">{timeEntries.length} LOGS</span>
+            </div>
+
+            {timeEntries.length === 0 ? (
+              <div className="border-2 border-[var(--ink)] bg-[var(--paper-2)] p-8 text-center text-[12px] text-[var(--muted)]">
+                NO TIME ENTRIES LOGGED FOR THIS CONTRACT YET.
+              </div>
+            ) : (
+              <div className="border-2 border-[var(--ink)] bg-[var(--paper)] divide-y divide-[var(--line)] text-[12px]">
+                {timeEntries.map(entry => (
+                  <div key={entry.id} className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div className="space-y-1">
+                      <p className="font-bold text-[var(--ink)] text-[14px]">
+                        {entry.description || "Work Log Entry"}
+                      </p>
+                      <div className="flex flex-wrap items-center gap-3 text-[10px] text-[var(--muted)]">
+                        <span>{new Date(entry.startTime).toLocaleDateString()}</span>
+                        <span>•</span>
+                        <span>DURATION: {formatDuration(entry.durationMinutes)}</span>
+                        {entry.isBillable && (
+                          <>
+                            <span>•</span>
+                            <span className="font-bold text-[var(--signal)]">NPR {entry.totalAmount?.toLocaleString()}</span>
+                          </>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center space-x-3 text-right">
+                      <span className="px-2.5 py-0.5 border border-[var(--ink)] bg-[var(--paper-2)] font-bold text-[10px] uppercase">
+                        [{entry.status?.toUpperCase() || 'DRAFT'}]
+                      </span>
+
+                      {isClient && entry.status === 'submitted' && (
+                        <button
+                          onClick={() => handleApprove(entry.id)}
+                          className="bg-green-700 text-white font-bold text-[10px] uppercase px-3 py-1.5"
+                        >
+                          APPROVE →
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+        )}
+
       </main>
 
-      {/* Reject Modal */}
-      {rejectingEntry && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-card border border-border rounded-2xl p-6 max-w-md w-full">
-            <h3 className="font-display text-lg font-bold text-foreground mb-4">Reject Time Entry</h3>
-            <textarea
-              value={rejectReason}
-              onChange={e => setRejectReason(e.target.value)}
-              placeholder="Reason for rejection..."
-              rows={3}
-              className="w-full border border-border rounded-xl px-3 py-2 text-sm bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-accent mb-4"
-            />
-            <div className="flex gap-2">
-              <Button onClick={handleReject} className="bg-red-600 hover:bg-red-700 text-white flex-1">
-                Reject
-              </Button>
-              <Button variant="outline" onClick={() => { setRejectingEntry(null); setRejectReason(""); }} className="flex-1">
-                Cancel
-              </Button>
-            </div>
-          </div>
+      {/* Editorial Footer */}
+      <footer className="border-t border-[var(--line)] py-6 text-center mt-12 font-mono-ledger text-[12px] text-[var(--muted)]">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 flex flex-col sm:flex-row items-center justify-between gap-2">
+          <span>FreelanceHub · Hourly Work Log & Timesheet</span>
+          <span>Engineered by Nantio Studio (www.nantio.it.com)</span>
         </div>
-      )}
+      </footer>
+
     </div>
   );
 }
@@ -847,8 +540,8 @@ function TimeTrackingContent() {
 export default function TimeTrackingPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-primary"></div>
+      <div className="min-h-screen bg-[var(--paper)] flex items-center justify-center font-mono-ledger">
+        <p className="text-[12px] text-[var(--muted)] uppercase">LOADING TIMESHEET REGISTER...</p>
       </div>
     }>
       <TimeTrackingContent />

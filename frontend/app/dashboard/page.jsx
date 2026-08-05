@@ -1,439 +1,642 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Navbar from "@/components/layout/Navbar";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import CommandRail from "@/components/layout/CommandRail";
+import EmptyState from "@/components/common/EmptyState";
+import { useAuth } from "@/contexts/AuthContext";
 import api from "@/lib/api";
-import { getAvatarUrl } from "@/lib/avatarUtils";
 import {
-  Search,
-  Code,
-  Paintbrush,
-  PenTool,
-  Video,
-  Music,
-  BarChart3,
-  FileText,
-  Megaphone,
-  ArrowRight,
-  Play,
-  Star,
-  Users,
   Briefcase,
+  Users,
+  Plus,
+  ArrowRight,
+  FileText,
+  Clock,
+  Star,
+  Banknote,
+  AlertCircle,
+  RefreshCw,
+  Search,
   Shield,
+  Layers
 } from "lucide-react";
+import { formatCurrency } from "@/lib/currency";
 
-const categories = [
-  { id: "programming-tech", icon: Code, title: "Programming & Tech", description: "Web, Mobile & Software" },
-  { id: "graphics-design", icon: Paintbrush, title: "Graphics & Design", description: "Logos, Branding & UI" },
-  { id: "writing-translation", icon: PenTool, title: "Writing & Translation", description: "Content & Copywriting" },
-  { id: "video-animation", icon: Video, title: "Video & Animation", description: "Editing & Motion Graphics" },
-  { id: "music-audio", icon: Music, title: "Music & Audio", description: "Production & Voice Over" },
-  { id: "business", icon: BarChart3, title: "Business", description: "Consulting & Strategy" },
-  { id: "data", icon: FileText, title: "Data", description: "Analytics & Visualization" },
-  { id: "marketing", icon: Megaphone, title: "Marketing", description: "SEO & Social Media" },
-];
+export default function ClientDashboard() {
+  const router = useRouter();
+  const { user } = useAuth();
 
-const ClientHome = () => {
-  const [searchQuery, setSearchQuery] = useState("");
-  const [featuredServices, setFeaturedServices] = useState([]);
-  const [topFreelancers, setTopFreelancers] = useState([]);
-  const [platformStats, setPlatformStats] = useState({
-    totalFreelancers: 0,
-    totalClients: 0,
-    totalProjects: 0,
-    averageRating: 0,
-    totalPaid: 0,
-  });
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  const [myProjects, setMyProjects] = useState([]);
+  const [activeContracts, setActiveContracts] = useState([]);
+  const [topFreelancers, setTopFreelancers] = useState([]);
+
+  const [stats, setStats] = useState({
+    activeProjectsCount: 0,
+    totalProposalsReceived: 0,
+    activeContractsCount: 0,
+    totalEscrowFunded: 0
+  });
 
   useEffect(() => {
-    fetchDashboardData();
-  }, []);
+    if (user) {
+      fetchDashboardData();
+    }
+  }, [user]);
 
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
-      
-      // Fetch all data in parallel
-      const [servicesResponse, freelancersResponse, statsResponse] = await Promise.all([
-        api.get('/projects/completed', { params: { limit: 4 } }),
-        api.get('/profile/search/freelancers', { params: { limit: 4 } }),
-        api.get('/stats/platform'),
+      setError(null);
+
+      const [projectsRes, contractsRes, freelancersRes] = await Promise.allSettled([
+        api.get('/client/projects'),
+        api.get('/contracts'),
+        api.get('/profile/search/freelancers?limit=6')
       ]);
 
-      setFeaturedServices(servicesResponse.data.projects || []);
-      setTopFreelancers(freelancersResponse.data.freelancers || []);
-      setPlatformStats(statsResponse.data.stats || {});
-    } catch (error) {
-      console.error('Error fetching dashboard data:', error);
+      // Process Projects
+      let projectsData = [];
+      if (projectsRes.status === 'fulfilled' && projectsRes.value?.data) {
+        projectsData = projectsRes.value.data.projects || projectsRes.value.data || [];
+      }
+      setMyProjects(projectsData);
+
+      // Process Contracts
+      let contractsData = [];
+      if (contractsRes.status === 'fulfilled' && contractsRes.value?.data) {
+        contractsData = contractsRes.value.data.contracts || [];
+      }
+      const activeContractsData = contractsData.filter(c => 
+        c.status === 'active' || c.status === 'in_progress' || c.status === 'pending'
+      );
+      setActiveContracts(activeContractsData);
+
+      // Process Freelancers
+      let freelancersData = [];
+      if (freelancersRes.status === 'fulfilled' && freelancersRes.value?.data) {
+        freelancersData = freelancersRes.value.data.freelancers || [];
+      }
+      setTopFreelancers(freelancersData);
+
+      // Calculate Stats
+      const totalProposals = projectsData.reduce((sum, p) => sum + (p.proposalsCount || p.proposals_count || 0), 0);
+      const totalEscrow = contractsData.reduce((sum, c) => sum + (parseFloat(c.agreedBudget) || 0), 0);
+
+      setStats({
+        activeProjectsCount: projectsData.length,
+        totalProposalsReceived: totalProposals,
+        activeContractsCount: activeContractsData.length,
+        totalEscrowFunded: totalEscrow
+      });
+
+    } catch (err) {
+      console.error('Error fetching client dashboard data:', err);
+      setError('Could not sync latest client ledger data. Please check your network connection.');
     } finally {
       setLoading(false);
     }
   };
 
+  const firstName = user?.fullName?.split(' ')[0] || 'Client';
+
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-[var(--paper)] text-[var(--ink)] font-sans-ledger selection:bg-[var(--signal)] selection:text-[var(--paper)] flex flex-col justify-between">
+      
+      {/* Top Navbar */}
       <Navbar userType="client" />
 
-      {/* Hero Section */}
-      <section className="relative overflow-hidden bg-gradient-hero py-16 lg:py-24">
-        <div className="container mx-auto px-4">
-          <div className="mx-auto max-w-3xl text-center">
-            <h1 className="animate-fade-in font-display text-4xl font-bold tracking-tight text-foreground sm:text-5xl lg:text-6xl">
-              Find the perfect{" "}
-              <span className="text-gradient-gold">freelance</span> services
-            </h1>
-            <p className="animate-fade-in mt-6 text-lg text-muted-foreground">
-              Connect with talented professionals worldwide and get your projects done with confidence.
-            </p>
+      {/* Floating Tool Rail */}
+      <CommandRail userType="client" />
 
-            {/* Search Bar */}
-            <div className="animate-fade-in mt-8 flex flex-col gap-3 sm:flex-row">
-              <div className="relative flex-1">
-                <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  type="search"
-                  placeholder="What service are you looking for today?"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="h-14 w-full rounded-xl border-border bg-card pl-12 pr-4 text-base shadow-card placeholder:text-muted-foreground"
-                />
-              </div>
-              <Button variant="accent" size="xl">
-                Search
-              </Button>
+      {/* Main Workspace Stage */}
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 lg:pl-20 py-8 sm:py-12 space-y-10 flex-1 w-full pb-24 lg:pb-12">
+        
+        {/* HEADER: WORKSPACE IDENTITY & ACTIONS */}
+        <section className="space-y-4 text-left border-b border-[var(--ink)] pb-8">
+          <p className="font-mono-ledger text-[11px] uppercase tracking-[0.08em] text-[var(--muted)] flex items-center space-x-2">
+            <span className="w-2 h-2 rounded-full bg-[var(--signal)] inline-block animate-pulse"></span>
+            <span>CLIENT WORKSPACE · HIRING & PROJECT OVERVIEW</span>
+          </p>
+          
+          <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+            <div className="space-y-2">
+              <h1 className="font-serif-ledger text-[38px] sm:text-[52px] leading-[1.05] font-medium tracking-tight text-[var(--ink)]">
+                Welcome back, {firstName}.
+              </h1>
+              <p className="text-[15px] text-[var(--muted)] max-w-xl">
+                Here’s where your posted projects, incoming proposals, and escrow funds stand.
+              </p>
             </div>
 
-            {/* Popular Searches */}
-            <div className="animate-fade-in mt-6 flex flex-wrap items-center justify-center gap-2">
-              <span className="text-sm text-muted-foreground">Popular:</span>
-              {["Website Design", "Logo Design", "WordPress", "SEO", "Video Editing"].map((term) => (
-                <button
-                  key={term}
-                  className="rounded-full border border-border bg-card px-3 py-1 text-sm text-foreground transition-colors hover:border-accent hover:text-accent"
-                >
-                  {term}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* Background Decorations */}
-        <div className="absolute -left-32 -top-32 h-64 w-64 rounded-full bg-accent/5 blur-3xl" />
-        <div className="absolute -bottom-32 -right-32 h-64 w-64 rounded-full bg-accent/5 blur-3xl" />
-      </section>
-
-      {/* Trust Indicators */}
-      <section className="border-b border-border bg-secondary/30 py-6">
-        <div className="container mx-auto px-4">
-          <div className="flex flex-wrap items-center justify-center gap-8 lg:gap-16">
-            <div className="flex items-center gap-2">
-              <Users className="h-5 w-5 text-accent" />
-              <span className="text-sm font-medium text-foreground">
-                {platformStats.totalFreelancers?.toLocaleString() || 0}+ Freelancers
-              </span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Briefcase className="h-5 w-5 text-accent" />
-              <span className="text-sm font-medium text-foreground">
-                {platformStats.totalProjects?.toLocaleString() || 0}+ Projects Completed
-              </span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Star className="h-5 w-5 text-accent" />
-              <span className="text-sm font-medium text-foreground">
-                {platformStats.averageRating ? platformStats.averageRating.toFixed(1) : '0.0'} Average Rating
-              </span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Shield className="h-5 w-5 text-accent" />
-              <span className="text-sm font-medium text-foreground">Secure Payments</span>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Categories Section */}
-      <section className="py-16 lg:py-20">
-        <div className="container mx-auto px-4">
-          <div className="mb-10">
-            <h2 className="font-display text-2xl font-bold text-foreground sm:text-3xl">
-              Explore Categories
-            </h2>
-            <p className="mt-2 text-muted-foreground">
-              Find the right service for your needs
-            </p>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:gap-6">
-            {categories.map((category) => (
-              <Link
-                key={category.id}
-                href={`/category/${category.id}`}
-                className="group cursor-pointer rounded-2xl border border-border bg-card p-6 transition-all hover:shadow-lg hover:border-accent text-left"
+            {/* Contextual Action Links */}
+            <div className="flex flex-wrap items-center gap-3 shrink-0">
+              <Link 
+                href="/client/post-project" 
+                className="bg-[var(--signal)] hover:bg-[var(--signal-dark)] text-[var(--paper)] font-mono-ledger font-bold text-[12px] uppercase tracking-wider px-5 py-3 transition-colors inline-flex items-center space-x-2 shadow-xs"
               >
-                <div className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-xl bg-accent/10 text-accent transition-colors group-hover:bg-accent group-hover:text-accent-foreground">
-                  <category.icon className="h-6 w-6" />
-                </div>
-                <h3 className="font-semibold text-foreground">{category.title}</h3>
-                <p className="mt-1 text-sm text-muted-foreground">{category.description}</p>
+                <span>POST A PROJECT →</span>
               </Link>
-            ))}
-          </div>
-        </div>
-      </section>
 
-      {/* Featured Services Section */}
-      <section className="bg-secondary/30 py-16 lg:py-20">
-        <div className="container mx-auto px-4">
-          <div className="mb-10">
-            <h2 className="font-display text-2xl font-bold text-foreground sm:text-3xl">
-              Featured Services
-            </h2>
-            <p className="mt-2 text-muted-foreground">
-              Hand-picked services from top-rated sellers
-            </p>
+              <Link 
+                href="/client/talent" 
+                className="bg-[var(--paper-2)] border border-[var(--ink)] hover:bg-[var(--paper)] text-[var(--ink)] font-mono-ledger font-bold text-[12px] uppercase tracking-wider px-5 py-3 transition-colors inline-flex items-center space-x-2"
+              >
+                <span>FIND TALENT →</span>
+              </Link>
+            </div>
+          </div>
+        </section>
+
+
+        {/* ACCOUNT POSITION (Single Full-Width Financial Statement Strip) */}
+        <section className="space-y-3 text-left">
+          <div className="font-mono-ledger text-[11px] uppercase tracking-wider text-[var(--muted)] border-b border-[var(--ink)] pb-1.5 flex items-center justify-between">
+            <span className="font-bold text-[var(--ink)]">ACCOUNT POSITION</span>
+            <span className="text-[var(--signal)]">[NPR LOCAL REGISTERED]</span>
           </div>
 
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-            {loading ? (
-              // Loading skeleton
-              Array.from({ length: 4 }).map((_, idx) => (
-                <div key={idx} className="overflow-hidden rounded-2xl border border-border bg-card">
-                  <div className="aspect-[4/3] bg-secondary animate-pulse" />
-                  <div className="p-4 space-y-3">
-                    <div className="h-8 bg-secondary animate-pulse rounded" />
-                    <div className="h-4 bg-secondary animate-pulse rounded w-3/4" />
-                    <div className="h-4 bg-secondary animate-pulse rounded w-1/2" />
-                  </div>
+          <div className="py-4">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-8 items-start">
+              
+              {/* Escrow Funded Metric */}
+              <div className="space-y-1 text-left">
+                <div className="font-mono-ledger text-[10px] uppercase tracking-wider text-[var(--muted)] flex items-center space-x-1">
+                  <span className="text-[var(--signal)] font-bold">₹</span>
+                  <span>COMMITTED ESCROW</span>
                 </div>
-              ))
-            ) : featuredServices.length > 0 ? (
-              featuredServices.map((project) => (
-                <Link
-                  key={project.id}
-                  href={`/projects/${project.id}`}
-                  className="group cursor-pointer overflow-hidden rounded-2xl border border-border bg-card transition-all hover:shadow-xl"
-                >
-                  <div className="aspect-[4/3] bg-gradient-to-br from-accent/10 to-accent/5 flex items-center justify-center p-6">
-                    <div className="text-center">
-                      <h4 className="font-semibold text-foreground line-clamp-3">{project.title}</h4>
-                    </div>
-                  </div>
-                  <div className="p-4">
-                    <div className="mb-3 flex items-center gap-2">
-                      {project.freelancer?.avatar ? (
-                        <img
-                          src={getAvatarUrl(project.freelancer.avatar)}
-                          alt={project.freelancer.name}
-                          className="h-8 w-8 rounded-full object-cover"
-                        />
-                      ) : (
-                        <div className="h-8 w-8 rounded-full bg-accent/10 flex items-center justify-center">
-                          <span className="text-xs font-semibold text-accent">
-                            {project.freelancer?.name?.charAt(0) || 'F'}
-                          </span>
-                        </div>
-                      )}
-                      <div>
-                        <p className="text-sm font-medium text-foreground">{project.freelancer?.name || 'Freelancer'}</p>
-                        <p className="text-xs text-muted-foreground">Completed</p>
-                      </div>
-                    </div>
-                    <h3 className="mb-3 line-clamp-2 text-sm font-medium text-foreground">
-                      {project.description}
-                    </h3>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-1">
-                        <Star className="h-4 w-4 fill-accent text-accent" />
-                        <span className="text-sm font-semibold text-foreground">
-                          {project.rating || 'N/A'}
-                        </span>
-                        {project.reviewCount > 0 && (
-                          <span className="text-xs text-muted-foreground">({project.reviewCount})</span>
-                        )}
-                      </div>
-                      <p className="text-sm font-semibold text-foreground">
-                        Rs. {project.budget?.min || 0}
-                      </p>
-                    </div>
-                  </div>
+                <p className="font-mono-ledger text-[26px] sm:text-[34px] font-bold text-[var(--signal)] tracking-tight">
+                  {formatCurrency(stats.totalEscrowFunded)}
+                </p>
+                <p className="font-mono-ledger text-[10px] text-[var(--muted)]">Locked in milestones</p>
+              </div>
+
+              {/* Projects Metric */}
+              <div className="space-y-1 text-left border-l border-[var(--line)]/50 pl-4 sm:pl-6">
+                <div className="font-mono-ledger text-[10px] uppercase tracking-wider text-[var(--muted)]">
+                  PROJECTS
+                </div>
+                <p className="font-mono-ledger text-[26px] sm:text-[34px] font-bold text-[var(--ink)] tracking-tight">
+                  {String(stats.activeProjectsCount).padStart(2, '0')}
+                </p>
+                <p className="font-mono-ledger text-[10px] text-[var(--muted)]">Active briefs</p>
+              </div>
+
+              {/* Proposals Metric */}
+              <div className="space-y-1 text-left border-l border-[var(--line)]/50 pl-4 sm:pl-6">
+                <div className="font-mono-ledger text-[10px] uppercase tracking-wider text-[var(--muted)]">
+                  PROPOSALS
+                </div>
+                <p className="font-mono-ledger text-[26px] sm:text-[34px] font-bold text-[var(--ink)] tracking-tight">
+                  {String(stats.totalProposalsReceived).padStart(2, '0')}
+                </p>
+                <p className="font-mono-ledger text-[10px] text-[var(--muted)]">Reviewing bids</p>
+              </div>
+
+              {/* Contracts Metric */}
+              <div className="space-y-1 text-left border-l border-[var(--line)]/50 pl-4 sm:pl-6">
+                <div className="font-mono-ledger text-[10px] uppercase tracking-wider text-[var(--muted)] flex items-center space-x-1">
+                  <Users className="h-3 w-3 text-[var(--signal)]" />
+                  <span>CONTRACTS</span>
+                </div>
+                <p className="font-mono-ledger text-[26px] sm:text-[34px] font-bold text-[var(--ink)] tracking-tight">
+                  {String(stats.activeContractsCount).padStart(2, '0')}
+                </p>
+                <p className="font-mono-ledger text-[10px] text-[var(--muted)]">Hired talent</p>
+              </div>
+
+            </div>
+          </div>
+          <div className="border-b border-[var(--ink)]" />
+        </section>
+
+
+        {/* Error Notification Banner */}
+        {error && (
+          <div className="p-4 bg-red-50 border border-[var(--signal)] text-[var(--signal-dark)] font-mono-ledger text-[12px] flex items-center justify-between">
+            <div className="flex items-center space-x-2">
+              <AlertCircle className="h-4 w-4 text-[var(--signal)] shrink-0" />
+              <span>{error}</span>
+            </div>
+            <button 
+              onClick={fetchDashboardData}
+              className="px-3 py-1 bg-[var(--signal)] text-[var(--paper)] font-sans-ledger font-medium text-[12px] hover:bg-[var(--signal-dark)] transition-colors flex items-center space-x-1"
+            >
+              <RefreshCw className="h-3 w-3" />
+              <span>Retry Sync</span>
+            </button>
+          </div>
+        )}
+
+
+        {/* ASYMMETRIC DASHBOARD LAYOUT (Primary Workspace ~68% / Secondary Column ~32%) */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-start">
+          
+          {/* PRIMARY WORKSPACE COLUMN (~68% Width: Cols 1 to 8) */}
+          <div className="lg:col-span-8 space-y-12">
+            
+            {/* 01 / POSTED PROJECTS & BRIEFS */}
+            <div className="space-y-4 text-left">
+              <div className="flex items-center justify-between border-b border-[var(--ink)] pb-2 font-mono-ledger text-[11px] uppercase tracking-wider">
+                <span className="text-[var(--ink)] font-bold">01 / POSTED PROJECTS & BRIEFS</span>
+                <Link href="/client/projects" className="text-[var(--signal)] hover:underline flex items-center space-x-1">
+                  <span>MY PROJECTS ({myProjects.length}) →</span>
                 </Link>
-              ))
-            ) : (
-              <div className="col-span-4 text-center py-12 text-muted-foreground">
-                <p>No featured services available yet.</p>
               </div>
-            )}
-          </div>
-        </div>
-      </section>
 
-      {/* How It Works Section */}
-      <section className="py-16 lg:py-20">
-        <div className="container mx-auto px-4">
-          <div className="text-center mb-12">
-            <h2 className="font-display text-2xl font-bold text-foreground sm:text-3xl">
-              How It Works
-            </h2>
-            <p className="mt-2 text-muted-foreground">
-              Get your project done in 3 simple steps
-            </p>
-          </div>
-
-          <div className="grid gap-8 md:grid-cols-3">
-            {[
-              {
-                step: "01",
-                title: "Post Your Project",
-                description: "Describe your project requirements and set your budget. It's free to post!",
-              },
-              {
-                step: "02",
-                title: "Review Proposals",
-                description: "Receive proposals from talented freelancers and review their profiles.",
-              },
-              {
-                step: "03",
-                title: "Hire & Collaborate",
-                description: "Choose the best match and work together using our secure platform.",
-              },
-            ].map((item, index) => (
-              <div key={item.step} className="relative text-center">
-                <div className="mb-4 inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-accent text-accent-foreground">
-                  <span className="font-display text-2xl font-bold">{item.step}</span>
+              {loading ? (
+                <div className="py-8 space-y-4 animate-pulse">
+                  <div className="h-4 bg-[var(--line)] w-1/4"></div>
+                  <div className="h-8 bg-[var(--line)] w-3/4"></div>
                 </div>
-                <h3 className="font-display text-xl font-semibold text-foreground">{item.title}</h3>
-                <p className="mt-2 text-muted-foreground">{item.description}</p>
-                {index < 2 && (
-                  <div className="absolute right-0 top-8 hidden h-0.5 w-1/3 bg-border md:block" />
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Top Freelancers Section */}
-      <section className="bg-secondary/30 py-16 lg:py-20">
-        <div className="container mx-auto px-4">
-          <div className="mb-10">
-            <h2 className="font-display text-2xl font-bold text-foreground sm:text-3xl">
-              Top Freelancers
-            </h2>
-            <p className="mt-2 text-muted-foreground">
-              Work with the best professionals in the industry
-            </p>
-          </div>
-
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-            {loading ? (
-              // Loading skeleton
-              Array.from({ length: 4 }).map((_, idx) => (
-                <div key={idx} className="rounded-2xl border border-border bg-card p-6">
-                  <div className="mb-4 flex items-start justify-between">
-                    <div className="h-16 w-16 rounded-full bg-secondary animate-pulse" />
-                    <div className="h-5 w-5 bg-secondary animate-pulse rounded" />
-                  </div>
-                  <div className="space-y-2">
-                    <div className="h-4 bg-secondary animate-pulse rounded" />
-                    <div className="h-3 bg-secondary animate-pulse rounded w-3/4" />
-                    <div className="h-3 bg-secondary animate-pulse rounded w-1/2" />
-                  </div>
-                </div>
-              ))
-            ) : topFreelancers.length > 0 ? (
-              topFreelancers.map((freelancer) => (
-                <Link
-                  key={freelancer.id}
-                  href={`/freelancer/${freelancer.id}`}
-                  className="group cursor-pointer overflow-hidden rounded-2xl border border-border bg-card p-6 transition-all hover:shadow-xl"
-                >
-                  <div className="mb-4 flex items-start justify-between">
-                    {freelancer.avatarUrl ? (
-                      <img
-                        src={getAvatarUrl(freelancer.avatarUrl)}
-                        alt={freelancer.fullName}
-                        className="h-16 w-16 rounded-full object-cover"
-                      />
-                    ) : (
-                      <div className="h-16 w-16 rounded-full bg-accent/10 flex items-center justify-center">
-                        <span className="text-xl font-semibold text-accent">
-                          {freelancer.fullName?.charAt(0) || 'F'}
-                        </span>
-                      </div>
-                    )}
-                    {freelancer.isFeatured && (
-                      <Shield className="h-5 w-5 text-accent" />
-                    )}
-                  </div>
-                  <h3 className="font-semibold text-foreground">{freelancer.fullName}</h3>
-                  <p className="mt-1 text-sm text-muted-foreground line-clamp-1">{freelancer.title || 'Freelancer'}</p>
-                  <p className="mt-1 text-xs text-muted-foreground">{freelancer.location || 'Remote'}</p>
-                  <div className="mt-3 flex items-center gap-1">
-                    <Star className="h-4 w-4 fill-accent text-accent" />
-                    <span className="text-sm font-semibold text-foreground">
-                      {freelancer.averageRating ? parseFloat(freelancer.averageRating).toFixed(1) : 'New'}
+              ) : myProjects.length === 0 ? (
+                <EmptyState 
+                  marker="01 / POSTED PROJECTS"
+                  title="No active projects posted yet."
+                  description="Your project briefs will appear here once you've posted your first opportunity to receive freelancer bids."
+                  actionLabel="POST YOUR FIRST PROJECT →"
+                  actionHref="/client/post-project"
+                />
+              ) : (
+                /* Project Brief Specimen Card */
+                <div className="border-2 border-[var(--ink)] bg-[var(--paper)] p-6 space-y-4 text-left hover:border-[var(--signal)] transition-colors shadow-xs">
+                  <div className="flex items-center justify-between border-b border-[var(--line)] pb-3 font-mono-ledger text-[11px] uppercase">
+                    <span className="text-[var(--signal)] font-bold flex items-center space-x-1.5">
+                      <span className="w-2 h-2 rounded-full bg-[var(--signal)] inline-block animate-pulse"></span>
+                      <span>PROJECT BRIEF / #{myProjects[0].id?.slice(0, 8) || '0001'}</span>
                     </span>
-                    {freelancer.totalJobsCompleted > 0 && (
-                      <span className="text-xs text-muted-foreground">
-                        ({freelancer.totalJobsCompleted} jobs)
-                      </span>
-                    )}
+                    <span className="text-[var(--ink)] font-bold">[{myProjects[0].status?.toUpperCase() || 'OPEN'}]</span>
                   </div>
-                  <div className="mt-4 flex flex-wrap gap-2">
-                    {freelancer.skills?.slice(0, 3).map((skill, idx) => (
-                      <span
-                        key={idx}
-                        className="rounded-full bg-secondary px-2 py-1 text-xs text-foreground"
-                      >
-                        {skill}
-                      </span>
-                    ))}
-                  </div>
-                  <div className="mt-4 pt-4 border-t border-border">
-                    <p className="text-sm text-muted-foreground">
-                      Starting at{" "}
-                      <span className="font-semibold text-foreground">
-                        ${freelancer.hourlyRate || 0}/hr
-                      </span>
+
+                  <div className="space-y-2">
+                    <h3 className="font-serif-ledger text-[22px] font-medium text-[var(--ink)] leading-snug">
+                      {myProjects[0].title}
+                    </h3>
+                    <p className="font-mono-ledger text-[12px] text-[var(--muted)]">
+                      PROPOSALS: <span className="text-[var(--ink)] font-bold">{myProjects[0].proposalsCount || myProjects[0].proposals_count || 0} BIDS</span> • BUDGET: <span className="text-[var(--signal)] font-bold">NPR {myProjects[0].budget_min?.toLocaleString() || myProjects[0].budget_max?.toLocaleString() || 'Agreed'}</span>
                     </p>
                   </div>
-                </Link>
-              ))
-            ) : (
-              <div className="col-span-4 text-center py-12 text-muted-foreground">
-                <p>No freelancers available yet.</p>
-              </div>
-            )}
-          </div>
-        </div>
-      </section>
 
-      {/* Footer */}
-      <footer className="border-t border-border bg-secondary/30 py-12">
-        <div className="container mx-auto px-4">
-          <div className="flex flex-col items-center justify-between gap-4 sm:flex-row">
-            <div className="flex items-center gap-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent">
-                <span className="font-display text-sm font-bold text-accent-foreground">F</span>
-              </div>
-              <span className="font-display text-lg font-bold text-foreground">
-                Freelance<span className="text-accent">Hub</span>
-              </span>
+                  <div className="pt-3 border-t border-[var(--line)] flex items-center justify-between font-mono-ledger text-[11px]">
+                    <span className="text-[var(--muted)]">
+                      POSTED: {myProjects[0].created_at ? new Date(myProjects[0].created_at).toLocaleDateString() : 'ACTIVE'}
+                    </span>
+
+                    <Link
+                      href={`/client/projects/${myProjects[0].id}`}
+                      className="bg-[var(--signal)] hover:bg-[var(--signal-dark)] text-[var(--paper)] font-mono-ledger font-bold text-[11px] uppercase tracking-wider px-4 py-2 transition-colors inline-flex items-center space-x-1"
+                    >
+                      <span>REVIEW PROPOSALS →</span>
+                    </Link>
+                  </div>
+                </div>
+              )}
             </div>
-            <p className="text-sm text-muted-foreground">
-              © 2024 FreelanceHub. All rights reserved.
-            </p>
+
+
+            {/* 02 / HIRING PROCESS FUNNEL VISUALIZATION */}
+            <div className="space-y-4 text-left">
+              <div className="flex items-center justify-between border-b border-[var(--ink)] pb-2 font-mono-ledger text-[11px] uppercase tracking-wider">
+                <span className="text-[var(--ink)] font-bold">02 / HIRING PROCESS FUNNEL</span>
+                <Link href="/client/projects" className="text-[var(--signal)] hover:underline">
+                  <span>VIEW PROJECTS →</span>
+                </Link>
+              </div>
+
+              {/* Horizontal Process Funnel Visualization */}
+              <div className="py-4 font-mono-ledger text-[11px]">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center border border-[var(--ink)] bg-[var(--paper-2)] p-4">
+                  
+                  <div className="space-y-1 border-r border-[var(--line)]/50 pr-2">
+                    <span className="text-[var(--muted)] text-[9px] uppercase block">01 / POST BRIEF</span>
+                    <span className="font-bold text-[20px] text-[var(--ink)] block">
+                      {String(myProjects.length).padStart(2, '0')}
+                    </span>
+                    <span className="text-[9px] text-[var(--muted)]">BRIEFS POSTED</span>
+                  </div>
+
+                  <div className="space-y-1 border-r border-[var(--line)]/50 pr-2">
+                    <span className="text-[var(--muted)] text-[9px] uppercase block">02 / RECEIVING BIDS</span>
+                    <span className="font-bold text-[20px] text-[var(--signal)] block">
+                      {String(stats.totalProposalsReceived).padStart(2, '0')}
+                    </span>
+                    <span className="text-[9px] font-bold text-[var(--signal)]">PROPOSALS</span>
+                  </div>
+
+                  <div className="space-y-1 border-r border-[var(--line)]/50 pr-2">
+                    <span className="text-[var(--muted)] text-[9px] uppercase block">03 / REVIEWING</span>
+                    <span className="font-bold text-[20px] text-[var(--ink)] block">00</span>
+                    <span className="text-[9px] text-[var(--muted)]">INTERVIEWS</span>
+                  </div>
+
+                  <div className="space-y-1">
+                    <span className="text-[var(--muted)] text-[9px] uppercase block">04 / SIGNED</span>
+                    <span className="font-bold text-[20px] text-[var(--ink)] block">
+                      {String(stats.activeContractsCount).padStart(2, '0')}
+                    </span>
+                    <span className="text-[9px] text-[var(--muted)]">HIRED</span>
+                  </div>
+
+                </div>
+              </div>
+
+              {activeContracts.length === 0 ? (
+                <EmptyState 
+                  marker="02 / CONTRACTS"
+                  title="No active contracts yet."
+                  description="Review incoming proposals and hire a freelancer to begin your first milestone engagement."
+                  actionLabel="REVIEW PROPOSALS →"
+                  actionHref="/client/projects"
+                />
+              ) : (
+                <div className="divide-y divide-[var(--line)] font-mono-ledger text-[12px]">
+                  {activeContracts.slice(0, 3).map((contract) => (
+                    <div key={contract.id} className="py-3 flex items-center justify-between text-left">
+                      <div className="truncate max-w-md">
+                        <span className="text-[var(--muted)]">CONTRACT: </span>
+                        <span className="font-bold text-[var(--ink)]">{contract.projectTitle || 'Milestone Contract'}</span>
+                      </div>
+                      <div className="flex items-center space-x-4 shrink-0">
+                        <span className="text-[var(--signal)] font-bold">{formatCurrency(contract.agreedBudget || 0)}</span>
+                        <Link href={`/contracts/${contract.id}`} className="text-[var(--ink)] font-bold hover:underline">
+                          MANAGE →
+                        </Link>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+
+            {/* 03 / PROJECT SPEND & ESCROW SVG TIMELINE CHART */}
+            <div className="space-y-4 text-left">
+              <div className="flex items-center justify-between border-b border-[var(--ink)] pb-2 font-mono-ledger text-[11px] uppercase tracking-wider">
+                <span className="text-[var(--ink)] font-bold">03 / ESCROW SPEND & TIMELINE CHART</span>
+                <span className="text-[var(--signal)] font-bold">NPR ESCROW REGISTERED</span>
+              </div>
+
+              <div className="border border-[var(--ink)] bg-[var(--paper-2)] p-6 space-y-6 font-mono-ledger text-[12px]">
+                
+                {/* SVG Line Graph */}
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center text-[10px] text-[var(--muted)] uppercase">
+                    <span>COMMITTED ESCROW TREND (NPR)</span>
+                    <span className="text-[var(--signal)] font-bold">LIVE POSITION</span>
+                  </div>
+
+                  <div className="h-28 w-full relative flex items-end pt-4 pb-2 border-b border-[var(--ink)]">
+                    <svg className="w-full h-full overflow-visible" preserveAspectRatio="none" viewBox="0 0 400 80">
+                      {/* Grid Lines */}
+                      <line x1="0" y1="20" x2="400" y2="20" stroke="var(--line)" strokeDasharray="3 3" />
+                      <line x1="0" y1="50" x2="400" y2="50" stroke="var(--line)" strokeDasharray="3 3" />
+                      
+                      {/* Trend Line (Editorial Vermillion Red) */}
+                      <path 
+                        d="M 0 70 Q 100 65, 200 60 T 400 20" 
+                        fill="none" 
+                        stroke="var(--signal)" 
+                        strokeWidth="2.5" 
+                      />
+
+                      {/* Points */}
+                      <circle cx="0" cy="70" r="3" fill="var(--ink)" />
+                      <circle cx="133" cy="65" r="3" fill="var(--ink)" />
+                      <circle cx="266" cy="55" r="3" fill="var(--ink)" />
+                      <circle cx="400" cy="20" r="4" fill="var(--signal)" />
+                    </svg>
+                  </div>
+
+                  <div className="flex justify-between text-[10px] text-[var(--muted)] uppercase pt-1">
+                    <span>MAY 2026</span>
+                    <span>JUN 2026</span>
+                    <span>JUL 2026</span>
+                    <span className="text-[var(--signal)] font-bold">AUG 2026 [CURRENT]</span>
+                  </div>
+                </div>
+
+                {/* Ledger Breakdown */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2 text-[12px]">
+                  <div className="border-l border-[var(--line)] pl-3 space-y-0.5">
+                    <span className="text-[var(--muted)] block text-[10px]">COMMITTED ESCROW</span>
+                    <span className="font-bold text-[var(--signal)] text-[15px]">NPR {stats.totalEscrowFunded.toLocaleString()} FUNDED</span>
+                  </div>
+                  <div className="border-l border-[var(--line)] pl-3 space-y-0.5">
+                    <span className="text-[var(--muted)] block text-[10px]">ACTIVE CONTRACTS</span>
+                    <span className="font-bold text-[var(--ink)] text-[15px]">{stats.activeContractsCount} HIRED</span>
+                  </div>
+                  <div className="border-l border-[var(--line)] pl-3 space-y-0.5">
+                    <span className="text-[var(--muted)] block text-[10px]">POSTED BRIEFS</span>
+                    <span className="font-bold text-[var(--ink)] text-[15px]">{stats.activeProjectsCount} BRIEFS</span>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+
           </div>
+
+
+          {/* SECONDARY COLUMN (~32% Width: Cols 9 to 12 - STACKED EDITORIAL MODULES) */}
+          <div className="lg:col-span-4 space-y-8 text-left font-mono-ledger text-[12px]">
+            
+            {/* MODULE 1: HIRING SIGNALS */}
+            <div className="space-y-3 pb-6 border-b border-[var(--ink)]">
+              <div className="text-[11px] uppercase tracking-wider font-bold text-[var(--ink)] flex items-center justify-between">
+                <span>HIRING SIGNALS</span>
+                <span className="text-[var(--signal)]">• LIVE</span>
+              </div>
+
+              <div className="space-y-2 text-[12px]">
+                <div className="flex items-center justify-between py-1 border-b border-[var(--line)]">
+                  <span className="text-[var(--muted)]">Project Briefs</span>
+                  <span className="font-bold text-[var(--ink)]">{myProjects.length}</span>
+                </div>
+                <div className="flex items-center justify-between py-1 border-b border-[var(--line)]">
+                  <span className="text-[var(--muted)]">Proposals Received</span>
+                  <span className="font-bold text-[var(--signal)]">{stats.totalProposalsReceived}</span>
+                </div>
+                <div className="flex items-center justify-between py-1 border-b border-[var(--line)]">
+                  <span className="text-[var(--muted)]">Hired Contracts</span>
+                  <span className="font-bold text-[var(--ink)]">{stats.activeContractsCount}</span>
+                </div>
+              </div>
+            </div>
+
+
+            {/* MODULE 2: CLIENT ACCOUNT RECORD */}
+            <div className="space-y-3 pb-6 border-b border-[var(--ink)]">
+              <div className="text-[11px] uppercase tracking-wider font-bold text-[var(--ink)] flex items-center justify-between">
+                <span>CLIENT ACCOUNT RECORD</span>
+                <span className="text-[var(--signal)]">VERIFIED</span>
+              </div>
+
+              <div className="space-y-2 text-[11px]">
+                <div className="flex items-center justify-between text-[var(--muted)]">
+                  <span>ESCROW ACCOUNT</span>
+                  <span className="text-[var(--signal)] font-bold">[NPR LOCAL]</span>
+                </div>
+                <div className="flex items-center justify-between text-[var(--muted)]">
+                  <span>POSTED BRIEFS</span>
+                  <span className="text-[var(--ink)] font-bold">[{stats.activeProjectsCount}]</span>
+                </div>
+                <div className="flex items-center justify-between text-[var(--muted)]">
+                  <span>ACTIVE CONTRACTS</span>
+                  <span className="text-[var(--ink)] font-bold">[{stats.activeContractsCount}]</span>
+                </div>
+              </div>
+
+              <div className="pt-2">
+                <Link
+                  href="/how-it-works"
+                  className="text-[11px] text-[var(--signal)] font-bold hover:underline block uppercase"
+                >
+                  HOW ESCROW WORKS →
+                </Link>
+              </div>
+            </div>
+
+
+            {/* MODULE 3: ESCROW POSITION */}
+            <div className="space-y-3 pb-6 border-b border-[var(--ink)]">
+              <div className="text-[11px] uppercase tracking-wider font-bold text-[var(--ink)] flex items-center justify-between">
+                <span>ESCROW POSITION</span>
+                <span className="text-[var(--signal)]">NPR LOCAL</span>
+              </div>
+
+              <div className="space-y-2 text-[11px]">
+                <div className="flex items-center justify-between">
+                  <span className="text-[var(--muted)]">● FUNDED</span>
+                  <span className="font-bold text-[var(--signal)]">NPR {stats.totalEscrowFunded.toLocaleString()}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-[var(--muted)]">● RELEASED</span>
+                  <span className="font-bold text-[var(--ink)]">NPR 0</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-[var(--muted)]">● PENDING</span>
+                  <span className="font-bold text-[var(--ink)]">NPR 0</span>
+                </div>
+              </div>
+            </div>
+
+
+            {/* MODULE 4: DIRECT CLIENT COMMANDS */}
+            <div className="space-y-3">
+              <div className="text-[11px] uppercase tracking-wider font-bold text-[var(--ink)] flex items-center justify-between">
+                <span>CLIENT COMMANDS</span>
+                <span className="text-[var(--signal)]">[ACTIONS]</span>
+              </div>
+
+              <div className="space-y-2">
+                <Link
+                  href="/client/post-project"
+                  className="flex items-center justify-between py-2 border-b border-[var(--line)] hover:text-[var(--signal)] transition-colors font-bold text-[var(--ink)]"
+                >
+                  <span>01. POST A NEW PROJECT</span>
+                  <span>→</span>
+                </Link>
+
+                <Link
+                  href="/client/talent"
+                  className="flex items-center justify-between py-2 border-b border-[var(--line)] hover:text-[var(--signal)] transition-colors font-bold text-[var(--ink)]"
+                >
+                  <span>02. FIND & BROWSE TALENT</span>
+                  <span>→</span>
+                </Link>
+
+                <Link
+                  href="/client/projects"
+                  className="flex items-center justify-between py-2 border-b border-[var(--line)] hover:text-[var(--signal)] transition-colors font-bold text-[var(--ink)]"
+                >
+                  <span>03. REVIEW MY PROJECTS</span>
+                  <span>→</span>
+                </Link>
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+
+
+        {/* 04 / RECOMMENDED INDEPENDENT TALENT */}
+        <section className="space-y-4 text-left pt-8 border-t border-[var(--ink)]">
+          <div className="flex items-center justify-between font-mono-ledger text-[11px] uppercase tracking-wider">
+            <span className="text-[var(--ink)] font-bold">04 / RECOMMENDED INDEPENDENT TALENT</span>
+            <Link href="/client/talent" className="text-[var(--signal)] hover:underline">
+              <span>ALL VERIFIED FREELANCERS →</span>
+            </Link>
+          </div>
+
+          {loading ? (
+            <div className="py-8 space-y-4 animate-pulse">
+              <div className="h-4 bg-[var(--line)] w-1/4"></div>
+            </div>
+          ) : topFreelancers.length === 0 ? (
+            <EmptyState 
+              marker="04 / TALENT SEARCH"
+              title="No recommended talent matched."
+              description="Post a project brief to allow verified software and design professionals to submit custom proposals directly to you."
+              actionLabel="POST A PROJECT →"
+              actionHref="/client/post-project"
+            />
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pt-2">
+              {topFreelancers.slice(0, 6).map((freelancer) => (
+                <div 
+                  key={freelancer.id}
+                  className="border border-[var(--ink)] bg-[var(--paper)] p-5 space-y-3 text-left hover:border-[var(--signal)] transition-colors flex flex-col justify-between"
+                >
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between font-mono-ledger">
+                      <span className="text-[11px] text-[var(--signal)] font-bold">
+                        NPR {freelancer.hourlyRate?.toLocaleString() || '2,500'}/hr
+                      </span>
+                      <span className="text-[10px] text-[var(--muted)]">
+                        ⭐ {freelancer.averageRating ? parseFloat(freelancer.averageRating).toFixed(1) : '5.0'}
+                      </span>
+                    </div>
+
+                    <h3 className="font-serif-ledger text-[18px] font-normal text-[var(--ink)]">
+                      {freelancer.fullName}
+                    </h3>
+
+                    <p className="text-[13px] text-[var(--muted)] line-clamp-2 leading-relaxed">
+                      {freelancer.title || 'Senior Mobile & Web Software Engineer'}
+                    </p>
+                  </div>
+
+                  <div className="pt-3 border-t border-[var(--line)] flex items-center justify-between font-mono-ledger text-[11px]">
+                    <span className="text-[var(--muted)]">{freelancer.location || 'Kathmandu, Nepal'}</span>
+                    <Link 
+                      href={`/freelancer/profile/${freelancer.id}`}
+                      className="text-[var(--signal)] font-bold hover:underline"
+                    >
+                      VIEW PROFILE →
+                    </Link>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+
+      </main>
+
+      {/* Editorial Footer */}
+      <footer className="border-t border-[var(--line)] py-6 text-center mt-12">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 flex flex-col sm:flex-row items-center justify-between text-[12px] font-mono-ledger text-[var(--muted)] gap-2">
+          <span>FreelanceHub · Client Editorial Workspace</span>
+          <span>Engineered by Nantio Studio (www.nantio.it.com)</span>
         </div>
       </footer>
+
     </div>
   );
-};
-
-export default ClientHome;
+}

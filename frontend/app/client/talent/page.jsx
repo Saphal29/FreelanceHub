@@ -3,24 +3,22 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import Navbar from "@/components/layout/Navbar";
+import CommandRail from "@/components/layout/CommandRail";
 import InviteModal from "@/components/invites/InviteModal";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import EmptyState from "@/components/common/EmptyState";
 import { searchFreelancers } from "@/lib/api";
 import { 
   Search, 
   Star, 
   MapPin,
-  DollarSign,
   Clock,
   Shield,
   Filter,
-  ChevronDown,
   Briefcase,
   Award,
   AlertCircle,
-  User
+  User,
+  Send
 } from "lucide-react";
 
 export default function FindTalentPage() {
@@ -30,9 +28,8 @@ export default function FindTalentPage() {
   const [error, setError] = useState("");
   const [selectedFreelancer, setSelectedFreelancer] = useState(null);
   const [showInviteModal, setShowInviteModal] = useState(false);
+  const [selectedRoleFilter, setSelectedRoleFilter] = useState("ALL");
   
-  // Filter states
-  const [showFilters, setShowFilters] = useState(false);
   const [filters, setFilters] = useState({
     minRate: "",
     maxRate: "",
@@ -40,80 +37,50 @@ export default function FindTalentPage() {
     availability: "",
   });
 
+  const rolePills = ["ALL", "SOFTWARE ENGINEERS", "MOBILE APPS", "UI/UX DESIGN", "BACKEND & DATA", "AI & COMPUTING"];
+
   // Load freelancers on mount
   useEffect(() => {
     loadFreelancers();
   }, []);
 
-  const loadFreelancers = async (filters = {}) => {
+  const loadFreelancers = async (searchFilters = {}) => {
     try {
       setLoading(true);
       setError("");
       
-      const response = await searchFreelancers(filters);
+      const response = await searchFreelancers(searchFilters);
       
       if (response.success) {
         setFreelancers(response.freelancers || []);
       } else {
-        setError("Failed to load freelancers");
+        setError("Failed to load independent talent index.");
       }
     } catch (err) {
       console.error("Error loading freelancers:", err);
-      setError(err.message || "Failed to load freelancers");
+      setError(err.message || "Network error loading talent directory.");
     } finally {
       setLoading(false);
     }
   };
 
-  const handleSearch = () => {
+  const handleSearchSubmit = (e) => {
+    e?.preventDefault();
     const searchFilters = {};
-    
-    // Use search query for general search (name, title, bio, skills)
-    if (searchQuery.trim()) {
-      searchFilters.search = searchQuery.trim();
-    }
-    
-    if (filters.minRate) {
-      searchFilters.minRate = parseFloat(filters.minRate);
-    }
-    
-    if (filters.maxRate) {
-      searchFilters.maxRate = parseFloat(filters.maxRate);
-    }
-    
-    if (filters.location) {
-      searchFilters.location = filters.location;
-    }
-    
-    if (filters.availability) {
-      searchFilters.availability = filters.availability;
-    }
+    if (searchQuery.trim()) searchFilters.search = searchQuery.trim();
+    if (filters.minRate) searchFilters.minRate = parseFloat(filters.minRate);
+    if (filters.maxRate) searchFilters.maxRate = parseFloat(filters.maxRate);
+    if (filters.location) searchFilters.location = filters.location;
+    if (filters.availability) searchFilters.availability = filters.availability;
     
     loadFreelancers(searchFilters);
   };
 
-  const handleFilterChange = (key, value) => {
-    setFilters(prev => ({
-      ...prev,
-      [key]: value
-    }));
-  };
-
-  const clearFilters = () => {
-    setFilters({
-      minRate: "",
-      maxRate: "",
-      location: "",
-      availability: "",
-    });
+  const clearSearchFilters = () => {
+    setFilters({ minRate: "", maxRate: "", location: "", availability: "" });
     setSearchQuery("");
+    setSelectedRoleFilter("ALL");
     loadFreelancers();
-  };
-
-  const handleKeyPress = (e) => {
-    if (e.key === "Enter") {
-      handleSearch();
-    }
   };
 
   const handleInviteClick = (freelancer) => {
@@ -121,309 +88,251 @@ export default function FindTalentPage() {
     setShowInviteModal(true);
   };
 
-  const handleCloseInviteModal = () => {
-    setShowInviteModal(false);
-    setSelectedFreelancer(null);
-  };
+  // Client-side filtering by role pill
+  const filteredFreelancers = freelancers.filter((freelancer) => {
+    if (selectedRoleFilter === "ALL") return true;
+    const roleTag = selectedRoleFilter.split(' ')[0].toLowerCase();
+    const titleMatch = freelancer.title?.toLowerCase().includes(roleTag);
+    const bioMatch = freelancer.bio?.toLowerCase().includes(roleTag);
+    const skillsMatch = Array.isArray(freelancer.skills) 
+      ? freelancer.skills.some(s => s.toLowerCase().includes(roleTag))
+      : typeof freelancer.skills === 'string' && freelancer.skills.toLowerCase().includes(roleTag);
+    return titleMatch || bioMatch || skillsMatch;
+  });
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-[var(--paper)] text-[var(--ink)] font-sans-ledger selection:bg-[var(--signal)] selection:text-[var(--paper)] flex flex-col justify-between">
+      
+      {/* Top Navbar */}
       <Navbar userType="client" />
 
-      {/* Hero Section */}
-      <section className="border-b border-border bg-gradient-hero py-12">
-        <div className="container mx-auto px-4">
-          <div className="mx-auto max-w-3xl text-center">
-            <h1 className="font-display text-4xl font-bold tracking-tight text-foreground sm:text-5xl mb-4">
-              Find the Perfect <span className="text-gradient-gold">Talent</span>
-            </h1>
-            <p className="text-lg text-muted-foreground mb-8">
-              Browse thousands of verified freelancers ready to bring your projects to life
-            </p>
+      {/* Floating Tool Rail */}
+      <CommandRail userType="client" />
 
-            {/* Search Bar */}
-            <div className="flex flex-col gap-3 sm:flex-row">
-              <div className="relative flex-1">
-                <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  type="search"
-                  placeholder="Search by skills, name, or expertise..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  onKeyPress={handleKeyPress}
-                  className="h-14 w-full rounded-xl border-border bg-card pl-12 pr-4 text-base"
-                />
-              </div>
-              <Button variant="accent" size="xl" onClick={handleSearch} disabled={loading}>
-                {loading ? "Searching..." : "Search Talent"}
-              </Button>
+      {/* Main Container */}
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 lg:pl-20 py-8 sm:py-12 space-y-10 flex-1 w-full pb-24 lg:pb-12">
+        
+        {/* EDITORIAL HEADER */}
+        <section className="space-y-4 text-left border-b border-[var(--ink)] pb-8">
+          <p className="font-mono-ledger text-[11px] uppercase tracking-[0.08em] text-[var(--muted)] flex items-center space-x-2">
+            <span className="w-2 h-2 rounded-full bg-[var(--signal)] inline-block animate-pulse"></span>
+            <span>FREELANCEHUB TALENT DIRECTORY · VERIFIED PROFESSIONALS</span>
+          </p>
+          
+          <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+            <div className="space-y-2">
+              <h1 className="font-serif-ledger text-[38px] sm:text-[50px] leading-[1.05] font-medium tracking-tight text-[var(--ink)]">
+                Find Independent Talent.
+              </h1>
+              <p className="text-[15px] text-[var(--muted)] max-w-xl">
+                Discover verified independent software engineers, designers, and digital specialists across Nepal ready to execute your project briefs.
+              </p>
             </div>
-          </div>
-        </div>
-      </section>
 
-      {/* Filters Section */}
-      <section className="border-b border-border bg-card py-4">
-        <div className="container mx-auto px-4">
-          <div className="flex flex-wrap items-center gap-3">
-            <Button 
-              variant={showFilters ? "default" : "outline"} 
-              size="sm"
-              onClick={() => setShowFilters(!showFilters)}
+            <Link 
+              href="/client/post-project" 
+              className="bg-[var(--signal)] hover:bg-[var(--signal-dark)] text-[var(--paper)] font-mono-ledger font-bold text-[12px] uppercase tracking-wider px-5 py-3 transition-colors inline-flex items-center space-x-2 shrink-0 shadow-xs"
             >
-              <Filter className="mr-2 h-4 w-4" />
-              {showFilters ? "Hide Filters" : "Show Filters"}
-            </Button>
-            
-            {(searchQuery || filters.minRate || filters.maxRate || filters.location || filters.availability) && (
-              <Button 
-                variant="ghost" 
-                size="sm"
-                onClick={clearFilters}
-                className="text-red-600 hover:text-red-700 hover:bg-red-50"
-              >
-                Clear All
-              </Button>
-            )}
+              <span>POST A PROJECT BRIEF →</span>
+            </Link>
           </div>
+        </section>
 
-          {/* Filter Panel */}
-          {showFilters && (
-            <div className="mt-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 p-4 bg-secondary/30 rounded-xl">
-              {/* Hourly Rate Range */}
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-foreground">Hourly Rate (USD)</label>
-                <div className="flex gap-2">
-                  <Input
-                    type="number"
-                    placeholder="Min"
-                    value={filters.minRate}
-                    onChange={(e) => handleFilterChange("minRate", e.target.value)}
-                    className="border-border bg-card"
-                  />
-                  <Input
-                    type="number"
-                    placeholder="Max"
-                    value={filters.maxRate}
-                    onChange={(e) => handleFilterChange("maxRate", e.target.value)}
-                    className="border-border bg-card"
-                  />
-                </div>
-              </div>
 
-              {/* Location */}
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-foreground">Location</label>
-                <Input
-                  type="text"
-                  placeholder="e.g., United States"
-                  value={filters.location}
-                  onChange={(e) => handleFilterChange("location", e.target.value)}
-                  className="border-border bg-card"
-                />
-              </div>
-
-              {/* Availability */}
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-foreground">Availability</label>
-                <select
-                  value={filters.availability}
-                  onChange={(e) => handleFilterChange("availability", e.target.value)}
-                  className="w-full px-3 py-2 border border-border rounded-xl bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent"
-                >
-                  <option value="">All</option>
-                  <option value="available">Available</option>
-                  <option value="busy">Busy</option>
-                  <option value="not_available">Not Available</option>
-                </select>
-              </div>
-
-              {/* Apply Button */}
-              <div className="flex items-end">
-                <Button 
-                  variant="accent" 
-                  className="w-full"
-                  onClick={handleSearch}
-                  disabled={loading}
-                >
-                  Apply Filters
-                </Button>
-              </div>
+        {/* SEARCH & ROLE FILTER BAR */}
+        <section className="space-y-4 text-left font-mono-ledger text-[12px]">
+          <form onSubmit={handleSearchSubmit} className="flex gap-3">
+            <div className="relative flex-1">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-[var(--muted)]" />
+              <input
+                type="text"
+                placeholder="Search independent talent by skills, title, or name..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full bg-[var(--paper-2)] border-2 border-[var(--ink)] py-3 pl-11 pr-4 text-[13px] text-[var(--ink)] placeholder-[var(--muted)] focus:outline-none focus:border-[var(--signal)]"
+              />
             </div>
-          )}
-        </div>
-      </section>
+            <button
+              type="submit"
+              className="bg-[var(--ink)] text-[var(--paper)] font-bold px-6 py-3 hover:bg-[var(--signal)] transition-colors uppercase"
+            >
+              SEARCH
+            </button>
+          </form>
 
-      {/* Results Section */}
-      <section className="py-8">
-        <div className="container mx-auto px-4">
-          {/* Error Message */}
-          {error && (
-            <Alert className="mb-6 border-2 border-red-200 bg-red-50">
-              <AlertCircle className="h-5 w-5 text-red-600" />
-              <AlertDescription className="text-red-800 font-semibold">
-                {error}
-              </AlertDescription>
-            </Alert>
-          )}
+          {/* Role Filter Pills */}
+          <div className="flex flex-wrap items-center gap-2 pt-2 border-b border-[var(--ink)] pb-4">
+            <span className="text-[var(--muted)] text-[10px] uppercase font-bold mr-2">DISCIPLINE:</span>
+            {rolePills.map((role) => (
+              <button
+                key={role}
+                onClick={() => setSelectedRoleFilter(role)}
+                className={`px-3 py-1 text-[11px] border transition-colors ${
+                  selectedRoleFilter === role
+                    ? "bg-[var(--ink)] text-[var(--paper)] border-[var(--ink)] font-bold"
+                    : "bg-[var(--paper-2)] text-[var(--ink)] border-[var(--line)] hover:border-[var(--ink)]"
+                }`}
+              >
+                {role}
+              </button>
+            ))}
+          </div>
+        </section>
 
-          {/* Loading State */}
+
+        {/* ERROR BANNER */}
+        {error && (
+          <div className="p-4 bg-red-50 border border-[var(--signal)] text-[var(--signal-dark)] font-mono-ledger text-[12px] flex items-center justify-between">
+            <div className="flex items-center space-x-2">
+              <AlertCircle className="h-4 w-4 text-[var(--signal)] shrink-0" />
+              <span>{error}</span>
+            </div>
+            <button 
+              onClick={clearSearchFilters}
+              className="px-3 py-1 bg-[var(--signal)] text-[var(--paper)] font-sans-ledger font-medium text-[12px] hover:bg-[var(--signal-dark)] transition-colors"
+            >
+              Reset Filters
+            </button>
+          </div>
+        )}
+
+
+        {/* TALENT DIRECTORY SPECIMEN GRID */}
+        <section className="space-y-6 text-left">
           {loading ? (
-            <div className="flex items-center justify-center py-20">
-              <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-accent"></div>
-            </div>
-          ) : (
-            <>
-              <div className="mb-6 flex items-center justify-between">
-                <p className="text-muted-foreground">
-                  {freelancers.length} freelancer{freelancers.length !== 1 ? 's' : ''} available
-                </p>
-              </div>
-
-              {/* Empty State */}
-              {freelancers.length === 0 ? (
-                <div className="text-center py-20">
-                  <User className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-                  <h3 className="text-xl font-semibold text-foreground mb-2">
-                    No freelancers found
-                  </h3>
-                  <p className="text-muted-foreground">
-                    Try adjusting your search criteria or check back later
-                  </p>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {[1, 2, 3, 4, 5, 6].map((n) => (
+                <div key={n} className="border-2 border-[var(--line)] bg-[var(--paper-2)] h-64 animate-pulse p-6 space-y-4">
+                  <div className="h-4 bg-[var(--line)] w-1/3"></div>
+                  <div className="h-6 bg-[var(--line)] w-3/4"></div>
                 </div>
-              ) : (
-                <>
-                  {/* Freelancer Grid */}
-                  <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                    {freelancers.map((freelancer) => {
-                      // Parse skills if it's a string
-                      const skills = Array.isArray(freelancer.skills) 
-                        ? freelancer.skills 
-                        : (typeof freelancer.skills === 'string' 
-                          ? freelancer.skills.split(',').map(s => s.trim()) 
-                          : []);
+              ))}
+            </div>
+          ) : filteredFreelancers.length === 0 ? (
+            <EmptyState
+              marker="TALENT DIRECTORY"
+              title="No independent professionals found."
+              description={searchQuery ? "No freelancers matched your filter criteria. Try resetting your search terms." : "There are currently no active freelancer profiles registered."}
+              actionLabel="RESET SEARCH FILTERS"
+              onActionClick={clearSearchFilters}
+            />
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 items-stretch">
+              {filteredFreelancers.map((freelancer) => {
+                const skills = Array.isArray(freelancer.skills) 
+                  ? freelancer.skills 
+                  : (typeof freelancer.skills === 'string' 
+                    ? freelancer.skills.split(',').map(s => s.trim()) 
+                    : []);
 
-                      return (
-                        <div
-                          key={freelancer.id}
-                          className="group overflow-hidden rounded-2xl border border-border bg-card p-6 transition-all hover:shadow-xl"
-                        >
-                          {/* Header */}
-                          <div className="mb-4 flex items-start justify-between">
-                            <div className="flex items-start gap-3">
-                              {freelancer.avatarUrl ? (
-                                <img
-                                  src={freelancer.avatarUrl.startsWith('http') ? freelancer.avatarUrl : `${process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'http://localhost:5000'}${freelancer.avatarUrl}`}
-                                  alt={freelancer.fullName}
-                                  className="h-16 w-16 rounded-full object-cover"
-                                />
-                              ) : (
-                                <div className="h-16 w-16 rounded-full bg-secondary flex items-center justify-center">
-                                  <User className="h-8 w-8 text-muted-foreground" />
-                                </div>
-                              )}
-                              <div>
-                                <h3 className="font-semibold text-foreground">{freelancer.fullName}</h3>
-                                <p className="text-sm text-muted-foreground">{freelancer.title || "Freelancer"}</p>
-                              </div>
-                            </div>
-                            {freelancer.isFeatured && (
-                              <Shield className="h-5 w-5 text-accent" />
-                            )}
-                          </div>
+                return (
+                  <div
+                    key={freelancer.id}
+                    className="border-2 border-[var(--ink)] bg-[var(--paper)] p-6 space-y-4 text-left hover:border-[var(--signal)] transition-colors flex flex-col justify-between shadow-xs group"
+                  >
+                    <div className="space-y-3">
+                      
+                      {/* Talent Specimen Header */}
+                      <div className="flex items-center justify-between border-b border-[var(--line)] pb-2.5 font-mono-ledger text-[10px] uppercase">
+                        <span className="text-[var(--signal)] font-bold flex items-center space-x-1">
+                          <span>TALENT SPECIMEN / #{freelancer.id?.slice(0, 6) || '0042'}</span>
+                        </span>
+                        <span className="text-[var(--ink)] font-bold flex items-center space-x-1">
+                          <Star className="h-3 w-3 text-[var(--signal)] fill-[var(--signal)]" />
+                          <span>{freelancer.averageRating ? parseFloat(freelancer.averageRating).toFixed(1) : "5.0"}</span>
+                        </span>
+                      </div>
 
-                          {/* Bio */}
-                          <p className="mb-4 text-sm text-muted-foreground line-clamp-2">
-                            {freelancer.bio || "No bio available"}
-                          </p>
-
-                          {/* Stats */}
-                          <div className="mb-4 flex items-center gap-4 text-sm">
-                            <div className="flex items-center gap-1">
-                              <Star className="h-4 w-4 fill-accent text-accent" />
-                              <span className="font-semibold text-foreground">
-                                {freelancer.averageRating ? parseFloat(freelancer.averageRating).toFixed(1) : "N/A"}
-                              </span>
-                            </div>
-                            <div className="flex items-center gap-1 text-muted-foreground">
-                              <Briefcase className="h-4 w-4" />
-                              <span>{freelancer.totalJobsCompleted || 0} jobs</span>
-                            </div>
-                          </div>
-
-                          {/* Location & Rate */}
-                          <div className="mb-4 flex items-center justify-between text-sm">
-                            <div className="flex items-center gap-1 text-muted-foreground">
-                              <MapPin className="h-4 w-4" />
-                              <span>{freelancer.location || "Not specified"}</span>
-                            </div>
-                            <div className="flex items-center gap-1 font-semibold text-foreground">
-                              <DollarSign className="h-4 w-4" />
-                              <span>${freelancer.hourlyRate || 0}/hr</span>
-                            </div>
-                          </div>
-
-                          {/* Skills */}
-                          {skills.length > 0 && (
-                            <div className="mb-4 flex flex-wrap gap-2">
-                              {skills.slice(0, 4).map((skill, index) => (
-                                <span
-                                  key={index}
-                                  className="rounded-full bg-secondary px-3 py-1 text-xs text-foreground"
-                                >
-                                  {skill}
-                                </span>
-                              ))}
-                              {skills.length > 4 && (
-                                <span className="rounded-full bg-secondary px-3 py-1 text-xs text-muted-foreground">
-                                  +{skills.length - 4}
-                                </span>
-                              )}
-                            </div>
-                          )}
-
-                          {/* Actions */}
-                          <div className="flex gap-2">
-                            <Link href={`/freelancer/profile/${freelancer.id}`} className="flex-1">
-                              <Button variant="accent" className="w-full">
-                                View Profile
-                              </Button>
-                            </Link>
-                            <Button 
-                              variant="outline" 
-                              className="flex-1"
-                              onClick={() => handleInviteClick(freelancer)}
-                            >
-                              Invite
-                            </Button>
-                          </div>
+                      {/* Name & Title */}
+                      <div className="flex items-start space-x-3">
+                        <div className="w-11 h-11 bg-[var(--ink)] text-[var(--paper)] font-bold text-[14px] flex items-center justify-center shrink-0">
+                          {freelancer.fullName?.charAt(0) || 'F'}
                         </div>
-                      );
-                    })}
-                  </div>
+                        <div className="space-y-0.5 min-w-0">
+                          <h3 className="font-serif-ledger text-[18px] font-medium leading-tight text-[var(--ink)] truncate group-hover:text-[var(--signal)] transition-colors">
+                            {freelancer.fullName}
+                          </h3>
+                          <p className="font-mono-ledger text-[11px] text-[var(--muted)] truncate uppercase">
+                            {freelancer.title || "Independent Developer"}
+                          </p>
+                        </div>
+                      </div>
 
-                  {/* Load More */}
-                  {freelancers.length >= 50 && (
-                    <div className="mt-8 text-center">
-                      <Button variant="outline" size="lg">
-                        Load More Freelancers
-                      </Button>
+                      {/* Bio */}
+                      <p className="font-sans-ledger text-[13px] text-[var(--muted)] line-clamp-3 leading-relaxed">
+                        {freelancer.bio || "Verified independent professional specializing in software architecture and modern web systems."}
+                      </p>
+
+                      {/* Skills Specimen Pills */}
+                      {skills.length > 0 && (
+                        <div className="flex flex-wrap gap-1.5 pt-1">
+                          {skills.slice(0, 4).map((skill, idx) => (
+                            <span 
+                              key={idx} 
+                              className="font-mono-ledger text-[9px] uppercase px-2 py-0.5 bg-[var(--paper-2)] border border-[var(--line)] text-[var(--ink)]"
+                            >
+                              {skill}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+
                     </div>
-                  )}
-                </>
-              )}
-            </>
-          )}
-        </div>
-      </section>
 
-      {/* Invite Modal */}
+                    {/* Footer & Actions */}
+                    <div className="pt-4 border-t border-[var(--line)] space-y-3 font-mono-ledger text-[11px]">
+                      <div className="flex items-center justify-between text-[10px] text-[var(--muted)]">
+                        <span>LOCATION: {freelancer.location?.toUpperCase() || 'NEPAL'}</span>
+                        <span className="font-bold text-[var(--ink)]">
+                          {freelancer.hourlyRate ? `NPR ${freelancer.hourlyRate}/HR` : 'AGREED RATE'}
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2 pt-1">
+                        <Link
+                          href={`/freelancer/profile/${freelancer.id}`}
+                          className="w-full bg-[var(--paper-2)] border border-[var(--ink)] hover:bg-[var(--paper)] text-[var(--ink)] font-bold text-[10px] uppercase py-2 text-center block transition-colors"
+                        >
+                          PROFILE →
+                        </Link>
+
+                        <button
+                          onClick={() => handleInviteClick(freelancer)}
+                          className="w-full bg-[var(--signal)] hover:bg-[var(--signal-dark)] text-[var(--paper)] font-bold text-[10px] uppercase py-2 text-center transition-colors"
+                        >
+                          INVITE BRIEF →
+                        </button>
+                      </div>
+                    </div>
+
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </section>
+
+      </main>
+
+      {/* INVITE MODAL */}
       {showInviteModal && selectedFreelancer && (
         <InviteModal
           freelancer={selectedFreelancer}
-          onClose={handleCloseInviteModal}
+          onClose={() => {
+            setShowInviteModal(false);
+            setSelectedFreelancer(null);
+          }}
         />
       )}
+
+      {/* Editorial Footer */}
+      <footer className="border-t border-[var(--line)] py-6 text-center mt-12 font-mono-ledger text-[12px] text-[var(--muted)]">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 flex flex-col sm:flex-row items-center justify-between gap-2">
+          <span>FreelanceHub · Independent Talent Directory</span>
+          <span>Engineered by Nantio Studio (www.nantio.it.com)</span>
+        </div>
+      </footer>
+
     </div>
   );
 }
