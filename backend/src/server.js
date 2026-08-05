@@ -167,33 +167,19 @@ const startServer = async () => {
     const io = new Server(httpServer, {
       cors: {
         origin: (origin, callback) => {
-          // In development, allow all origins from local network
-          if (process.env.NODE_ENV === 'development') {
-            const allowedOrigins = [
-              process.env.FRONTEND_URL || 'http://localhost:3000',
-              'http://localhost:3000',
-              'http://192.168.44.82:3000',
-              'https://localhost:3000',
-              'https://192.168.44.82:3000'
-            ];
-            
-            // Allow any origin from 192.168.x.x network
-            if (!origin || allowedOrigins.includes(origin) || /^http:\/\/192\.168\.\d+\.\d+:\d+$/.test(origin)) {
-              callback(null, true);
-            } else {
-              callback(new Error('Not allowed by CORS'));
-            }
+          const allowedOrigins = [
+            process.env.FRONTEND_URL,
+            process.env.CORS_ORIGIN,
+            'https://freelance-hub-ochre.vercel.app',
+            'http://localhost:3000',
+            'http://127.0.0.1:3000',
+            'https://localhost:3000'
+          ].filter(Boolean);
+
+          if (!origin || allowedOrigins.includes(origin) || (process.env.NODE_ENV === 'development' && /^http:\/\/192\.168\.\d+\.\d+:\d+$/.test(origin))) {
+            callback(null, true);
           } else {
-            const allowedOrigins = [
-              process.env.FRONTEND_URL,
-              'https://freelance-hub-ochre.vercel.app',
-              'http://localhost:3000'
-            ].filter(Boolean);
-            if (!origin || allowedOrigins.includes(origin)) {
-              callback(null, true);
-            } else {
-              callback(new Error('Not allowed by CORS'));
-            }
+            callback(new Error('Not allowed by CORS'));
           }
         },
         methods: ['GET', 'POST'],
