@@ -34,6 +34,9 @@ const registerSchema = z.object({
     }),
   role: z.enum(['FREELANCER', 'CLIENT'], {
     required_error: 'Please select your role'
+  }),
+  agreeToTerms: z.boolean().refine(val => val === true, {
+    message: 'You must read and agree to the Terms of Service, Privacy Policy, and Escrow Refund Policy'
   })
 }).refine(data => data.password === data.confirmPassword, {
   message: "Passwords don't match",
@@ -58,7 +61,8 @@ export default function RegisterPage() {
   } = useForm({
     resolver: zodResolver(registerSchema),
     defaultValues: {
-      role: 'FREELANCER'
+      role: 'FREELANCER',
+      agreeToTerms: false
     }
   });
 
@@ -412,12 +416,34 @@ export default function RegisterPage() {
                   )}
                 </div>
 
+                {/* Terms & Privacy Agreement Checkbox */}
+                <div className="space-y-1 text-left pt-1 font-mono-ledger">
+                  <label className="flex items-start space-x-2.5 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      {...register('agreeToTerms')}
+                      className="mt-1 h-4 w-4 accent-[var(--signal)] rounded border-[var(--ink)] cursor-pointer"
+                    />
+                    <span className="text-[12px] text-[var(--ink)] leading-snug">
+                      I have read and agree to the{' '}
+                      <Link href="/terms" target="_blank" className="font-bold underline text-[var(--signal)] hover:text-[var(--ink)]">Terms of Service</Link>,{' '}
+                      <Link href="/privacy" target="_blank" className="font-bold underline text-[var(--signal)] hover:text-[var(--ink)]">Privacy Policy</Link>, and{' '}
+                      <Link href="/refund-policy" target="_blank" className="font-bold underline text-[var(--signal)] hover:text-[var(--ink)]">Escrow Policy</Link>. *
+                    </span>
+                  </label>
+                  {errors.agreeToTerms && (
+                    <p className="font-mono-ledger text-[11px] text-[var(--signal)] mt-1">
+                      {errors.agreeToTerms.message}
+                    </p>
+                  )}
+                </div>
+
                 {/* Submit Action */}
                 <div className="pt-2">
                   <button 
                     type="submit" 
                     disabled={loading}
-                    className="w-full bg-[var(--signal)] hover:bg-[var(--signal-dark)] text-[var(--paper)] font-sans-ledger font-medium text-[15px] py-3.5 px-4 transition-colors flex items-center justify-center space-x-2"
+                    className="w-full bg-[var(--signal)] hover:bg-[var(--signal-dark)] text-[var(--paper)] font-sans-ledger font-medium text-[15px] py-3.5 px-4 transition-colors flex items-center justify-center space-x-2 shadow-xs"
                   >
                     {loading ? (
                       <span className="font-mono-ledger text-[13px] flex items-center">
@@ -454,11 +480,17 @@ export default function RegisterPage() {
         </div>
       </main>
 
-      {/* Editorial Footer */}
+      {/* Editorial Footer with Legal Links */}
       <footer className="border-t border-[var(--line)] py-6 text-center">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 flex flex-col sm:flex-row items-center justify-between text-[12px] font-mono-ledger text-[var(--muted)] gap-2">
-          <span>FreelanceHub · Nepal Marketplace Ledger</span>
-          <span>Engineered by Nantio (www.nantio.it.com)</span>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 flex flex-col sm:flex-row items-center justify-between text-[12px] font-mono-ledger text-[var(--muted)] gap-4">
+          <div className="flex space-x-4">
+            <Link href="/terms" className="hover:text-[var(--ink)]">Terms of Service</Link>
+            <span>·</span>
+            <Link href="/privacy" className="hover:text-[var(--ink)]">Privacy Policy</Link>
+            <span>·</span>
+            <Link href="/refund-policy" className="hover:text-[var(--ink)]">Escrow Policy</Link>
+          </div>
+          <span>FreelanceHub · Nepal Marketplace Ledger · Engineered by Nantio (www.nantio.it.com)</span>
         </div>
       </footer>
 

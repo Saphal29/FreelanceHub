@@ -609,14 +609,18 @@ export default function HomePage() {
       <footer className="border-t border-[var(--line)] py-8">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           
-          <div className="flex items-center space-x-3">
+          <div className="flex flex-wrap items-center gap-4">
             <span className="font-serif-ledger text-[17px] font-semibold text-[var(--ink)]">
               FreelanceHub
             </span>
             <span className="text-[var(--muted)] text-[13px]">·</span>
-            <span className="font-mono-ledger text-[12px] text-[var(--muted)]">
-              Nepal
-            </span>
+            <div className="flex items-center space-x-3 font-mono-ledger text-[12px] text-[var(--muted)]">
+              <Link href="/terms" className="hover:text-[var(--ink)]">Terms of Service</Link>
+              <span>·</span>
+              <Link href="/privacy" className="hover:text-[var(--ink)]">Privacy Policy</Link>
+              <span>·</span>
+              <Link href="/refund-policy" className="hover:text-[var(--ink)]">Escrow Policy</Link>
+            </div>
           </div>
 
           <div className="flex items-center space-x-6">
