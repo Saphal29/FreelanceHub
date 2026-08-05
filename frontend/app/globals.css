@@ -108,4 +108,16 @@
     width: max-content;
     animation: marquee 32s linear infinite;
   }
+
+  /* Mobile Tap Targets & Accessibility Optimization */
+  @media (max-width: 768px) {
+    button, 
+    a, 
+    input[type="submit"], 
+    input[type="button"], 
+    select {
+      min-height: 44px;
+      touch-action: manipulation;
+    }
+  }
 }
