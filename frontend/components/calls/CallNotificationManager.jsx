@@ -131,14 +131,8 @@ export function CallNotificationManager({ children }) {
     setHasMounted(true);
   }, []);
 
-  // Request push notification permission on mount
-  useEffect(() => {
-    if (!hasMounted) return;
-    if (!("Notification" in window)) return;
-    if (Notification.permission === "default") {
-      Notification.requestPermission().catch(() => {});
-    }
-  }, [hasMounted]);
+  // Note: Avoid calling Notification.requestPermission() directly on mount
+  // to prevent browser error "Notification prompting can only be done from a user gesture."
 
   // Connect to video socket and listen for call events — only when authenticated
   useEffect(() => {

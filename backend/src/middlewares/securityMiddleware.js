@@ -19,17 +19,15 @@ const corsMiddleware = (req, res, next) => {
   
   const origin = req.headers.origin;
   
-  // In development, allow all origins from local network
-  if (process.env.NODE_ENV === 'development' && origin) {
-    // Allow any origin from 192.168.x.x network
+  // Check if origin is allowed (explicit list or any *.vercel.app domain)
+  const isVercelOrigin = origin && /^https:\/\/[a-zA-Z0-9-]+\.vercel\.app$/.test(origin);
+  
+  if (origin && (allowedOrigins.includes(origin) || isVercelOrigin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+  } else if (process.env.NODE_ENV === 'development' && origin) {
     if (origin.match(/^https?:\/\/192\.168\.\d+\.\d+:\d+$/)) {
       res.setHeader('Access-Control-Allow-Origin', origin);
-    } else if (allowedOrigins.includes(origin)) {
-      res.setHeader('Access-Control-Allow-Origin', origin);
     }
-  } else if (origin && allowedOrigins.includes(origin)) {
-    // Production: strict origin checking
-    res.setHeader('Access-Control-Allow-Origin', origin);
   }
   
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
