@@ -1,0 +1,17 @@
+{
+  "name": "freelancehub",
+  "version": "1.0.0",
+  "private": true,
+  "description": "FreelanceHub monorepo – Next.js frontend + Express backend",
+  "scripts": {
+    "dev": "cd frontend && npm run dev",
+    "build": "cd frontend && npm install && npm run build",
+    "start": "cd frontend && npm start"
+  },
+  "dependencies": {
+    "next": "^16.2.1"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
