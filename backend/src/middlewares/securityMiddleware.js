@@ -8,21 +8,17 @@ const logger = require('../utils/logger');
  */
 const corsMiddleware = (req, res, next) => {
   const allowedOrigins = [
-    process.env.FRONTEND_URL || 'http://localhost:3000',
+    process.env.FRONTEND_URL,
     process.env.CORS_ORIGIN,
+    'https://freelance-hub-ochre.vercel.app',
     'http://localhost:3000',
     'http://127.0.0.1:3000',
-    'http://192.168.44.82:3000',  // Local WiFi network access (HTTP)
-    'https://localhost:3000',      // HTTPS localhost
-    'https://192.168.44.82:3000'   // HTTPS network access
-  ].filter(Boolean); // Remove undefined values
-  
+    'https://localhost:3000'
+  ].filter(Boolean);
+
   const origin = req.headers.origin;
-  
-  // Check if origin is allowed (explicit list or any *.vercel.app domain)
-  const isVercelOrigin = origin && /^https:\/\/[a-zA-Z0-9-]+\.vercel\.app$/.test(origin);
-  
-  if (origin && (allowedOrigins.includes(origin) || isVercelOrigin)) {
+
+  if (origin && allowedOrigins.includes(origin)) {
     res.setHeader('Access-Control-Allow-Origin', origin);
   } else if (process.env.NODE_ENV === 'development' && origin) {
     if (origin.match(/^https?:\/\/192\.168\.\d+\.\d+:\d+$/)) {
