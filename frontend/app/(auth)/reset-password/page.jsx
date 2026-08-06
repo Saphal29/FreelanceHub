@@ -1,20 +1,14 @@
 'use client';
+
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import Link from 'next/link';
-import { Eye, EyeOff, Lock, CheckCircle, XCircle, ArrowRight } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Eye, EyeOff, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { resetPassword } from '@/lib/api';
-import { validatePassword, getPasswordStrength } from '@/lib/utils';
 
-// Validation schema
 const resetPasswordSchema = z.object({
   newPassword: z.string()
     .min(8, 'Password must be at least 8 characters')
@@ -38,35 +32,20 @@ function ResetPasswordContent() {
   const [loading, setLoading] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [passwordStrength, setPasswordStrength] = useState({ score: 0, feedback: [] });
 
   const { 
     register, 
     handleSubmit, 
-    formState: { errors },
-    watch
+    formState: { errors }
   } = useForm({
     resolver: zodResolver(resetPasswordSchema)
   });
 
-  const watchedPassword = watch('newPassword');
-
-  // Check if token exists
   useEffect(() => {
     if (!token) {
-      setError('Invalid or missing reset token');
+      setError('Invalid or missing reset token.');
     }
   }, [token]);
-
-  // Update password strength when password changes
-  useEffect(() => {
-    if (watchedPassword) {
-      const strength = validatePassword(watchedPassword);
-      setPasswordStrength(strength);
-    } else {
-      setPasswordStrength({ score: 0, feedback: [] });
-    }
-  }, [watchedPassword]);
 
   const onSubmit = async (data) => {
     if (!token) {
@@ -87,10 +66,9 @@ function ResetPasswordContent() {
       
       if (response.success) {
         setSuccess(true);
-        // Redirect to login after 3 seconds
         setTimeout(() => {
           router.push('/login?reset=true');
-        }, 3000);
+        }, 2500);
       } else {
         setError(response.error || 'Failed to reset password');
       }
@@ -101,257 +79,179 @@ function ResetPasswordContent() {
     }
   };
 
-  const strengthInfo = getPasswordStrength(passwordStrength.score);
-
-  // If no token, show error state
-  if (!token) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-md w-full space-y-8">
-          <div className="text-center">
-            <div className="mx-auto h-12 w-12 bg-red-100 rounded-full flex items-center justify-center mb-4">
-              <XCircle className="h-6 w-6 text-red-600" />
-            </div>
-            <h2 className="text-3xl font-bold text-gray-900">Invalid Reset Link</h2>
-            <p className="mt-2 text-sm text-gray-600">
-              This password reset link is invalid or has expired
-            </p>
-          </div>
-          <Card className="shadow-xl border-0">
-            <CardContent className="pt-6">
-              <Alert variant="destructive" className="mb-4">
-                <XCircle className="h-4 w-4" />
-                <AlertDescription>
-                  The password reset link is invalid, expired, or has already been used.
-                </AlertDescription>
-              </Alert>
-              <div className="space-y-3">
-                <Link href="/forgot-password">
-                  <Button className="w-full">
-                    Request New Reset Link
-                  </Button>
-                </Link>
-                <Link href="/login">
-                  <Button variant="outline" className="w-full">
-                    Back to Login
-                  </Button>
-                </Link>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8">
-        {/* Header */}
-        <div className="text-center">
-          <div className={`mx-auto h-12 w-12 rounded-full flex items-center justify-center mb-4 ${
-            success ? 'bg-green-100' : 'bg-blue-100'
-          }`}>
-            {success ? (
-              <CheckCircle className="h-6 w-6 text-green-600" />
-            ) : (
-              <Lock className="h-6 w-6 text-blue-600" />
-            )}
-          </div>
-          <h2 className="text-3xl font-bold text-gray-900">
-            {success ? 'Password Reset Complete' : 'Reset Your Password'}
-          </h2>
-          <p className="mt-2 text-sm text-gray-600">
-            {success 
-              ? 'Your password has been successfully updated'
-              : 'Enter your new password below'
-            }
-          </p>
-        </div>
+    <div className="min-h-screen bg-[var(--paper)] text-[var(--ink)] font-sans-ledger selection:bg-[var(--signal)] selection:text-[var(--paper)] flex flex-col justify-between">
+      
+      {/* Top Header */}
+      <header className="border-b border-[var(--ink)]">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 py-4 flex items-center justify-between">
+          <Link href="/" className="font-serif-ledger text-[19px] font-semibold tracking-tight text-[var(--ink)] hover:text-[var(--signal)] transition-colors">
+            FreelanceHub
+          </Link>
 
-        <Card className="shadow-xl border-0">
-          <CardHeader className="space-y-1 pb-4">
-            <CardTitle className="text-2xl font-bold text-center">
-              {success ? 'Success!' : 'New Password'}
-            </CardTitle>
-            <CardDescription className="text-center">
-              {success 
-                ? 'You can now sign in with your new password'
-                : 'Choose a strong password for your account'
-              }
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {success ? (
-              /* Success State */
-              <div className="text-center py-4 space-y-6">
-                <Alert variant="success">
-                  <CheckCircle className="h-4 w-4" />
-                  <AlertDescription>
-                    Your password has been successfully reset. You can now sign in with your new password.
-                  </AlertDescription>
-                </Alert>
-                
-                <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                  <div className="flex items-center">
-                    <CheckCircle className="h-5 w-5 text-green-600 mr-3" />
-                    <div className="text-left">
-                      <h4 className="text-sm font-medium text-green-800">
-                        Password Updated Successfully
-                      </h4>
-                      <p className="text-sm text-green-600 mt-1">
-                        Your account is secure and ready to use
-                      </p>
+          <Link href="/login" className="font-mono-ledger text-[12px] text-[var(--muted)] hover:text-[var(--signal)] transition-colors">
+            ← Back to sign in
+          </Link>
+        </div>
+      </header>
+
+      {/* Archetype B: Asymmetric Split Layout */}
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 py-12 md:py-16 flex-1 w-full">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-16 items-start">
+          
+          {/* Left Column */}
+          <div className="lg:col-span-5 space-y-6 text-left">
+            <p className="font-mono-ledger text-[11px] uppercase tracking-[0.08em] text-[var(--muted)]">
+              FREELANCEHUB / RECOVERY · AUTH LEDGER ARCHETYPE B
+            </p>
+
+            <h1 className="font-serif-ledger text-[40px] sm:text-[56px] leading-[1.0] font-medium tracking-tight text-[var(--ink)]">
+              Set new password.
+            </h1>
+
+            <p className="text-[15px] sm:text-[16px] leading-relaxed text-[var(--muted)] max-w-md font-sans-ledger">
+              Enter and confirm your new account password to complete recovery and update your credentials.
+            </p>
+
+            <div className="pt-4 border-t border-[var(--line)] space-y-2 font-mono-ledger text-[11px]">
+              <div className="flex items-center justify-between text-[var(--muted)]">
+                <span>SECURITY SPEC</span>
+                <span className="text-[var(--signal)] font-bold">[MIN 8 CHARS + SPECIAL]</span>
+              </div>
+              <div className="flex items-center justify-between text-[var(--muted)]">
+                <span>TOKEN STATUS</span>
+                <span className="text-[var(--ink)] font-bold">[{token ? 'VALID' : 'INVALID'}]</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Right Column */}
+          <div className="lg:col-span-7">
+            <div className="border-2 border-[var(--ink)] bg-[var(--paper)] p-6 sm:p-10 space-y-6 text-left">
+              
+              <div className="flex items-center justify-between border-b border-[var(--ink)] pb-3 font-mono-ledger text-[11px]">
+                <span className="text-[var(--ink)] font-bold uppercase tracking-wider">02 / NEW CREDENTIAL SPECIMEN</span>
+                <span className="text-[var(--signal)] font-bold">[RESET PASSWORD]</span>
+              </div>
+
+              {success ? (
+                <div className="space-y-4 font-mono-ledger text-left">
+                  <div className="p-4 bg-[var(--paper-2)] border border-[var(--signal)] text-[var(--ink)] space-y-2">
+                    <div className="flex items-center space-x-2 text-[var(--signal)] font-bold text-[13px]">
+                      <CheckCircle2 className="h-4 w-4 shrink-0" />
+                      <span>PASSWORD RESET COMPLETE</span>
                     </div>
+                    <p className="text-[12px] text-[var(--muted)]">
+                      Your account password has been updated. Redirecting to login workspace in 3 seconds...
+                    </p>
+                  </div>
+
+                  <div className="pt-2">
+                    <Link
+                      href="/login?reset=true"
+                      className="w-full bg-[var(--signal)] hover:bg-[var(--signal-dark)] text-[var(--paper)] font-bold text-[12px] uppercase tracking-wider py-3.5 px-4 transition-colors flex items-center justify-center block text-center"
+                    >
+                      <span>SIGN IN WITH NEW PASSWORD →</span>
+                    </Link>
                   </div>
                 </div>
+              ) : (
+                <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+                  {error && (
+                    <div className="p-3.5 bg-red-50 border border-[var(--signal)] text-[var(--signal-dark)] font-mono-ledger text-[12px] flex items-center space-x-2">
+                      <AlertCircle className="h-4 w-4 text-[var(--signal)] shrink-0" />
+                      <span>{error}</span>
+                    </div>
+                  )}
 
-                <Button 
-                  onClick={() => router.push('/login?reset=true')}
-                  className="w-full h-11 text-base font-medium"
-                >
-                  Continue to Login
-                  <ArrowRight className="ml-2 h-4 w-4" />
-                </Button>
-
-                <p className="text-xs text-gray-500">
-                  Redirecting automatically in 3 seconds...
-                </p>
-              </div>
-            ) : (
-              /* Form State */
-              <div className="space-y-6">
-                {error && (
-                  <Alert variant="destructive">
-                    <XCircle className="h-4 w-4" />
-                    <AlertDescription>{error}</AlertDescription>
-                  </Alert>
-                )}
-
-                <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
                   {/* New Password */}
-                  <div className="space-y-2">
-                    <Label htmlFor="newPassword" className="text-sm font-medium">
-                      New Password
-                    </Label>
+                  <div className="space-y-2 border-b border-[var(--line)] pb-4">
+                    <label htmlFor="newPassword" className="font-mono-ledger text-[11px] uppercase tracking-wider text-[var(--ink)] font-bold block">
+                      New Password *
+                    </label>
                     <div className="relative">
-                      <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                      <Input
+                      <input
                         id="newPassword"
                         type={showNewPassword ? 'text' : 'password'}
                         {...register('newPassword')}
-                        placeholder="••••••••"
-                        className="pl-10 pr-10"
+                        placeholder="••••••••••••"
+                        className="w-full bg-[var(--paper-2)] border border-[var(--line)] focus:border-[var(--ink)] font-sans-ledger text-[14px] p-3 pr-10 outline-none transition-all placeholder:text-[var(--muted)]"
                         autoComplete="new-password"
                       />
                       <button
                         type="button"
                         onClick={() => setShowNewPassword(!showNewPassword)}
-                        className="absolute right-3 top-3 h-4 w-4 text-gray-400 hover:text-gray-600 transition-colors"
+                        className="absolute right-3 top-3.5 text-[var(--muted)] hover:text-[var(--ink)] transition-colors"
                       >
-                        {showNewPassword ? <EyeOff /> : <Eye />}
+                        {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                       </button>
                     </div>
-
-                    {/* Password Strength Indicator */}
-                    {watchedPassword && (
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs text-gray-500">Password Strength:</span>
-                          <span className={`text-xs font-medium ${strengthInfo.color}`}>
-                            {strengthInfo.label}
-                          </span>
-                        </div>
-                        <div className="w-full bg-gray-200 rounded-full h-2">
-                          <div 
-                            className={`h-2 rounded-full transition-all duration-300 ${strengthInfo.bgColor}`}
-                            style={{ width: `${(passwordStrength.score / 5) * 100}%` }}
-                          />
-                        </div>
-                        {passwordStrength.feedback.length > 0 && (
-                          <div className="text-xs text-gray-500">
-                            Missing: {passwordStrength.feedback.join(', ')}
-                          </div>
-                        )}
-                      </div>
-                    )}
-
                     {errors.newPassword && (
-                      <p className="text-sm text-red-500">{errors.newPassword.message}</p>
+                      <p className="font-mono-ledger text-[11px] text-[var(--signal)] mt-1">
+                        {errors.newPassword.message}
+                      </p>
                     )}
                   </div>
 
                   {/* Confirm Password */}
-                  <div className="space-y-2">
-                    <Label htmlFor="confirmPassword" className="text-sm font-medium">
-                      Confirm New Password
-                    </Label>
+                  <div className="space-y-2 border-b border-[var(--line)] pb-4">
+                    <label htmlFor="confirmPassword" className="font-mono-ledger text-[11px] uppercase tracking-wider text-[var(--ink)] font-bold block">
+                      Confirm New Password *
+                    </label>
                     <div className="relative">
-                      <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                      <Input
+                      <input
                         id="confirmPassword"
                         type={showConfirmPassword ? 'text' : 'password'}
                         {...register('confirmPassword')}
-                        placeholder="••••••••"
-                        className="pl-10 pr-10"
+                        placeholder="••••••••••••"
+                        className="w-full bg-[var(--paper-2)] border border-[var(--line)] focus:border-[var(--ink)] font-sans-ledger text-[14px] p-3 pr-10 outline-none transition-all placeholder:text-[var(--muted)]"
                         autoComplete="new-password"
                       />
                       <button
                         type="button"
                         onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                        className="absolute right-3 top-3 h-4 w-4 text-gray-400 hover:text-gray-600 transition-colors"
+                        className="absolute right-3 top-3.5 text-[var(--muted)] hover:text-[var(--ink)] transition-colors"
                       >
-                        {showConfirmPassword ? <EyeOff /> : <Eye />}
+                        {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                       </button>
                     </div>
                     {errors.confirmPassword && (
-                      <p className="text-sm text-red-500">{errors.confirmPassword.message}</p>
+                      <p className="font-mono-ledger text-[11px] text-[var(--signal)] mt-1">
+                        {errors.confirmPassword.message}
+                      </p>
                     )}
                   </div>
 
-                  {/* Submit Button */}
-                  <Button 
-                    type="submit" 
-                    className="w-full h-11 text-base font-medium" 
-                    disabled={loading}
+                  <button
+                    type="submit"
+                    disabled={loading || !token}
+                    className="w-full bg-[var(--signal)] hover:bg-[var(--signal-dark)] text-[var(--paper)] font-mono-ledger font-bold text-[12px] uppercase tracking-wider py-3.5 px-4 transition-colors flex items-center justify-center space-x-2"
                   >
-                    {loading ? (
-                      <div className="flex items-center">
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                        Updating Password...
-                      </div>
-                    ) : (
-                      'Update Password'
-                    )}
-                  </Button>
+                    {loading ? 'UPDATING CREDENTIALS...' : 'UPDATE PASSWORD & SIGN IN →'}
+                  </button>
                 </form>
+              )}
 
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                  <h4 className="text-sm font-medium text-blue-800 mb-2">
-                    Password Requirements:
-                  </h4>
-                  <ul className="text-sm text-blue-600 space-y-1">
-                    <li>• At least 8 characters long</li>
-                    <li>• Contains uppercase and lowercase letters</li>
-                    <li>• Contains at least one number</li>
-                    <li>• Contains at least one special character</li>
-                  </ul>
-                </div>
+              <div className="pt-4 border-t border-[var(--line)] text-center font-mono-ledger text-[12px]">
+                <Link href="/login" className="text-[var(--muted)] hover:text-[var(--signal)]">
+                  ← Cancel and return to sign in
+                </Link>
               </div>
-            )}
-          </CardContent>
-        </Card>
 
-        {/* Footer */}
-        <div className="text-center">
-          <p className="text-xs text-gray-500">
-            {success 
-              ? 'Your account is now secure with the new password'
-              : 'This reset link will expire in 1 hour for security'
-            }
-          </p>
+            </div>
+          </div>
+
         </div>
-      </div>
+      </main>
+
+      {/* Footer */}
+      <footer className="border-t border-[var(--line)] py-6 text-center font-mono-ledger text-[12px] text-[var(--muted)]">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 flex flex-col sm:flex-row items-center justify-between gap-2">
+          <span>FreelanceHub · Auth Ledger Archetype B</span>
+          <span>Engineered by Nantio Studio (www.nantio.it.com)</span>
+        </div>
+      </footer>
+
     </div>
   );
 }
@@ -359,8 +259,11 @@ function ResetPasswordContent() {
 export default function ResetPasswordPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center bg-white">
-        <div className="animate-spin rounded-full h-16 w-16 border-4 border-gray-200 border-t-black"></div>
+      <div className="min-h-screen flex items-center justify-center bg-[var(--paper)] text-[var(--ink)] font-mono-ledger">
+        <div className="flex items-center space-x-3 text-[13px]">
+          <span className="w-2.5 h-2.5 bg-[var(--signal)] rounded-full animate-pulse"></span>
+          <span>LOADING SYSTEM...</span>
+        </div>
       </div>
     }>
       <ResetPasswordContent />

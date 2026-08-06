@@ -3,10 +3,7 @@
 import { useState, useEffect, useRef, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { Shield, Mail, ArrowLeft, CheckCircle, AlertCircle } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { AlertCircle, CheckCircle2 } from 'lucide-react';
 import axios from 'axios';
 
 function VerifyOTPContent() {
@@ -31,7 +28,6 @@ function VerifyOTPContent() {
     }
   }, [searchParams, router]);
 
-  // Countdown timer for resend
   useEffect(() => {
     if (countdown > 0) {
       const timer = setTimeout(() => setCountdown(countdown - 1), 1000);
@@ -45,16 +41,12 @@ function VerifyOTPContent() {
     if (value.length > 1) {
       value = value[0];
     }
-
-    if (!/^\d*$/.test(value)) {
-      return;
-    }
+    if (!/^\d*$/.test(value)) return;
 
     const newOtp = [...otp];
     newOtp[index] = value;
     setOtp(newOtp);
 
-    // Auto-focus next input
     if (value && index < 5) {
       inputRefs.current[index + 1]?.focus();
     }
@@ -69,25 +61,18 @@ function VerifyOTPContent() {
   const handlePaste = (e) => {
     e.preventDefault();
     const pastedData = e.clipboardData.getData('text').slice(0, 6);
-    
-    if (!/^\d+$/.test(pastedData)) {
-      return;
-    }
+    if (!/^\d+$/.test(pastedData)) return;
 
     const newOtp = pastedData.split('');
-    while (newOtp.length < 6) {
-      newOtp.push('');
-    }
+    while (newOtp.length < 6) newOtp.push('');
     setOtp(newOtp);
     
-    // Focus last filled input
     const lastIndex = Math.min(pastedData.length, 5);
     inputRefs.current[lastIndex]?.focus();
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
     const otpCode = otp.join('');
     if (otpCode.length !== 6) {
       setError('Please enter all 6 digits');
@@ -99,10 +84,7 @@ function VerifyOTPContent() {
       setError('');
 
       const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
-      const response = await axios.post(`${API_URL}/auth/verify-otp`, {
-        email,
-        otp: otpCode
-      });
+      const response = await axios.post(`${API_URL}/auth/verify-otp`, { email, otp: otpCode });
 
       if (response.data.success) {
         setSuccess('verified');
@@ -125,10 +107,10 @@ function VerifyOTPContent() {
       const response = await axios.post(`${API_URL}/auth/resend-otp`, { email });
 
       if (response.data.success) {
-        setSuccess('New OTP sent! Please check your email.');
+        setSuccess('New OTP sent to your email.');
         setCanResend(false);
         setCountdown(60);
-        setTimeout(() => setSuccess(''), 3000);
+        setTimeout(() => setSuccess(''), 4000);
       }
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to resend OTP');
@@ -138,166 +120,162 @@ function VerifyOTPContent() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-white py-12 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
-      {/* Background Elements */}
-      <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute -top-40 -right-40 w-80 h-80 bg-amber-500/5 rounded-full blur-3xl animate-float"></div>
-        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-black/5 rounded-full blur-3xl animate-float" style={{animationDelay: '2s'}}></div>
-      </div>
-
-      <div className="w-full max-w-md relative z-10">
-        {/* Header */}
-        <div className="text-center mb-8">
-          <Link href="/" className="inline-block">
-            <h1 className="text-4xl font-black text-black mb-2">
-              Freelance<span className="text-gradient-gold">Hub</span>
-            </h1>
+    <div className="min-h-screen bg-[var(--paper)] text-[var(--ink)] font-sans-ledger selection:bg-[var(--signal)] selection:text-[var(--paper)] flex flex-col justify-between">
+      
+      {/* Top Header */}
+      <header className="border-b border-[var(--ink)]">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 py-4 flex items-center justify-between">
+          <Link href="/" className="font-serif-ledger text-[19px] font-semibold tracking-tight text-[var(--ink)] hover:text-[var(--signal)] transition-colors">
+            FreelanceHub
           </Link>
-          <p className="text-gray-600 text-lg">Verify your email</p>
-        </div>
 
-        <Card className="card-premium shadow-3xl border-2 border-gray-100">
-          <CardHeader className="space-y-6 text-center pb-8">
-            <div className="flex justify-center">
-              <div className="h-20 w-20 bg-black rounded-2xl flex items-center justify-center shadow-xl">
-                <Mail className="h-10 w-10 text-amber-500" />
-              </div>
-            </div>
-            <div>
-              <CardTitle className="text-3xl font-black text-black mb-2">
-                Enter Verification Code
-              </CardTitle>
-              <CardDescription className="text-gray-600 text-base">
-                We sent a 6-digit code to<br />
-                <span className="font-bold text-black">{email}</span>
-              </CardDescription>
-            </div>
-          </CardHeader>
+          <Link href="/register" className="font-mono-ledger text-[12px] text-[var(--muted)] hover:text-[var(--signal)] transition-colors">
+            ← Back to registration
+          </Link>
+        </div>
+      </header>
+
+      {/* Archetype B: Asymmetric Split Layout */}
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 py-12 md:py-16 flex-1 w-full">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-16 items-start">
           
-          <CardContent className="space-y-6 px-8 pb-8">
-            {/* Success State - Email Verified */}
-            {success === 'verified' ? (
-              <div className="text-center py-8 space-y-6">
-                <div className="flex justify-center">
-                  <div className="h-24 w-24 bg-green-100 rounded-full flex items-center justify-center animate-in zoom-in-50">
-                    <CheckCircle className="h-16 w-16 text-green-600" />
-                  </div>
-                </div>
-                <div className="space-y-3">
-                  <h3 className="text-2xl font-bold text-green-600">Email Verified Successfully!</h3>
-                  <p className="text-gray-600 text-base">
-                    Your account has been verified. You can now close this page and sign in to your account.
-                  </p>
-                </div>
-                <div className="pt-4">
-                  <Link href="/login">
-                    <Button className="btn-primary">
-                      Go to Sign In
-                    </Button>
-                  </Link>
-                </div>
+          {/* Left Column */}
+          <div className="lg:col-span-5 space-y-6 text-left">
+            <p className="font-mono-ledger text-[11px] uppercase tracking-[0.08em] text-[var(--muted)]">
+              FREELANCEHUB / VERIFICATION · AUTH LEDGER ARCHETYPE B
+            </p>
+
+            <h1 className="font-serif-ledger text-[40px] sm:text-[56px] leading-[1.0] font-medium tracking-tight text-[var(--ink)]">
+              Verify your identity.
+            </h1>
+
+            <p className="text-[15px] sm:text-[16px] leading-relaxed text-[var(--muted)] max-w-md font-sans-ledger">
+              Enter the 6-digit one-time code sent to <strong className="text-[var(--ink)] font-mono-ledger">{email}</strong> to activate your ledger identity.
+            </p>
+
+            <div className="pt-4 border-t border-[var(--line)] space-y-2 font-mono-ledger text-[11px]">
+              <div className="flex items-center justify-between text-[var(--muted)]">
+                <span>IDENTITY VERIFICATION</span>
+                <span className="text-[var(--signal)] font-bold">[STEP 02 OF 02]</span>
               </div>
-            ) : (
-              <>
-                {/* Resend Success Message */}
-                {success && success !== 'verified' && (
-                  <Alert className="border-2 border-green-200 bg-green-50 animate-in slide-in-from-top-2">
-                    <CheckCircle className="h-5 w-5 text-green-600" />
-                    <AlertDescription className="text-green-800 font-semibold">{success}</AlertDescription>
-                  </Alert>
-                )}
-
-                {/* Error Message */}
-                {error && (
-                  <Alert className="border-2 border-red-200 bg-red-50 animate-in slide-in-from-top-2">
-                    <AlertCircle className="h-5 w-5 text-red-600" />
-                    <AlertDescription className="text-red-800 font-semibold">{error}</AlertDescription>
-                  </Alert>
-                )}
-
-            <form onSubmit={handleSubmit} className="space-y-8">
-              {/* OTP Input */}
-              <div className="flex justify-center gap-3">
-                {otp.map((digit, index) => (
-                  <input
-                    key={index}
-                    ref={(el) => (inputRefs.current[index] = el)}
-                    type="text"
-                    inputMode="numeric"
-                    maxLength={1}
-                    value={digit}
-                    onChange={(e) => handleChange(index, e.target.value)}
-                    onKeyDown={(e) => handleKeyDown(index, e)}
-                    onPaste={handlePaste}
-                    className="w-12 h-14 text-center text-2xl font-bold border-2 border-gray-300 rounded-xl focus:border-black focus:ring-2 focus:ring-black focus:outline-none transition-all"
-                    disabled={loading}
-                  />
-                ))}
+              <div className="flex items-center justify-between text-[var(--muted)]">
+                <span>DISPATCH STATUS</span>
+                <span className="text-[var(--ink)] font-bold">[EMAIL DISPATCHED]</span>
               </div>
-
-              {/* Submit Button */}
-              <Button 
-                type="submit" 
-                className="btn-primary w-full text-lg py-6" 
-                disabled={loading || otp.join('').length !== 6}
-              >
-                {loading ? (
-                  <div className="flex items-center">
-                    <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent mr-3" />
-                    Verifying...
-                  </div>
-                ) : (
-                  <div className="flex items-center">
-                    <Shield className="h-5 w-5 mr-3" />
-                    Verify Email
-                  </div>
-                )}
-              </Button>
-            </form>
-
-            {/* Resend OTP */}
-            <div className="text-center pt-6 border-t-2 border-gray-100">
-              <p className="text-gray-600 mb-3">
-                Didn&apos;t receive the code?
-              </p>
-              {canResend ? (
-                <Button
-                  variant="ghost"
-                  onClick={handleResend}
-                  disabled={resending}
-                  className="font-bold text-amber-600 hover:text-amber-700"
-                >
-                  {resending ? 'Sending...' : 'Resend Code'}
-                </Button>
-              ) : (
-                <p className="text-sm text-gray-500">
-                  Resend available in {countdown}s
-                </p>
-              )}
             </div>
 
-                {/* Back Link */}
-                <div className="text-center">
-                  <Link 
-                    href="/register" 
-                    className="inline-flex items-center text-gray-600 hover:text-black transition-colors font-semibold"
-                  >
-                    <ArrowLeft className="h-4 w-4 mr-2" />
-                    Back to Register
-                  </Link>
-                </div>
-              </>
-            )}
-          </CardContent>
-        </Card>
+          </div>
 
-        {/* Footer */}
-        <div className="text-center mt-8">
-          <p className="text-gray-500 text-sm">
-            © 2024 FreelanceHub. Built with care.
-          </p>
+          {/* Right Column: OTP Form */}
+          <div className="lg:col-span-7">
+            <div className="border-2 border-[var(--ink)] bg-[var(--paper)] p-6 sm:p-10 space-y-6 text-left">
+              
+              <div className="flex items-center justify-between border-b border-[var(--ink)] pb-3 font-mono-ledger text-[11px]">
+                <span className="text-[var(--ink)] font-bold uppercase tracking-wider">02 / OTP CODE SPECIMEN</span>
+                <span className="text-[var(--signal)] font-bold">[6-DIGIT CODE]</span>
+              </div>
+
+              {success === 'verified' ? (
+                <div className="py-6 space-y-4 font-mono-ledger text-left">
+                  <div className="p-4 bg-[var(--paper-2)] border border-[var(--signal)] text-[var(--ink)] space-y-2">
+                    <div className="flex items-center space-x-2 text-[var(--signal)] font-bold text-[13px]">
+                      <CheckCircle2 className="h-4 w-4 shrink-0" />
+                      <span>EMAIL VERIFIED SUCCESSFULLY</span>
+                    </div>
+                    <p className="text-[12px] text-[var(--muted)]">
+                      Your identity has been confirmed on the ledger. You may now sign in to your workspace.
+                    </p>
+                  </div>
+
+                  <div className="pt-2">
+                    <Link
+                      href="/login"
+                      className="w-full bg-[var(--signal)] hover:bg-[var(--signal-dark)] text-[var(--paper)] font-bold text-[12px] uppercase tracking-wider py-3.5 px-4 transition-colors flex items-center justify-center block text-center"
+                    >
+                      <span>SIGN IN TO WORKSPACE →</span>
+                    </Link>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  {error && (
+                    <div className="p-3.5 bg-red-50 border border-[var(--signal)] text-[var(--signal-dark)] font-mono-ledger text-[12px] flex items-center space-x-2">
+                      <AlertCircle className="h-4 w-4 text-[var(--signal)] shrink-0" />
+                      <span>{error}</span>
+                    </div>
+                  )}
+
+                  {success && success !== 'verified' && (
+                    <div className="p-3.5 bg-[var(--paper-2)] border border-[var(--signal)] text-[var(--ink)] font-mono-ledger text-[12px] flex items-center space-x-2">
+                      <CheckCircle2 className="h-4 w-4 text-[var(--signal)] shrink-0" />
+                      <span>{success}</span>
+                    </div>
+                  )}
+
+                  <form onSubmit={handleSubmit} className="space-y-6">
+                    <div className="space-y-2 text-left">
+                      <label className="font-mono-ledger text-[11px] uppercase tracking-wider text-[var(--ink)] font-bold block">
+                        6-Digit Verification Code *
+                      </label>
+                      <div className="flex gap-2 sm:gap-3 justify-between">
+                        {otp.map((digit, index) => (
+                          <input
+                            key={index}
+                            ref={(el) => (inputRefs.current[index] = el)}
+                            type="text"
+                            inputMode="numeric"
+                            maxLength={1}
+                            value={digit}
+                            onChange={(e) => handleChange(index, e.target.value)}
+                            onKeyDown={(e) => handleKeyDown(index, e)}
+                            onPaste={handlePaste}
+                            className="w-11 h-13 sm:w-12 sm:h-14 text-center font-mono-ledger text-[22px] font-bold border-2 border-[var(--ink)] bg-[var(--paper-2)] focus:border-[var(--signal)] outline-none"
+                            disabled={loading}
+                          />
+                        ))}
+                      </div>
+                    </div>
+
+                    <button
+                      type="submit"
+                      disabled={loading || otp.join('').length !== 6}
+                      className="w-full bg-[var(--signal)] hover:bg-[var(--signal-dark)] text-[var(--paper)] font-mono-ledger font-bold text-[12px] uppercase tracking-wider py-3.5 px-4 transition-colors flex items-center justify-center space-x-2 disabled:opacity-50"
+                    >
+                      {loading ? 'VERIFYING CODE...' : 'VERIFY EMAIL IDENTITY →'}
+                    </button>
+                  </form>
+
+                  <div className="pt-4 border-t border-[var(--line)] flex items-center justify-between font-mono-ledger text-[11px] text-[var(--muted)]">
+                    <span>Didn&apos;t receive code?</span>
+                    {canResend ? (
+                      <button
+                        onClick={handleResend}
+                        disabled={resending}
+                        className="text-[var(--signal)] font-bold hover:underline uppercase"
+                      >
+                        {resending ? 'RESENDING...' : 'RESEND CODE →'}
+                      </button>
+                    ) : (
+                      <span>RESEND IN {countdown}S</span>
+                    )}
+                  </div>
+                </>
+              )}
+
+            </div>
+          </div>
+
         </div>
-      </div>
+      </main>
+
+      {/* Footer */}
+      <footer className="border-t border-[var(--line)] py-6 text-center font-mono-ledger text-[12px] text-[var(--muted)]">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 flex flex-col sm:flex-row items-center justify-between gap-2">
+          <span>FreelanceHub · Auth Ledger Archetype B</span>
+          <span>Engineered by Nantio Studio (www.nantio.it.com)</span>
+        </div>
+      </footer>
+
     </div>
   );
 }
@@ -305,10 +283,10 @@ function VerifyOTPContent() {
 export default function VerifyOTPPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center bg-white">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-4 border-black border-t-transparent mx-auto mb-4" />
-          <p className="text-gray-600">Loading...</p>
+      <div className="min-h-screen flex items-center justify-center bg-[var(--paper)] text-[var(--ink)] font-mono-ledger">
+        <div className="flex items-center space-x-3 text-[13px]">
+          <span className="w-2.5 h-2.5 bg-[var(--signal)] rounded-full animate-pulse"></span>
+          <span>LOADING...</span>
         </div>
       </div>
     }>
