@@ -8,18 +8,8 @@ import EmptyState from "@/components/common/EmptyState";
 import { useAuth } from "@/contexts/AuthContext";
 import { getProjects } from "@/lib/api";
 import {
-  Briefcase,
-  Clock,
-  CheckCircle,
   AlertCircle,
-  XCircle,
   Search,
-  Filter,
-  ArrowRight,
-  MapPin,
-  Users,
-  Banknote,
-  FileText
 } from "lucide-react";
 import { formatCurrency } from "@/lib/currency";
 
@@ -29,38 +19,37 @@ export default function ProjectsIndexPage() {
   const [activeTab, setActiveTab] = useState("all");
   const [selectedCategory, setSelectedCategory] = useState("ALL");
   const [searchQuery, setSearchQuery] = useState("");
-  const [projects, setProjects] = useState([]);
+  const [allProjects, setAllProjects] = useState([]);
+  const [myProjects, setMyProjects] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   const categories = ["ALL", "WEB & SOFTWARE", "MOBILE APPS", "DESIGN & UI", "BACKEND & API", "AI & DATA"];
 
-  // Fetch projects on mount / tab change
   useEffect(() => {
-    fetchProjectsData();
-  }, [user, authLoading, activeTab]);
+    if (!authLoading) {
+      fetchProjectsData();
+    }
+  }, [user, authLoading]);
 
   const fetchProjectsData = async () => {
     try {
       setLoading(true);
       setError("");
 
-      const params = {
-        sortBy: "created_at",
-        sortOrder: "DESC",
-        limit: 50
-      };
+      const [allRes, myRes] = await Promise.all([
+        getProjects({ status: "active", sortBy: "created_at", sortOrder: "DESC", limit: 50 }),
+        user ? getProjects({ status: "in_progress", sortBy: "created_at", sortOrder: "DESC", limit: 50 }) : Promise.resolve({ success: true, projects: [] })
+      ]);
 
-      if (activeTab === "my") {
-        params.status = "in_progress";
+      if (allRes.success) {
+        setAllProjects(allRes.projects || []);
+      } else {
+        setError(allRes.error || "Could not load open project briefs.");
       }
 
-      const response = await getProjects(params);
-
-      if (response.success) {
-        setProjects(response.projects || []);
-      } else {
-        setError(response.error || "Could not load open project briefs.");
+      if (myRes.success) {
+        setMyProjects(myRes.projects || []);
       }
     } catch (err) {
       console.error("Error fetching projects:", err);
@@ -75,18 +64,23 @@ export default function ProjectsIndexPage() {
     fetchProjectsData();
   };
 
-  // Client-side filtering
-  const filteredProjects = projects.filter((project) => {
-    const matchesSearch = !searchQuery || 
-      project.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      project.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      project.skills?.some(s => s.toLowerCase().includes(searchQuery.toLowerCase()));
+  const filterList = (list) => {
+    return list.filter((project) => {
+      const matchesSearch = !searchQuery || 
+        project.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        project.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        project.skills?.some(s => s.toLowerCase().includes(searchQuery.toLowerCase()));
 
-    const matchesCategory = selectedCategory === "ALL" || 
-      project.category?.toUpperCase()?.includes(selectedCategory.split(' ')[0]);
+      const matchesCategory = selectedCategory === "ALL" || 
+        project.category?.toUpperCase()?.includes(selectedCategory.split(' ')[0]);
 
-    return matchesSearch && matchesCategory;
-  });
+      return matchesSearch && matchesCategory;
+    });
+  };
+
+  const filteredAllProjects = filterList(allProjects);
+  const filteredMyProjects = filterList(myProjects);
+  const activeProjectsList = activeTab === "all" ? filteredAllProjects : filteredMyProjects;
 
   return (
     <div className="min-h-screen bg-[var(--paper)] text-[var(--ink)] font-sans-ledger selection:bg-[var(--signal)] selection:text-[var(--paper)] flex flex-col justify-between">
@@ -95,7 +89,7 @@ export default function ProjectsIndexPage() {
       <Navbar userType={user?.role?.toLowerCase() || "freelancer"} />
 
       {/* Main Container */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 py-8 sm:py-12 space-y-10 flex-1 w-full pb-24 lg:pb-12">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 py-8 sm:py-12 space-y-10 flex-1 w-full pb-24 lg:pb-12 text-left">
         
         {/* EDITORIAL HEADER */}
         <section className="space-y-4 text-left border-b border-[var(--ink)] pb-8">
@@ -125,7 +119,6 @@ export default function ProjectsIndexPage() {
           </div>
         </section>
 
-
         {/* SEARCH & CATEGORY FILTERING */}
         <section className="space-y-4 text-left font-mono-ledger text-[12px]">
           
@@ -138,14 +131,14 @@ export default function ProjectsIndexPage() {
                 placeholder="Search open briefs by title, required skills, or scope..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-[var(--paper-2)] border-2 border-[var(--ink)] py-3 pl-11 pr-4 text-[13px] text-[var(--ink)] placeholder-[var(--muted)] focus:outline-none focus:border-[var(--signal)]"
+                className="w-full bg-[var(--paper-2)] border border-[var(--ink)] py-3 pl-11 pr-4 text-[13px] text-[var(--ink)] placeholder-[var(--muted)] outline-none focus:border-[var(--signal)]"
               />
             </div>
             <button
               type="submit"
-              className="bg-[var(--ink)] text-[var(--paper)] font-bold px-6 py-3 hover:bg-[var(--signal)] transition-colors uppercase"
+              className="bg-[var(--ink)] text-[var(--paper)] font-bold px-6 py-3 hover:bg-[var(--signal)] transition-colors uppercase text-[11px]"
             >
-              SEARCH
+              Search briefs
             </button>
           </form>
 
@@ -159,7 +152,7 @@ export default function ProjectsIndexPage() {
                 className={`px-3 py-1 text-[11px] border transition-colors ${
                   selectedCategory === cat
                     ? "bg-[var(--ink)] text-[var(--paper)] border-[var(--ink)] font-bold"
-                    : "bg-[var(--paper-2)] text-[var(--ink)] border-[var(--line)] hover:border-[var(--ink)]"
+                    : "bg-[var(--paper)] text-[var(--ink)] border-[var(--line)] hover:border-[var(--ink)]"
                 }`}
               >
                 {cat}
@@ -167,7 +160,7 @@ export default function ProjectsIndexPage() {
             ))}
           </div>
 
-          {/* Navigation Tabs */}
+          {/* Navigation Tabs with Fixed Accurate Counts */}
           <div className="flex items-center space-x-6 border-b border-[var(--ink)] pb-2 text-[11px] uppercase">
             <button
               onClick={() => setActiveTab("all")}
@@ -177,22 +170,23 @@ export default function ProjectsIndexPage() {
                   : "border-transparent text-[var(--muted)] hover:text-[var(--ink)]"
               }`}
             >
-              ALL BRIEFS ({filteredProjects.length})
+              ALL BRIEFS ({filteredAllProjects.length})
             </button>
-            <button
-              onClick={() => setActiveTab("my")}
-              className={`pb-2 border-b-2 font-bold transition-colors ${
-                activeTab === "my"
-                  ? "border-[var(--signal)] text-[var(--signal)]"
-                  : "border-transparent text-[var(--muted)] hover:text-[var(--ink)]"
-              }`}
-            >
-              MY ACTIVE CONTRACTS
-            </button>
+            {user && (
+              <button
+                onClick={() => setActiveTab("my")}
+                className={`pb-2 border-b-2 font-bold transition-colors ${
+                  activeTab === "my"
+                    ? "border-[var(--signal)] text-[var(--signal)]"
+                    : "border-transparent text-[var(--muted)] hover:text-[var(--ink)]"
+                }`}
+              >
+                MY ACTIVE CONTRACTS ({filteredMyProjects.length})
+              </button>
+            )}
           </div>
 
         </section>
-
 
         {/* ERROR NOTIFICATION */}
         {error && (
@@ -203,26 +197,25 @@ export default function ProjectsIndexPage() {
             </div>
             <button 
               onClick={fetchProjectsData}
-              className="px-3 py-1 bg-[var(--signal)] text-[var(--paper)] font-sans-ledger font-medium text-[12px] hover:bg-[var(--signal-dark)] transition-colors"
+              className="px-3 py-1 bg-[var(--signal)] text-[var(--paper)] font-bold text-[11px] uppercase hover:bg-[var(--signal-dark)] transition-colors"
             >
               Retry Sync
             </button>
           </div>
         )}
 
-
         {/* PROJECTS GRID / BRIEF SPECIMEN DIRECTORY */}
         <section className="space-y-6 text-left">
           {loading ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {[1, 2, 3, 4, 5, 6].map((n) => (
-                <div key={n} className="border-2 border-[var(--line)] bg-[var(--paper-2)] h-48 animate-pulse p-6 space-y-4">
+                <div key={n} className="border border-[var(--line)] bg-[var(--paper-2)] h-48 animate-pulse p-6 space-y-4">
                   <div className="h-4 bg-[var(--line)] w-1/3"></div>
                   <div className="h-6 bg-[var(--line)] w-3/4"></div>
                 </div>
               ))}
             </div>
-          ) : filteredProjects.length === 0 ? (
+          ) : activeProjectsList.length === 0 ? (
             <EmptyState
               marker="PROJECT ARCHIVE"
               title="No project briefs found."
@@ -233,10 +226,10 @@ export default function ProjectsIndexPage() {
             />
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 items-stretch">
-              {filteredProjects.map((project) => (
+              {activeProjectsList.map((project) => (
                 <div
                   key={project.id}
-                  className="border-2 border-[var(--ink)] bg-[var(--paper)] p-6 space-y-4 text-left hover:border-[var(--signal)] transition-colors flex flex-col justify-between shadow-xs group"
+                  className="border border-[var(--ink)] bg-[var(--paper)] p-6 space-y-4 text-left hover:border-[var(--signal)] transition-colors flex flex-col justify-between group"
                 >
                   <div className="space-y-3">
                     
@@ -250,51 +243,48 @@ export default function ProjectsIndexPage() {
                       </span>
                     </div>
 
-                    {/* Title */}
-                    <h3 className="font-serif-ledger text-[20px] font-medium leading-snug text-[var(--ink)] group-hover:text-[var(--signal)] transition-colors">
-                      {project.title}
+                    <h3 className="font-serif-ledger text-[22px] font-medium text-[var(--ink)] group-hover:text-[var(--signal)] transition-colors leading-snug">
+                      <Link href={`/projects/${project.id}`}>
+                        {project.title}
+                      </Link>
                     </h3>
 
-                    {/* Description */}
-                    <p className="font-sans-ledger text-[13px] text-[var(--muted)] line-clamp-3 leading-relaxed">
+                    <p className="font-sans-ledger text-[13px] text-[var(--muted)] line-clamp-2 leading-relaxed">
                       {project.description}
                     </p>
 
-                    {/* Skills Specimen Pills */}
                     {project.skills && project.skills.length > 0 && (
-                      <div className="flex flex-wrap gap-1.5 pt-2">
-                        {project.skills.slice(0, 4).map((skill, idx) => (
-                          <span 
-                            key={idx} 
-                            className="font-mono-ledger text-[9px] uppercase px-2 py-0.5 bg-[var(--paper-2)] border border-[var(--line)] text-[var(--ink)]"
+                      <div className="flex flex-wrap gap-1.5 pt-1 font-mono-ledger text-[10px]">
+                        {project.skills.map((skill, idx) => (
+                          <span
+                            key={idx}
+                            className="px-2 py-0.5 bg-[var(--paper-2)] border border-[var(--line)] text-[var(--ink)] font-bold"
                           >
                             {skill}
                           </span>
                         ))}
                       </div>
                     )}
-
                   </div>
 
-                  {/* Footer & Budget Info */}
-                  <div className="pt-4 border-t border-[var(--line)] space-y-3 font-mono-ledger text-[11px]">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[var(--muted)]">BUDGET (NPR):</span>
-                      <span className="font-bold text-[var(--signal)] text-[13px]">
-                        NPR {project.budget_min?.toLocaleString() || project.budget_max?.toLocaleString() || project.budget?.min?.toLocaleString() || 'Agreed'}
+                  <div className="pt-4 border-t border-[var(--line)] font-mono-ledger text-[12px] space-y-3">
+                    <div className="flex justify-between items-end">
+                      <div>
+                        <span className="text-[10px] text-[var(--muted)] uppercase block">Budget (NPR)</span>
+                        <span className="font-bold text-[var(--signal)] text-[16px]">
+                          {formatCurrency(project.budget_min || project.budgetMin || 0)} - {formatCurrency(project.budget_max || project.budgetMax || 0)}
+                        </span>
+                      </div>
+                      <span className="text-[10px] text-[var(--muted)]">
+                        [{project.project_type === 'hourly' ? 'HOURLY' : 'FIXED'}]
                       </span>
-                    </div>
-
-                    <div className="flex items-center justify-between text-[10px] text-[var(--muted)] pt-1">
-                      <span>POSTED: {project.created_at ? new Date(project.created_at).toLocaleDateString() : 'RECENT'}</span>
-                      <span>{project.proposalsCount || 0} BIDS</span>
                     </div>
 
                     <Link
                       href={`/projects/${project.id}`}
-                      className="w-full bg-[var(--ink)] hover:bg-[var(--signal)] text-[var(--paper)] font-bold text-[11px] uppercase tracking-wider py-2.5 transition-colors flex items-center justify-center space-x-1 text-center block"
+                      className="w-full bg-[var(--ink)] group-hover:bg-[var(--signal)] text-[var(--paper)] font-bold text-[11px] uppercase tracking-wider py-2.5 px-4 text-center block transition-colors"
                     >
-                      <span>VIEW BRIEF & SUBMIT →</span>
+                      View brief & submit →
                     </Link>
                   </div>
 
@@ -307,7 +297,7 @@ export default function ProjectsIndexPage() {
       </main>
 
       {/* Editorial Footer */}
-      <footer className="border-t border-[var(--line)] py-6 text-center mt-12 font-mono-ledger text-[12px] text-[var(--muted)]">
+      <footer className="border-t border-[var(--line)] py-6 text-center font-mono-ledger text-[12px] text-[var(--muted)]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 flex flex-col sm:flex-row items-center justify-between gap-2">
           <span>FreelanceHub · Open Project Directory</span>
           <span>Engineered by Nantio Studio (www.nantio.it.com)</span>

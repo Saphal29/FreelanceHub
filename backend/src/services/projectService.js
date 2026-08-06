@@ -112,7 +112,7 @@ const getProjects = async (filters = {}, pagination = {}, userId = null) => {
       }
     } else {
       whereConditions.push(`p.status = $${paramIndex}`);
-      params.push(status);
+      params.push(status || 'active');
       paramIndex++;
 
       whereConditions.push(`p.visibility = 'public'`);
