@@ -3,33 +3,19 @@
 import { useState, useEffect, useRef, Suspense } from "react";
 import { useRouter, useParams, useSearchParams } from "next/navigation";
 import Navbar from "@/components/layout/Navbar";
-import { Button } from "@/components/ui/button";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import MilestoneManager from "@/components/milestones/MilestoneManager";
 import ProposalList from "@/components/proposals/ProposalList";
 import { useAuth } from "@/contexts/AuthContext";
 import { getProjectById, deleteProject } from "@/lib/api";
-import {
-  ArrowLeft,
-  Briefcase,
-  DollarSign,
-  Calendar,
-  MapPin,
-  Users,
-  Eye,
-  FileText,
-  AlertCircle,
-  Edit,
-  Trash2,
-} from "lucide-react";
+import { AlertCircle, CheckCircle2 } from "lucide-react";
 import Link from "next/link";
+import { formatCurrency } from "@/lib/currency";
 
 function ProjectDetailsContent() {
   const router = useRouter();
   const params = useParams();
   const searchParams = useSearchParams();
-  const projectId = params.id;
+  const projectId = params?.id;
   const { user, loading: authLoading } = useAuth();
   
   const [project, setProject] = useState(null);
@@ -37,7 +23,6 @@ function ProjectDetailsContent() {
   const [error, setError] = useState("");
   const [deleting, setDeleting] = useState(false);
 
-  // Refs for scrolling to sections
   const proposalsRef = useRef(null);
   const milestonesRef = useRef(null);
 
@@ -53,11 +38,9 @@ function ProjectDetailsContent() {
     }
   }, [projectId, user]);
 
-  // Handle scroll to section after page loads
   useEffect(() => {
     const scrollTo = searchParams.get('scrollTo');
     if (scrollTo && !loading && project) {
-      // Small delay to ensure content is rendered
       setTimeout(() => {
         if (scrollTo === 'proposals' && proposalsRef.current) {
           proposalsRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -78,20 +61,18 @@ function ProjectDetailsContent() {
       if (response.success) {
         setProject(response.project);
       } else {
-        setError(response.error || "Failed to load project");
+        setError(response.error || "Failed to load project record.");
       }
     } catch (err) {
       console.error("Error fetching project:", err);
-      setError(err.message || "Failed to load project");
+      setError(err.message || "Failed to load project record.");
     } finally {
       setLoading(false);
     }
   };
 
   const handleDelete = async () => {
-    if (!confirm("Are you sure you want to delete this project? This action cannot be undone.")) {
-      return;
-    }
+    if (!confirm("Are you sure you want to delete this project? This action cannot be undone.")) return;
 
     try {
       setDeleting(true);
@@ -100,7 +81,6 @@ function ProjectDetailsContent() {
       const response = await deleteProject(projectId);
       
       if (response.success) {
-        // Redirect to projects list after successful deletion
         router.push("/client/projects");
       } else {
         setError(response.error || "Failed to delete project");
@@ -115,263 +95,235 @@ function ProjectDetailsContent() {
 
   if (authLoading || loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
+      <div className="min-h-screen bg-[var(--paper)] flex items-center justify-center font-mono-ledger text-[12px] text-[var(--muted)]">
+        LOADING PROJECT RECORD...
       </div>
     );
   }
 
-  if (!user || user.role !== "CLIENT") {
-    return null;
-  }
+  if (!user || user.role !== "CLIENT") return null;
 
   if (error) {
     return (
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen bg-[var(--paper)] text-[var(--ink)] font-sans-ledger">
         <Navbar userType="client" />
-        <div className="container mx-auto px-4 py-8">
-          <Alert className="border-2 border-red-200 bg-red-50">
-            <AlertCircle className="h-5 w-5 text-red-600" />
-            <AlertDescription className="text-red-800 font-semibold">
-              {error}
-            </AlertDescription>
-          </Alert>
-        </div>
+        <main className="max-w-4xl mx-auto px-4 py-16 space-y-6 text-left font-mono-ledger text-[12px]">
+          <div className="p-4 bg-red-50 border border-[var(--signal)] text-[var(--signal-dark)]">
+            {error}
+          </div>
+          <Link 
+            href="/client/projects" 
+            className="inline-block text-[var(--ink)] font-bold hover:text-[var(--signal)] underline"
+          >
+            ← Back to Client Projects
+          </Link>
+        </main>
       </div>
     );
   }
 
-  if (!project) {
-    return null;
-  }
+  if (!project) return null;
 
-  const isOwner = project.client.id === user.id;
-  
-  // Debug: Log ownership check
-  console.log('Ownership check:', {
-    projectClientId: project.client.id,
-    currentUserId: user.id,
-    isOwner
-  });
+  const isOwner = project.client?.id === user.id;
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-[var(--paper)] text-[var(--ink)] font-sans-ledger selection:bg-[var(--signal)] selection:text-[var(--paper)] flex flex-col justify-between">
+      
+      {/* Top Navbar */}
       <Navbar userType="client" />
 
-      {/* Header */}
-      <section className="border-b border-border bg-secondary/30 py-8">
-        <div className="container mx-auto px-4">
-          <Link
-            href="/client/projects"
-            className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors mb-4"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            <span>Back to Projects</span>
+      {/* Main Container */}
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 py-8 sm:py-12 space-y-8 flex-1 w-full pb-24 lg:pb-12 text-left">
+        
+        {/* ARCHETYPE F: 1. BACK LINK */}
+        <div className="font-mono-ledger text-[11px]">
+          <Link href="/client/projects" className="text-[var(--muted)] hover:text-[var(--ink)] transition-colors">
+            ← Back to Client Projects
           </Link>
-          
-          <div className="flex items-start justify-between">
-            <div>
-              <h1 className="font-display text-3xl font-bold text-foreground">
+        </div>
+
+        {/* ARCHETYPE F: 2. RECORD SUMMARY STRIP */}
+        <section className="space-y-2">
+          <p className="font-mono-ledger text-[11px] uppercase tracking-[0.08em] text-[var(--muted)]">
+            CLIENT PROJECT RECORD · #{project.id?.slice(0, 8) || '0001'}
+          </p>
+
+          <div className="border-y-2 border-[var(--ink)] py-5 my-2 flex flex-col lg:flex-row lg:items-center justify-between gap-6 font-mono-ledger text-[12px]">
+            <div className="space-y-2 max-w-2xl">
+              <h1 className="font-serif-ledger text-[28px] sm:text-[36px] font-medium text-[var(--ink)] leading-snug">
                 {project.title}
               </h1>
-              <p className="mt-2 text-lg text-muted-foreground">
-                Posted on {new Date(project.createdAt).toLocaleDateString()}
-              </p>
+
+              <div className="flex items-center space-x-3 text-[12px] pt-1">
+                <div className="w-10 h-10 bg-[var(--ink)] text-[var(--paper)] font-bold text-[14px] flex items-center justify-center shrink-0">
+                  {(user.fullName || 'C').charAt(0)}
+                </div>
+                <div>
+                  <span className="text-[10px] text-[var(--muted)] block uppercase">CLIENT OWNER</span>
+                  <span className="font-bold text-[var(--ink)]">{user.fullName || 'Client'}</span>
+                </div>
+              </div>
             </div>
+
+            <div className="text-left lg:text-right space-y-1 shrink-0">
+              <span className="text-[10px] text-[var(--muted)] uppercase block">Budget (NPR)</span>
+              <span className="text-[26px] font-bold text-[var(--signal)] block">
+                {formatCurrency(project.budget?.min || 0)} - {formatCurrency(project.budget?.max || 0)}
+              </span>
+              <span className="text-[12px] font-bold text-[var(--signal)] block">
+                [{project.status?.replace("_", " ")?.toUpperCase() || 'DRAFT'}]
+              </span>
+            </div>
+          </div>
+        </section>
+
+        {/* ARCHETYPE F: 3. TWO-COLUMN BODY (65 / 35 SPLIT) */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-start">
+          
+          {/* Left Column (65%): SPECIFICATIONS & PROPOSALS */}
+          <div className="lg:col-span-8 space-y-8">
             
-            {isOwner && (
-              <div className="flex gap-2">
-                <Button
-                  onClick={() => router.push(`/client/post-project?edit=${projectId}`)}
-                  variant="outline"
-                >
-                  <Edit className="h-4 w-4 mr-2" />
-                  Edit Project
-                </Button>
-                {(project.status === "draft" || (project.status === "active" && project.proposalsCount === 0)) && (
-                  <Button
-                    onClick={handleDelete}
-                    variant="outline"
-                    disabled={deleting}
-                    className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                  >
-                    {deleting ? (
-                      <>
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-600 mr-2"></div>
-                        Deleting...
-                      </>
-                    ) : (
-                      <>
-                        <Trash2 className="h-4 w-4 mr-2" />
-                        Delete
-                      </>
-                    )}
-                  </Button>
-                )}
+            <div className="space-y-3 font-mono-ledger text-[12px]">
+              <span className="font-bold text-[var(--ink)] uppercase text-[11px] block border-b border-[var(--ink)] pb-2">
+                Project Scope & Deliverable Brief
+              </span>
+              <div className="border border-[var(--ink)] bg-[var(--paper)] p-5 font-sans-ledger text-[14px] leading-relaxed text-[var(--ink)] whitespace-pre-wrap">
+                {project.description}
+              </div>
+            </div>
+
+            {project.skills && project.skills.length > 0 && (
+              <div className="space-y-3 font-mono-ledger text-[12px]">
+                <span className="font-bold text-[var(--ink)] uppercase text-[11px] block border-b border-[var(--ink)] pb-2">
+                  Required Technical Disciplines
+                </span>
+                <div className="flex flex-wrap gap-2 pt-1 font-mono-ledger text-[11px]">
+                  {project.skills.map((skill, index) => (
+                    <span
+                      key={index}
+                      className="px-3 py-1 bg-[var(--paper-2)] border border-[var(--ink)] text-[var(--ink)] font-bold"
+                    >
+                      {skill}
+                    </span>
+                  ))}
+                </div>
               </div>
             )}
-          </div>
-        </div>
-      </section>
 
-      {/* Main Content */}
-      <main className="container mx-auto px-4 py-8">
-        <div className="grid gap-8 lg:grid-cols-3">
-          {/* Main Content */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* Project Details */}
-            <Card className="border-border">
-              <CardHeader>
-                <CardTitle className="flex items-center font-display text-xl">
-                  <FileText className="h-5 w-5 mr-2 text-accent" />
-                  Project Description
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-foreground whitespace-pre-wrap">{project.description}</p>
-                
-                {project.skills && project.skills.length > 0 && (
-                  <div className="mt-4">
-                    <h4 className="text-sm font-semibold text-foreground mb-2">Required Skills</h4>
-                    <div className="flex flex-wrap gap-2">
-                      {project.skills.map((skill, index) => (
-                        <span
-                          key={index}
-                          className="inline-flex items-center rounded-full bg-accent/10 px-3 py-1 text-sm text-accent"
-                        >
-                          {skill}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-            
-            {/* Milestones */}
-            <div ref={milestonesRef}>
+            {/* Milestones Manager */}
+            <div ref={milestonesRef} className="space-y-3 font-mono-ledger text-[12px]">
+              <span className="font-bold text-[var(--ink)] uppercase text-[11px] block border-b border-[var(--ink)] pb-2">
+                Milestone Schedule & Approvals
+              </span>
               <MilestoneManager projectId={projectId} isOwner={isOwner} />
             </div>
-            
-            {/* Proposals */}
+
+            {/* Proposals List */}
             {isOwner && (
-              <div ref={proposalsRef}>
+              <div ref={proposalsRef} className="space-y-3 font-mono-ledger text-[12px]">
+                <span className="font-bold text-[var(--ink)] uppercase text-[11px] block border-b border-[var(--ink)] pb-2">
+                  Received Freelancer Proposals ({project.proposalsCount || 0})
+                </span>
                 <ProposalList 
                   projectId={projectId} 
                   onProposalAccepted={() => fetchProject()}
                 />
               </div>
             )}
+
           </div>
 
-          {/* Sidebar */}
-          <div className="lg:col-span-1">
-            <div className="sticky top-20 space-y-6">
-              {/* Project Info */}
-              <Card className="border-border">
-                <CardHeader>
-                  <CardTitle className="font-display text-lg">Project Details</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex items-center gap-3">
-                    <div className="flex items-center justify-center w-10 h-10 rounded-full bg-accent/10">
-                      <DollarSign className="h-5 w-5 text-accent" />
-                    </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground">Budget</p>
-                      <p className="font-semibold text-foreground">
-                        Rs. {project.budget.min.toLocaleString()} - Rs. {project.budget.max.toLocaleString()}
-                      </p>
-                    </div>
+          {/* Right Column (35%): ACTION PANEL */}
+          <div className="lg:col-span-4 space-y-6 font-mono-ledger text-[12px]">
+            
+            <div className="border-2 border-[var(--ink)] bg-[var(--paper-2)] p-6 space-y-5">
+              <span className="font-bold text-[var(--ink)] uppercase text-[11px] block border-b border-[var(--ink)] pb-2">
+                Action Panel
+              </span>
+
+              {/* Single Primary Action Button */}
+              <Link
+                href={`/client/post-project?edit=${projectId}`}
+                className="w-full bg-[var(--signal)] hover:bg-[var(--signal-dark)] text-[var(--paper)] font-bold text-[12px] uppercase tracking-wider py-3.5 px-4 transition-colors block text-center"
+              >
+                Edit project specification →
+              </Link>
+
+              {/* Secondary Actions as Plain Underlined Text Links */}
+              <div className="space-y-2 pt-2 border-t border-[var(--line)] text-[11px]">
+                {(project.status === "draft" || (project.status === "active" && project.proposalsCount === 0)) && (
+                  <button
+                    onClick={handleDelete}
+                    disabled={deleting}
+                    className="text-[var(--signal)] font-bold hover:underline block text-left"
+                  >
+                    {deleting ? "Deleting project..." : "Delete project record →"}
+                  </button>
+                )}
+
+                <Link 
+                  href="/client/projects" 
+                  className="text-[var(--ink)] font-bold hover:text-[var(--signal)] underline block"
+                >
+                  Return to projects register →
+                </Link>
+              </div>
+
+              {/* Compact Owner Block */}
+              <div className="pt-4 border-t border-[var(--ink)] space-y-3">
+                <span className="font-bold text-[var(--ink)] uppercase text-[10px] block">Project Owner</span>
+                
+                <div className="flex items-center space-x-3">
+                  <div className="w-10 h-10 bg-[var(--ink)] text-[var(--paper)] font-bold text-[14px] flex items-center justify-center shrink-0">
+                    {(user.fullName || 'C').charAt(0)}
                   </div>
-                  
-                  <div className="flex items-center gap-3">
-                    <div className="flex items-center justify-center w-10 h-10 rounded-full bg-accent/10">
-                      <Briefcase className="h-5 w-5 text-accent" />
-                    </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground">Project Type</p>
-                      <p className="font-semibold text-foreground capitalize">
-                        {project.budget.type.replace('_', ' ')}
-                      </p>
-                    </div>
+                  <div>
+                    <span className="font-bold text-[var(--ink)] block">{user.fullName}</span>
+                    <span className="text-[10px] text-[var(--muted)] uppercase block">VERIFIED CLIENT</span>
                   </div>
-                  
-                  {project.duration && (
-                    <div className="flex items-center gap-3">
-                      <div className="flex items-center justify-center w-10 h-10 rounded-full bg-accent/10">
-                        <Calendar className="h-5 w-5 text-accent" />
-                      </div>
-                      <div>
-                        <p className="text-xs text-muted-foreground">Duration</p>
-                        <p className="font-semibold text-foreground">{project.duration}</p>
-                      </div>
-                    </div>
-                  )}
-                  
-                  <div className="flex items-center gap-3">
-                    <div className="flex items-center justify-center w-10 h-10 rounded-full bg-accent/10">
-                      <MapPin className="h-5 w-5 text-accent" />
-                    </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground">Location</p>
-                      <p className="font-semibold text-foreground">
-                        {project.isRemote ? "Remote" : project.location || "Not specified"}
-                      </p>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-center gap-3">
-                    <div className="flex items-center justify-center w-10 h-10 rounded-full bg-accent/10">
-                      <Users className="h-5 w-5 text-accent" />
-                    </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground">Experience Level</p>
-                      <p className="font-semibold text-foreground capitalize">
-                        {project.experienceLevel.replace('_', ' ')}
-                      </p>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-center gap-3">
-                    <div className="flex items-center justify-center w-10 h-10 rounded-full bg-accent/10">
-                      <Eye className="h-5 w-5 text-accent" />
-                    </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground">Views</p>
-                      <p className="font-semibold text-foreground">{project.viewsCount}</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-              
-              {/* Status */}
-              <Card className="border-border">
-                <CardHeader>
-                  <CardTitle className="font-display text-lg">Status</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex items-center gap-2">
-                    <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-                      project.status === 'active' ? 'bg-green-100 text-green-700' :
-                      project.status === 'in_progress' ? 'bg-blue-100 text-blue-700' :
-                      project.status === 'completed' ? 'bg-gray-100 text-gray-700' :
-                      project.status === 'draft' ? 'bg-yellow-100 text-yellow-700' :
-                      'bg-gray-100 text-gray-700'
-                    }`}>
-                      {project.status.replace('_', ' ').toUpperCase()}
-                    </span>
-                  </div>
-                  
-                  <div className="mt-4 text-sm text-muted-foreground">
-                    <p>{project.proposalsCount} proposals received</p>
-                  </div>
-                </CardContent>
-              </Card>
+                </div>
+              </div>
+
+              {/* Record Details Key-Value List */}
+              <div className="pt-4 border-t border-[var(--ink)] space-y-2 text-[11px]">
+                <div className="flex justify-between">
+                  <span className="text-[var(--muted)]">Project ID:</span>
+                  <span className="font-bold text-[var(--ink)]">#{project.id?.slice(0, 8)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-[var(--muted)]">Category:</span>
+                  <span className="font-bold text-[var(--ink)]">[{project.category || 'GENERAL'}]</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-[var(--muted)]">Proposals Received:</span>
+                  <span className="font-bold text-[var(--signal)]">{project.proposalsCount || 0}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-[var(--muted)]">Views Count:</span>
+                  <span className="font-bold text-[var(--ink)]">{project.viewsCount || 0}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-[var(--muted)] font-mono-ledger">Posted Date:</span>
+                  <span className="font-bold text-[var(--ink)]">{new Date(project.createdAt || Date.now()).toLocaleDateString()}</span>
+                </div>
+              </div>
+
             </div>
+
           </div>
+
         </div>
+
       </main>
+
+      {/* Editorial Footer */}
+      <footer className="border-t border-[var(--line)] py-6 text-center font-mono-ledger text-[12px] text-[var(--muted)]">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 flex flex-col sm:flex-row items-center justify-between gap-2">
+          <span>FreelanceHub · Client Project Record Archetype F</span>
+          <span>Engineered by Nantio Studio (www.nantio.it.com)</span>
+        </div>
+      </footer>
+
     </div>
   );
 }
@@ -379,8 +331,8 @@ function ProjectDetailsContent() {
 export default function ProjectDetailsPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-primary"></div>
+      <div className="min-h-screen bg-[var(--paper)] flex items-center justify-center font-mono-ledger text-[12px] text-[var(--muted)]">
+        LOADING PROJECT RECORD...
       </div>
     }>
       <ProjectDetailsContent />

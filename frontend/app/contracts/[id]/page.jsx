@@ -16,24 +16,7 @@ import {
   refundEscrow,
   getMilestones
 } from "@/lib/api";
-import {
-  FileText, 
-  Clock, 
-  CheckCircle, 
-  AlertCircle,
-  ArrowLeft, 
-  User, 
-  Briefcase, 
-  Shield, 
-  CreditCard, 
-  RefreshCw, 
-  MessageSquare, 
-  Video, 
-  Star,
-  Banknote,
-  Send,
-  X
-} from "lucide-react";
+import { CheckCircle2, AlertCircle, X } from "lucide-react";
 import Link from "next/link";
 import { formatCurrency } from "@/lib/currency";
 
@@ -68,7 +51,6 @@ export default function ContractDetailPage() {
     }
   }, [user, contractId]);
 
-  // Auto-submit eSewa hidden form
   useEffect(() => {
     if (esewaFormData) {
       const form = document.getElementById('esewa-payment-form');
@@ -214,11 +196,8 @@ export default function ContractDetailPage() {
 
   if (authLoading || loading) {
     return (
-      <div className="min-h-screen bg-[var(--paper)] flex items-center justify-center font-mono-ledger">
-        <div className="space-y-3 text-center">
-          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[var(--signal)] mx-auto"></div>
-          <p className="text-[12px] text-[var(--muted)] uppercase">LOADING CONTRACT SPECIMEN...</p>
-        </div>
+      <div className="min-h-screen bg-[var(--paper)] flex items-center justify-center font-mono-ledger text-[12px] text-[var(--muted)]">
+        LOADING CONTRACT RECORD...
       </div>
     );
   }
@@ -235,10 +214,9 @@ export default function ContractDetailPage() {
           </div>
           <Link 
             href="/contracts"
-            className="inline-flex items-center space-x-2 bg-[var(--ink)] text-[var(--paper)] font-bold px-5 py-2.5 uppercase"
+            className="inline-block text-[var(--ink)] font-bold hover:text-[var(--signal)] underline"
           >
-            <ArrowLeft className="h-4 w-4" />
-            <span>RETURN TO CONTRACT REGISTER</span>
+            ← Back to Contract Register
           </Link>
         </main>
       </div>
@@ -256,93 +234,116 @@ export default function ContractDetailPage() {
   const releasedEscrow = escrowList.filter((e) => e.status === "released");
   const totalReleased = releasedEscrow.reduce((sum, e) => sum + (e.netAmount || e.amount || 0), 0);
 
+  // Timeline events (most recent first)
+  const timelineEvents = [
+    ...(payments.map(p => ({
+      id: p.id,
+      timestamp: p.created_at || p.createdAt,
+      actor: p.payer_name || (isClient ? user.fullName : contract.clientName) || 'Client',
+      avatarChar: (p.payer_name || 'C').charAt(0),
+      desc: `Escrow payment of ${formatCurrency(p.amount)} initiated via ${p.payment_method?.toUpperCase() || 'ESEWA'}`
+    }))),
+    ...(escrowList.map(e => ({
+      id: e.id,
+      timestamp: e.releasedAt || e.createdAt,
+      actor: isClient ? user.fullName : contract.clientName || 'Client',
+      avatarChar: 'C',
+      desc: e.status === 'released' ? `Released ${formatCurrency(e.netAmount || e.amount)} to freelancer account` : `Escrow reserve of ${formatCurrency(e.amount)} held`
+    }))),
+    ...(contract.signedByFreelancer ? [{
+      id: 'sig-free',
+      timestamp: contract.updatedAt || contract.createdAt,
+      actor: contract.freelancerName || 'Freelancer',
+      avatarChar: (contract.freelancerName || 'F').charAt(0),
+      desc: 'Executed digital signature on contract agreement'
+    }] : []),
+    ...(contract.signedByClient ? [{
+      id: 'sig-client',
+      timestamp: contract.createdAt,
+      actor: contract.clientName || 'Client',
+      avatarChar: (contract.clientName || 'C').charAt(0),
+      desc: 'Executed digital signature and created contract'
+    }] : []),
+    {
+      id: 'init',
+      timestamp: contract.createdAt,
+      actor: contract.clientName || 'Client',
+      avatarChar: 'C',
+      desc: 'Contract agreement drafted on platform ledger'
+    }
+  ].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
   return (
     <div className="min-h-screen bg-[var(--paper)] text-[var(--ink)] font-sans-ledger selection:bg-[var(--signal)] selection:text-[var(--paper)] flex flex-col justify-between">
       
       {/* Top Navbar */}
       <Navbar userType={userType} />
 
-      {/* Main Specimen Container */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 py-8 sm:py-12 space-y-10 flex-1 w-full pb-24 lg:pb-12">
+      {/* Main Container */}
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 py-8 sm:py-12 space-y-8 flex-1 w-full pb-24 lg:pb-12 text-left">
         
-        {/* CONTRACT HEADER */}
-        <section className="space-y-4 text-left border-b border-[var(--ink)] pb-8">
-          
-          <div className="flex items-center justify-between font-mono-ledger text-[11px] uppercase tracking-wider">
-            <Link 
-              href="/contracts" 
-              className="text-[var(--muted)] hover:text-[var(--ink)] flex items-center space-x-1"
-            >
-              <ArrowLeft className="h-3.5 w-3.5" />
-              <span>CONTRACT REGISTER</span>
-            </Link>
-            <span className="text-[var(--signal)] font-bold">
-              SPECIMEN / #{contract.id?.slice(0, 8) || '0001'}
-            </span>
-          </div>
+        {/* ARCHETYPE F: 1. BACK LINK */}
+        <div className="font-mono-ledger text-[11px]">
+          <Link href="/contracts" className="text-[var(--muted)] hover:text-[var(--ink)] transition-colors">
+            ← Back to Contract Register
+          </Link>
+        </div>
 
-          <div className="space-y-3">
-            <h1 className="font-serif-ledger text-[34px] sm:text-[48px] leading-[1.1] font-medium tracking-tight text-[var(--ink)]">
-              {contract.projectTitle}
-            </h1>
+        {/* ARCHETYPE F: 2. RECORD SUMMARY STRIP (EXPANDED LEDGER ENTRY) */}
+        <section className="space-y-2">
+          <p className="font-mono-ledger text-[11px] uppercase tracking-[0.08em] text-[var(--muted)]">
+            CONTRACT RECORD · #{contract.id?.slice(0, 8) || '0001'}
+          </p>
 
-            <div className="flex flex-wrap items-center gap-4 font-mono-ledger text-[11px] text-[var(--muted)] border-t border-[var(--line)] pt-3">
-              <span>CREATED: {new Date(contract.createdAt || contract.created_at || Date.now()).toLocaleDateString()}</span>
-              <span>•</span>
-              <span>
-                STATUS: <strong className="text-[var(--ink)] font-bold">[{contract.status?.toUpperCase() || 'REGISTERED'}]</strong>
+          <div className="border-y-2 border-[var(--ink)] py-5 my-2 flex flex-col lg:flex-row lg:items-center justify-between gap-6 font-mono-ledger text-[12px]">
+            {/* Title & Parties with 40x40 avatars */}
+            <div className="space-y-2 max-w-2xl">
+              <h1 className="font-serif-ledger text-[28px] sm:text-[36px] font-medium text-[var(--ink)] leading-snug">
+                {contract.projectTitle}
+              </h1>
+
+              <div className="flex items-center space-x-6 text-[12px] pt-1">
+                <div className="flex items-center space-x-2">
+                  <div className="w-10 h-10 bg-[var(--ink)] text-[var(--paper)] font-bold text-[14px] flex items-center justify-center shrink-0">
+                    {(contract.clientName || 'C').charAt(0)}
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-[var(--muted)] block uppercase">CLIENT</span>
+                    <span className="font-bold text-[var(--ink)]">{contract.clientName || 'Client Participant'}</span>
+                  </div>
+                </div>
+
+                <span className="text-[var(--muted)]">↔</span>
+
+                <div className="flex items-center space-x-2">
+                  <div className="w-10 h-10 bg-[var(--signal)] text-[var(--paper)] font-bold text-[14px] flex items-center justify-center shrink-0">
+                    {(contract.freelancerName || 'F').charAt(0)}
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-[var(--muted)] block uppercase">FREELANCER</span>
+                    <span className="font-bold text-[var(--ink)]">{contract.freelancerName || 'Independent Talent'}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Amount & Status Bracket Tag */}
+            <div className="text-left lg:text-right space-y-1 shrink-0">
+              <span className="text-[10px] text-[var(--muted)] uppercase block">Total Agreed Budget</span>
+              <span className="text-[26px] font-bold text-[var(--signal)] block">
+                {formatCurrency(contract.agreedBudget || 0)}
               </span>
-              <span>•</span>
-              <span>
-                SIGNATURES: <strong className={fullyExecuted ? "text-green-700 font-bold" : "text-[var(--signal)] font-bold"}>
-                  [{fullyExecuted ? "FULLY EXECUTED" : userHasSigned ? "AWAITING OTHER PARTY" : "NEEDS YOUR SIGNATURE"}]
-                </strong>
+              <span className="text-[12px] font-bold text-[var(--signal)] block">
+                [{fullyExecuted ? "EXECUTED" : userHasSigned ? "PENDING OTHER SIGNATURE" : "NEEDS YOUR SIGNATURE"}]
               </span>
             </div>
           </div>
-
-          {/* Quick Action Strip */}
-          <div className="flex flex-wrap items-center gap-3 pt-2 font-mono-ledger text-[11px]">
-            <Link 
-              href={`/chat?userId=${isClient ? contract.freelancerId : contract.clientId}&contractId=${contractId}`}
-              className="px-4 py-2.5 border border-[var(--ink)] bg-[var(--paper-2)] text-[var(--ink)] hover:bg-[var(--paper)] transition-colors inline-flex items-center space-x-1.5 font-bold uppercase"
-            >
-              <MessageSquare className="h-3.5 w-3.5 text-[var(--signal)]" />
-              <span>MESSAGE {isClient ? "FREELANCER" : "CLIENT"}</span>
-            </Link>
-
-            {isActive && (
-              <Link 
-                href={`/video-meeting?contractId=${contractId}&userId=${isClient ? contract.freelancerId : contract.clientId}`}
-                className="px-4 py-2.5 border border-[var(--ink)] bg-[var(--paper-2)] text-[var(--ink)] hover:bg-[var(--paper)] transition-colors inline-flex items-center space-x-1.5 font-bold uppercase"
-              >
-                <Video className="h-3.5 w-3.5 text-[var(--ink)]" />
-                <span>SCHEDULE MEETING</span>
-              </Link>
-            )}
-
-            {isClient && (
-              <button
-                onClick={() => {
-                  setShowDepositModal(true);
-                  setPayAmount(contract.agreedBudget?.toString() || "");
-                  setPayDescription(`Escrow deposit for ${contract.projectTitle}`);
-                }}
-                className="px-5 py-2.5 bg-[var(--signal)] hover:bg-[var(--signal-dark)] text-[var(--paper)] font-bold transition-colors uppercase inline-flex items-center space-x-1 shadow-xs"
-              >
-                <CreditCard className="h-3.5 w-3.5" />
-                <span>DEPOSIT ESCROW FUNDS →</span>
-              </button>
-            )}
-          </div>
-
         </section>
 
-
-        {/* NOTIFICATIONS & EXECUTION BANNERS */}
+        {/* NOTIFICATIONS */}
         {successMessage && (
-          <div className="p-4 bg-green-50 border border-green-600 text-green-800 font-mono-ledger text-[12px] flex items-center space-x-2">
-            <CheckCircle className="h-4 w-4 text-green-600 shrink-0" />
+          <div className="p-4 bg-[var(--paper-2)] border border-[var(--signal)] text-[var(--ink)] font-mono-ledger text-[12px] flex items-center space-x-2">
+            <CheckCircle2 className="h-4 w-4 text-[var(--signal)] shrink-0" />
             <span className="font-bold">{successMessage}</span>
           </div>
         )}
@@ -354,253 +355,204 @@ export default function ContractDetailPage() {
           </div>
         )}
 
-        {!userHasSigned && contract.status === "pending" && (
-          <div className="p-5 border-2 border-[var(--signal)] bg-red-50 space-y-3 font-mono-ledger text-[12px] text-left">
-            <div className="flex items-center space-x-2 text-[var(--signal-dark)] font-bold uppercase">
-              <AlertCircle className="h-4 w-4 shrink-0" />
-              <span>DIGITAL SIGNATURE REQUIRED</span>
-            </div>
-            <p className="text-[var(--ink)]">
-              This contract requires your official digital signature to activate milestone escrow and begin work.
-            </p>
-            <button
-              onClick={handleSignContract}
-              disabled={signing}
-              className="bg-[var(--signal)] hover:bg-[var(--signal-dark)] text-[var(--paper)] font-bold px-6 py-2.5 uppercase transition-colors"
-            >
-              {signing ? "EXECUTING SIGNATURE..." : "EXECUTE DIGITAL SIGNATURE →"}
-            </button>
-          </div>
-        )}
-
-
-        {/* ASYMMETRIC 2-COLUMN WORKSPACE (70% Contract Terms & Milestones / 30% Escrow Instrument) */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-start text-left">
+        {/* ARCHETYPE F: 3. TWO-COLUMN BODY (65 / 35 SPLIT) */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-start">
           
-          {/* Left Column (70% Width: Cols 1 to 8) - CONTRACT TERMS & MILESTONES */}
-          <div className="lg:col-span-8 space-y-10">
+          {/* Left Column (65%): MILESTONE LOG & RECORD HISTORY */}
+          <div className="lg:col-span-8 space-y-8">
             
-            {/* 01 / CONTRACT TERMS */}
             <div className="space-y-4">
               <div className="border-b border-[var(--ink)] pb-2 font-mono-ledger text-[11px] uppercase tracking-wider font-bold text-[var(--ink)] flex items-center justify-between">
-                <span>01 / CONTRACT TERMS & SPECIFICATIONS</span>
-                <span className="text-[var(--signal)]">AGREED BUDGET: NPR {contract.agreedBudget?.toLocaleString()}</span>
+                <span>MILESTONE LOG & RECORD HISTORY</span>
+                <span className="text-[var(--signal)]">MOST RECENT FIRST</span>
               </div>
 
-              <div className="border-2 border-[var(--ink)] bg-[var(--paper)] p-6 space-y-4 font-mono-ledger text-[12px]">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 border-b border-[var(--line)] pb-4">
-                  <div>
-                    <span className="text-[var(--muted)] text-[10px] uppercase block">TOTAL AGREED BUDGET</span>
-                    <span className="text-[20px] font-bold text-[var(--signal)]">
-                      NPR {contract.agreedBudget?.toLocaleString()}
-                    </span>
-                  </div>
-
-                  {contract.agreedTimeline && (
-                    <div>
-                      <span className="text-[var(--muted)] text-[10px] uppercase block">AGREED TIMELINE</span>
-                      <span className="text-[20px] font-bold text-[var(--ink)]">
-                        {contract.agreedTimeline}
-                      </span>
+              {/* Chronological Timeline Log */}
+              <div className="border border-[var(--ink)] divide-y divide-[var(--line)] bg-[var(--paper)] font-mono-ledger text-[12px]">
+                {timelineEvents.map((evt) => (
+                  <div key={evt.id} className="p-4 flex items-start space-x-3 hover:bg-[var(--paper-2)] transition-colors">
+                    <div className="w-8 h-8 bg-[var(--ink)] text-[var(--paper)] font-bold text-[12px] flex items-center justify-center shrink-0 mt-0.5">
+                      {evt.avatarChar}
                     </div>
-                  )}
-                </div>
-
-                {contract.paymentTerms && (
-                  <div className="space-y-1 pt-2">
-                    <span className="text-[var(--muted)] text-[10px] uppercase font-bold block">PAYMENT TERMS</span>
-                    <p className="font-sans-ledger text-[14px] text-[var(--ink)] whitespace-pre-wrap leading-relaxed">
-                      {contract.paymentTerms}
-                    </p>
+                    <div className="flex-1 space-y-0.5">
+                      <div className="flex items-center justify-between text-[10px] text-[var(--muted)] uppercase">
+                        <span className="font-bold text-[var(--ink)]">{evt.actor}</span>
+                        <span>{new Date(evt.timestamp || Date.now()).toLocaleString()}</span>
+                      </div>
+                      <p className="font-sans-ledger text-[13px] text-[var(--ink)] leading-relaxed">
+                        {evt.desc}
+                      </p>
+                    </div>
                   </div>
-                )}
-
-                {contract.deliverables && (
-                  <div className="space-y-1 pt-2 border-t border-[var(--line)]">
-                    <span className="text-[var(--muted)] text-[10px] uppercase font-bold block">DELIVERABLES SPECIFICATION</span>
-                    <p className="font-sans-ledger text-[14px] text-[var(--ink)] whitespace-pre-wrap leading-relaxed">
-                      {contract.deliverables}
-                    </p>
-                  </div>
-                )}
+                ))}
               </div>
             </div>
 
-
-            {/* 02 / MILESTONE ESCROW & DELIVERABLE REGISTER */}
-            <div className="space-y-4">
-              <div className="border-b border-[var(--ink)] pb-2 font-mono-ledger text-[11px] uppercase tracking-wider font-bold text-[var(--ink)] flex items-center justify-between">
-                <span>02 / MILESTONE ESCROW & DELIVERABLE REGISTER</span>
-                <span className="text-[var(--signal)]">{milestones.length} MILESTONES</span>
+            {/* Terms & Specifications Details */}
+            <div className="space-y-3 font-mono-ledger text-[12px]">
+              <span className="font-bold text-[var(--ink)] uppercase text-[11px] block border-b border-[var(--ink)] pb-2">
+                Contract Specifications & Terms
+              </span>
+              <div className="border border-[var(--ink)] bg-[var(--paper)] p-5 space-y-3 font-sans-ledger text-[13px]">
+                {contract.paymentTerms && (
+                  <div>
+                    <strong className="font-mono-ledger text-[11px] uppercase text-[var(--muted)] block">PAYMENT TERMS:</strong>
+                    <p className="text-[var(--ink)] pt-1">{contract.paymentTerms}</p>
+                  </div>
+                )}
+                {contract.deliverables && (
+                  <div className="pt-2 border-t border-[var(--line)]">
+                    <strong className="font-mono-ledger text-[11px] uppercase text-[var(--muted)] block">DELIVERABLES:</strong>
+                    <p className="text-[var(--ink)] pt-1">{contract.deliverables}</p>
+                  </div>
+                )}
               </div>
-
-              {milestones.length === 0 ? (
-                <div className="border-2 border-[var(--ink)] bg-[var(--paper-2)] p-6 text-left font-mono-ledger text-[12px] space-y-2">
-                  <p className="font-bold text-[var(--ink)]">No specific milestones configured.</p>
-                  <p className="text-[var(--muted)]">This contract uses single-sum milestone escrow upon completion.</p>
-                </div>
-              ) : (
-                <div className="border-2 border-[var(--ink)] bg-[var(--paper)] divide-y divide-[var(--line)] font-mono-ledger text-[12px]">
-                  {milestones.map((milestone, idx) => {
-                    const mEscrow = escrowList.filter(e => e.milestoneId === milestone.id);
-                    const isHeld = mEscrow.find(e => e.status === 'held');
-                    const isReleased = mEscrow.find(e => e.status === 'released');
-
-                    return (
-                      <div key={milestone.id || idx} className="p-5 space-y-3">
-                        
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[var(--line)] pb-2">
-                          <div className="space-y-0.5">
-                            <span className="text-[10px] text-[var(--muted)] uppercase font-bold">MILESTONE 0{idx + 1}</span>
-                            <h4 className="font-serif-ledger text-[18px] font-medium text-[var(--ink)]">
-                              {milestone.title}
-                            </h4>
-                          </div>
-
-                          <div className="flex items-center space-x-3 text-right">
-                            <span className="font-bold text-[var(--signal)] text-[14px]">
-                              NPR {milestone.amount?.toLocaleString()}
-                            </span>
-                            <span className="px-2 py-0.5 border border-[var(--ink)] bg-[var(--paper-2)] font-bold text-[10px] uppercase">
-                              [{milestone.status?.toUpperCase() || 'PENDING'}]
-                            </span>
-                          </div>
-                        </div>
-
-                        {milestone.description && (
-                          <p className="font-sans-ledger text-[13px] text-[var(--muted)]">
-                            {milestone.description}
-                          </p>
-                        )}
-
-                        {/* Escrow Status Actions */}
-                        <div className="pt-2 font-mono-ledger text-[11px]">
-                          {isHeld ? (
-                            <div className="p-3 bg-amber-50 border border-amber-300 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                              <div>
-                                <span className="font-bold text-amber-900 block">NPR {isHeld.amount?.toLocaleString()} HELD IN ESCROW</span>
-                                <span className="text-[10px] text-amber-700 block">FreelanceHub fee 10% applied upon release</span>
-                              </div>
-
-                              {isClient && (
-                                <div className="flex items-center space-x-2">
-                                  <button
-                                    onClick={() => handleReleaseEscrow(isHeld.id)}
-                                    className="bg-[var(--signal)] hover:bg-[var(--signal-dark)] text-[var(--paper)] font-bold px-3 py-1.5 uppercase transition-colors"
-                                  >
-                                    RELEASE FUNDS →
-                                  </button>
-                                  <button
-                                    onClick={() => handleRefundEscrow(isHeld.id)}
-                                    className="bg-[var(--paper)] border border-[var(--ink)] text-[var(--ink)] font-bold px-3 py-1.5 uppercase hover:bg-red-50 transition-colors"
-                                  >
-                                    REFUND
-                                  </button>
-                                </div>
-                              )}
-                            </div>
-                          ) : isReleased ? (
-                            <div className="p-3 bg-green-50 border border-green-300 text-green-800 font-bold flex items-center justify-between">
-                              <span>✓ NPR {isReleased.amount?.toLocaleString()} RELEASED TO FREELANCER</span>
-                              <span className="text-[10px] text-green-700 font-normal">
-                                RELEASED: {new Date(isReleased.releasedAt || Date.now()).toLocaleDateString()}
-                              </span>
-                            </div>
-                          ) : (
-                            <div className="p-2.5 bg-[var(--paper-2)] border border-[var(--line)] text-[var(--muted)] text-[10px]">
-                              STATUS: NO ESCROW FUNDS DEPOSITED YET
-                            </div>
-                          )}
-                        </div>
-
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
             </div>
 
           </div>
 
-
-          {/* Right Column (30% Width: Cols 9 to 12) - ESCROW FINANCIAL INSTRUMENT */}
-          <div className="lg:col-span-4 space-y-8 font-mono-ledger text-[12px]">
+          {/* Right Column (35%): ACTION PANEL */}
+          <div className="lg:col-span-4 space-y-6 font-mono-ledger text-[12px]">
             
-            {/* ESCROW SUMMARY INSTRUMENT */}
-            <div className="border-2 border-[var(--ink)] bg-[var(--paper-2)] p-6 space-y-4">
-              <div className="border-b border-[var(--ink)] pb-2 text-[11px] uppercase tracking-wider font-bold text-[var(--ink)] flex items-center justify-between">
-                <span>ESCROW FINANCIAL RECORD</span>
-                <span className="text-[var(--signal)]">[NPR]</span>
+            <div className="border-2 border-[var(--ink)] bg-[var(--paper-2)] p-6 space-y-5">
+              <span className="font-bold text-[var(--ink)] uppercase text-[11px] block border-b border-[var(--ink)] pb-2">
+                Action Panel
+              </span>
+
+              {/* Single Primary Action Button */}
+              {!userHasSigned && contract.status === "pending" ? (
+                <button
+                  onClick={handleSignContract}
+                  disabled={signing}
+                  className="w-full bg-[var(--signal)] hover:bg-[var(--signal-dark)] text-[var(--paper)] font-bold text-[12px] uppercase tracking-wider py-3.5 px-4 transition-colors"
+                >
+                  {signing ? "Executing signature..." : "Execute digital signature →"}
+                </button>
+              ) : isClient && heldEscrow.length > 0 ? (
+                <button
+                  onClick={() => handleReleaseEscrow(heldEscrow[0].id)}
+                  className="w-full bg-[var(--signal)] hover:bg-[var(--signal-dark)] text-[var(--paper)] font-bold text-[12px] uppercase tracking-wider py-3.5 px-4 transition-colors"
+                >
+                  Release milestone payment →
+                </button>
+              ) : isClient ? (
+                <button
+                  onClick={() => {
+                    setShowDepositModal(true);
+                    setPayAmount(contract.agreedBudget?.toString() || "");
+                    setPayDescription(`Escrow deposit for ${contract.projectTitle}`);
+                  }}
+                  className="w-full bg-[var(--signal)] hover:bg-[var(--signal-dark)] text-[var(--paper)] font-bold text-[12px] uppercase tracking-wider py-3.5 px-4 transition-colors"
+                >
+                  Deposit escrow funds →
+                </button>
+              ) : (
+                <Link
+                  href={`/chat?userId=${contract.clientId}&contractId=${contractId}`}
+                  className="w-full bg-[var(--signal)] hover:bg-[var(--signal-dark)] text-[var(--paper)] font-bold text-[12px] uppercase tracking-wider py-3.5 px-4 transition-colors block text-center"
+                >
+                  Message client →
+                </Link>
+              )}
+
+              {/* Secondary Actions as Plain Underlined Text Links */}
+              <div className="space-y-2 pt-2 border-t border-[var(--line)] text-[11px]">
+                <Link 
+                  href={`/chat?userId=${isClient ? contract.freelancerId : contract.clientId}&contractId=${contractId}`}
+                  className="text-[var(--ink)] font-bold hover:text-[var(--signal)] underline block"
+                >
+                  Message {isClient ? "freelancer" : "client"} →
+                </Link>
+
+                <Link 
+                  href={`/video-meeting?contractId=${contractId}`}
+                  className="text-[var(--ink)] font-bold hover:text-[var(--signal)] underline block"
+                >
+                  Schedule video call →
+                </Link>
+
+                <Link 
+                  href="/time-tracking"
+                  className="text-[var(--ink)] font-bold hover:text-[var(--signal)] underline block"
+                >
+                  Log time entries →
+                </Link>
               </div>
 
-              <div className="space-y-3">
-                <div>
-                  <span className="text-[var(--muted)] text-[10px] uppercase block">TOTAL CONTRACT BUDGET</span>
-                  <span className="font-bold text-[20px] text-[var(--ink)]">
-                    NPR {contract.agreedBudget?.toLocaleString()}
-                  </span>
-                </div>
-
-                <div className="border-t border-[var(--line)] pt-2 space-y-1">
-                  <span className="text-[var(--muted)] text-[10px] uppercase block">FUNDS HELD IN ESCROW</span>
-                  <span className="font-bold text-[18px] text-[var(--signal)] block">
-                    NPR {totalHeld.toLocaleString()}
-                  </span>
-                  <span className="text-[10px] text-[var(--muted)] block">Protected in local reserve</span>
-                </div>
-
-                <div className="border-t border-[var(--line)] pt-2 space-y-1">
-                  <span className="text-[var(--muted)] text-[10px] uppercase block">RELEASED TO FREELANCER</span>
-                  <span className="font-bold text-[18px] text-green-700 block">
-                    NPR {totalReleased.toLocaleString()}
-                  </span>
-                </div>
-
-                {isClient && (
-                  <div className="pt-3 border-t border-[var(--ink)]">
-                    <button
-                      onClick={() => {
-                        setShowDepositModal(true);
-                        setPayAmount(contract.agreedBudget?.toString() || "");
-                        setPayDescription(`Escrow deposit for ${contract.projectTitle}`);
-                      }}
-                      className="w-full bg-[var(--signal)] hover:bg-[var(--signal-dark)] text-[var(--paper)] font-bold text-[11px] uppercase tracking-wider py-2.5 transition-colors shadow-xs"
-                    >
-                      DEPOSIT ESCROW FUNDS →
-                    </button>
+              {/* Compact Parties Block */}
+              <div className="pt-4 border-t border-[var(--ink)] space-y-3">
+                <span className="font-bold text-[var(--ink)] uppercase text-[10px] block">Contract Parties</span>
+                
+                <div className="flex items-center space-x-3">
+                  <div className="w-10 h-10 bg-[var(--ink)] text-[var(--paper)] font-bold text-[14px] flex items-center justify-center shrink-0">
+                    {(contract.clientName || 'C').charAt(0)}
                   </div>
-                )}
-              </div>
-            </div>
-
-
-            {/* DIGITAL SIGNATURE RECORD */}
-            <div className="border-2 border-[var(--ink)] bg-[var(--paper)] p-6 space-y-4">
-              <div className="border-b border-[var(--ink)] pb-2 text-[11px] uppercase tracking-wider font-bold text-[var(--ink)] flex items-center justify-between">
-                <span>DIGITAL SIGNATURES</span>
-                <span className="text-[var(--signal)]">• RECORD</span>
-              </div>
-
-              <div className="space-y-3 text-[11px]">
-                <div className="flex items-center justify-between py-1.5 border-b border-[var(--line)]">
-                  <span className="text-[var(--muted)]">CLIENT SIGNATURE</span>
-                  <span className={contract.signedByClient ? "font-bold text-green-700" : "font-bold text-[var(--signal)]"}>
-                    {contract.signedByClient ? "[SIGNED]" : "[PENDING]"}
-                  </span>
+                  <div>
+                    <span className="font-bold text-[var(--ink)] block">{contract.clientName || 'Client'}</span>
+                    <span className="text-[10px] text-[var(--muted)] uppercase block">CLIENT</span>
+                  </div>
                 </div>
 
-                <div className="flex items-center justify-between py-1.5 border-b border-[var(--line)]">
-                  <span className="text-[var(--muted)]">FREELANCER SIGNATURE</span>
-                  <span className={contract.signedByFreelancer ? "font-bold text-green-700" : "font-bold text-[var(--signal)]"}>
-                    {contract.signedByFreelancer ? "[SIGNED]" : "[PENDING]"}
+                <div className="flex items-center space-x-3">
+                  <div className="w-10 h-10 bg-[var(--signal)] text-[var(--paper)] font-bold text-[14px] flex items-center justify-center shrink-0">
+                    {(contract.freelancerName || 'F').charAt(0)}
+                  </div>
+                  <div>
+                    <span className="font-bold text-[var(--ink)] block">{contract.freelancerName || 'Freelancer'}</span>
+                    <span className="text-[10px] text-[var(--muted)] uppercase block">FREELANCER</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Record Details Key-Value List */}
+              <div className="pt-4 border-t border-[var(--ink)] space-y-2 text-[11px]">
+                <div className="flex justify-between">
+                  <span className="text-[var(--muted)]">Contract ID:</span>
+                  <span className="font-bold text-[var(--ink)]">#{contract.id?.slice(0, 8)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-[var(--muted)]">Escrow Status:</span>
+                  <span className="font-bold text-[var(--signal)]">
+                    [{heldEscrow.length > 0 ? "RESERVED" : releasedEscrow.length > 0 ? "RELEASED" : "UNFUNDED"}]
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-[var(--muted)]">Digital Signature:</span>
+                  <span className="font-bold text-[var(--ink)]">
+                    [{fullyExecuted ? "VERIFIED" : "PENDING"}]
                   </span>
                 </div>
               </div>
+
             </div>
 
           </div>
 
         </div>
+
+        {/* ARCHETYPE F: 4. SUB-ITEMS (MILESTONES ROW PATTERN) */}
+        {milestones.length > 0 && (
+          <section className="space-y-4 pt-4 border-t border-[var(--ink)]">
+            <span className="font-mono-ledger font-bold text-[11px] uppercase text-[var(--ink)] block">
+              Contract Milestones ({milestones.length})
+            </span>
+            <div className="border border-[var(--ink)] divide-y divide-[var(--line)] bg-[var(--paper)] font-mono-ledger text-[12px]">
+              {milestones.map((m, idx) => (
+                <div key={m.id || idx} className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="space-y-0.5 text-left">
+                    <span className="text-[10px] text-[var(--muted)] uppercase">Milestone 0{idx + 1}</span>
+                    <h4 className="font-serif-ledger text-[16px] font-medium text-[var(--ink)]">{m.title}</h4>
+                    <p className="font-sans-ledger text-[12px] text-[var(--muted)]">{m.description}</p>
+                  </div>
+                  <div className="text-left sm:text-right shrink-0">
+                    <span className="font-bold text-[var(--signal)] text-[16px] block">{formatCurrency(m.amount)}</span>
+                    <span className="text-[10px] font-bold text-[var(--ink)] block">[{m.status?.toUpperCase() || 'PENDING'}]</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
 
       </main>
 
@@ -639,7 +591,7 @@ export default function ContractDetailPage() {
                   disabled={payLoading}
                   className="w-full bg-green-700 text-white font-bold py-3 uppercase hover:bg-green-800 transition-colors flex items-center justify-center space-x-2"
                 >
-                  <span>PAY WITH ESEWA (NPR) →</span>
+                  <span>Pay with eSewa (NPR) →</span>
                 </button>
 
                 <button
@@ -648,7 +600,7 @@ export default function ContractDetailPage() {
                   disabled={payLoading}
                   className="w-full bg-[var(--ink)] text-[var(--paper)] font-bold py-3 uppercase hover:bg-[var(--signal)] transition-colors flex items-center justify-center space-x-2"
                 >
-                  <span>PAY WITH CARD / STRIPE →</span>
+                  <span>Pay with card / Stripe →</span>
                 </button>
               </div>
             </div>
@@ -666,9 +618,9 @@ export default function ContractDetailPage() {
       )}
 
       {/* Editorial Footer */}
-      <footer className="border-t border-[var(--line)] py-6 text-center mt-12 font-mono-ledger text-[12px] text-[var(--muted)]">
+      <footer className="border-t border-[var(--line)] py-6 text-center font-mono-ledger text-[12px] text-[var(--muted)]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 flex flex-col sm:flex-row items-center justify-between gap-2">
-          <span>FreelanceHub · Contract Execution & Escrow Workspace</span>
+          <span>FreelanceHub · Contract Record Archetype F</span>
           <span>Engineered by Nantio Studio (www.nantio.it.com)</span>
         </div>
       </footer>
