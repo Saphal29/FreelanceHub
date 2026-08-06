@@ -7,17 +7,7 @@ import Navbar from "@/components/layout/Navbar";
 import EmptyState from "@/components/common/EmptyState";
 import { useAuth } from "@/contexts/AuthContext";
 import { getMyProposals, withdrawProposal } from "@/lib/api";
-import { 
-  Clock,
-  AlertCircle,
-  FileText,
-  CheckCircle,
-  XCircle,
-  MinusCircle,
-  User,
-  Banknote,
-  ArrowRight
-} from "lucide-react";
+import { AlertCircle, CheckCircle2 } from "lucide-react";
 import { formatCurrency } from "@/lib/currency";
 
 export default function MyProposalsPage() {
@@ -30,14 +20,12 @@ export default function MyProposalsPage() {
   const [actionLoading, setActionLoading] = useState({});
   const [successMessage, setSuccessMessage] = useState("");
 
-  // Redirect if not authenticated or not a freelancer
   useEffect(() => {
     if (!authLoading && (!user || user.role !== "FREELANCER")) {
       router.push("/login");
     }
   }, [user, authLoading, router]);
 
-  // Fetch proposals
   useEffect(() => {
     const fetchProposals = async () => {
       if (!user || user.role !== "FREELANCER") return;
@@ -71,7 +59,6 @@ export default function MyProposalsPage() {
     }
   }, [user, authLoading, statusFilter]);
 
-  // Handle withdraw proposal
   const handleWithdraw = async (proposalId) => {
     if (!confirm("Are you sure you want to withdraw this proposal?")) return;
 
@@ -106,13 +93,13 @@ export default function MyProposalsPage() {
       <Navbar userType="freelancer" />
 
       {/* Main Container */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 py-8 sm:py-12 space-y-10 flex-1 w-full pb-24 lg:pb-12">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 py-8 sm:py-12 space-y-8 flex-1 w-full pb-24 lg:pb-12 text-left">
         
         {/* EDITORIAL HEADER */}
-        <section className="space-y-4 text-left border-b border-[var(--ink)] pb-8">
+        <section className="space-y-4 border-b border-[var(--ink)] pb-8">
           <p className="font-mono-ledger text-[11px] uppercase tracking-[0.08em] text-[var(--muted)] flex items-center space-x-2">
             <span className="w-2 h-2 rounded-full bg-[var(--signal)] inline-block animate-pulse"></span>
-            <span>FREELANCEHUB PROPOSAL REGISTER · SUBMITTED BIDS</span>
+            <span>FREELANCEHUB REGISTER · SUBMITTED PROPOSALS</span>
           </p>
           
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
@@ -127,40 +114,44 @@ export default function MyProposalsPage() {
 
             <Link 
               href="/projects" 
-              className="bg-[var(--signal)] hover:bg-[var(--signal-dark)] text-[var(--paper)] font-mono-ledger font-bold text-[12px] uppercase tracking-wider px-5 py-3 transition-colors inline-flex items-center space-x-2 shrink-0 shadow-xs"
+              className="bg-[var(--signal)] hover:bg-[var(--signal-dark)] text-[var(--paper)] font-mono-ledger font-bold text-[12px] uppercase tracking-wider px-5 py-3 transition-colors inline-flex items-center space-x-2 shrink-0"
             >
-              <span>BROWSE OPEN BRIEFS →</span>
+              <span>Find open projects →</span>
             </Link>
           </div>
         </section>
 
+        {/* ARCHETYPE E: THE ONE FILTER BAR */}
+        <section className="border-y border-[var(--ink)] py-3 font-mono-ledger text-[11px]">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-[var(--muted)] font-bold mr-2 uppercase">Status:</span>
+              {[
+                { id: "all", label: "All proposals" },
+                { id: "pending", label: "Pending review" },
+                { id: "accepted", label: "Accepted & contracted" },
+                { id: "rejected", label: "Rejected" },
+                { id: "withdrawn", label: "Withdrawn" }
+              ].map((t) => (
+                <button
+                  key={t.id}
+                  onClick={() => setStatusFilter(t.id)}
+                  className={`px-3 py-1.5 border transition-colors ${
+                    statusFilter === t.id
+                      ? "bg-[var(--ink)] text-[var(--paper)] border-[var(--ink)] font-bold"
+                      : "bg-[var(--paper)] text-[var(--ink)] border-[var(--line)] hover:border-[var(--ink)]"
+                  }`}
+                >
+                  {t.label}
+                </button>
+              ))}
+            </div>
 
-        {/* FILTER TABS */}
-        <section className="space-y-4 text-left font-mono-ledger text-[11px] uppercase">
-          <div className="flex flex-wrap items-center gap-2 border-b border-[var(--ink)] pb-3">
-            <span className="text-[var(--muted)] font-bold mr-2">STATUS FILTER:</span>
-            {[
-              { id: "all", label: "ALL PROPOSALS" },
-              { id: "pending", label: "PENDING REVIEW" },
-              { id: "accepted", label: "ACCEPTED & CONTRACTED" },
-              { id: "rejected", label: "REJECTED" },
-              { id: "withdrawn", label: "WITHDRAWN" }
-            ].map((t) => (
-              <button
-                key={t.id}
-                onClick={() => setStatusFilter(t.id)}
-                className={`px-3.5 py-1.5 border transition-colors ${
-                  statusFilter === t.id
-                    ? "bg-[var(--ink)] text-[var(--paper)] border-[var(--ink)] font-bold"
-                    : "bg-[var(--paper-2)] text-[var(--ink)] border-[var(--line)] hover:border-[var(--ink)]"
-                }`}
-              >
-                {t.label}
-              </button>
-            ))}
+            <div className="text-[var(--muted)] text-[11px]">
+              Showing {proposals.length} proposal record{proposals.length === 1 ? '' : 's'}
+            </div>
           </div>
         </section>
-
 
         {/* NOTIFICATIONS */}
         {error && (
@@ -171,63 +162,57 @@ export default function MyProposalsPage() {
         )}
 
         {successMessage && (
-          <div className="p-4 bg-green-50 border border-green-600 text-green-800 font-mono-ledger text-[12px] flex items-center space-x-2">
-            <CheckCircle className="h-4 w-4 text-green-600 shrink-0" />
+          <div className="p-4 bg-[var(--paper-2)] border border-[var(--signal)] text-[var(--ink)] font-mono-ledger text-[12px] flex items-center space-x-2">
+            <CheckCircle2 className="h-4 w-4 text-[var(--signal)] shrink-0" />
             <span className="font-bold">{successMessage}</span>
           </div>
         )}
 
-
-        {/* PROPOSALS SPECIMEN LIST */}
-        <section className="space-y-6 text-left">
+        {/* PROPOSALS REGISTER ROWS */}
+        <section className="space-y-4">
           {loading ? (
-            <div className="space-y-4">
-              {[1, 2, 3].map((n) => (
-                <div key={n} className="border-2 border-[var(--line)] bg-[var(--paper-2)] h-44 animate-pulse p-6"></div>
-              ))}
+            <div className="space-y-3 font-mono-ledger text-[12px] text-[var(--muted)] py-12 text-center border border-[var(--line)]">
+              LOADING PROPOSAL REGISTER...
             </div>
           ) : proposals.length === 0 ? (
             <EmptyState
-              marker="PROPOSAL ARCHIVE"
+              marker="PROPOSAL REGISTER · STATUS: EMPTY"
               title="No proposals submitted yet."
-              description="Explore verified open project briefs and submit tailored proposals with your rate in NPR."
-              actionLabel="BROWSE OPEN PROJECTS →"
+              description="Explore open project briefs and submit tailored proposals with your milestone budget in NPR."
+              actionLabel="Find open projects →"
               actionHref="/projects"
             />
           ) : (
-            <div className="space-y-6">
+            <div className="border border-[var(--ink)] divide-y divide-[var(--line)] bg-[var(--paper)]">
               {proposals.map((proposal) => (
                 <div
                   key={proposal.id}
-                  className="border-2 border-[var(--ink)] bg-[var(--paper)] p-6 space-y-4 text-left hover:border-[var(--signal)] transition-colors shadow-xs group"
+                  className="p-5 sm:p-6 space-y-3 hover:bg-[var(--paper-2)] transition-colors group text-left"
                 >
-                  {/* Header Strip */}
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-[var(--line)] pb-3 gap-2 font-mono-ledger text-[11px] uppercase">
-                    <span className="text-[var(--signal)] font-bold flex items-center space-x-1.5">
-                      <span>PROPOSAL SPECIMEN / #{proposal.id?.slice(0, 8) || '0001'}</span>
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 font-mono-ledger text-[11px]">
+                    <span className="text-[var(--signal)] font-bold">
+                      PROPOSAL / #{proposal.id?.slice(0, 8) || '0001'}
                     </span>
 
-                    <div className="flex items-center space-x-3 text-[10px]">
-                      <span>SUBMITTED: {new Date(proposal.createdAt || Date.now()).toLocaleDateString()}</span>
-                      <span className="px-2 py-0.5 border border-[var(--ink)] bg-[var(--paper-2)] font-bold text-[var(--ink)]">
+                    <div className="flex items-center space-x-2">
+                      <span className="text-[var(--muted)]">Submitted: {new Date(proposal.createdAt || Date.now()).toLocaleDateString()}</span>
+                      <span className="text-[var(--ink)] font-bold">
                         [{proposal.status?.toUpperCase() || 'PENDING'}]
                       </span>
                     </div>
                   </div>
 
-                  {/* Body Grid */}
-                  <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-6">
-                    
-                    <div className="space-y-2 max-w-2xl">
+                  <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-4">
+                    <div className="space-y-1 max-w-2xl">
                       <Link href={`/projects/${proposal.projectId}`}>
-                        <h3 className="font-serif-ledger text-[22px] font-medium text-[var(--ink)] leading-snug group-hover:text-[var(--signal)] transition-colors">
+                        <h3 className="font-serif-ledger text-[20px] font-medium text-[var(--ink)] leading-snug group-hover:text-[var(--signal)] transition-colors">
                           {proposal.project?.title || "Project Brief Specimen"}
                         </h3>
                       </Link>
 
                       {proposal.client && (
-                        <p className="font-mono-ledger text-[11px] text-[var(--muted)] uppercase">
-                          CLIENT: {proposal.client.name} {proposal.client.company && `(${proposal.client.company})`}
+                        <p className="font-mono-ledger text-[11px] text-[var(--muted)]">
+                          Client: {proposal.client.name} {proposal.client.company && `(${proposal.client.company})`}
                         </p>
                       )}
 
@@ -238,11 +223,11 @@ export default function MyProposalsPage() {
                       )}
                     </div>
 
-                    <div className="text-left lg:text-right font-mono-ledger space-y-1 shrink-0">
+                    <div className="font-mono-ledger text-left lg:text-right shrink-0 space-y-0.5">
                       {proposal.proposedBudget && (
                         <div>
-                          <span className="text-[10px] text-[var(--muted)] uppercase block">PROPOSED BID (NPR)</span>
-                          <span className="text-[22px] font-bold text-[var(--signal)] block tracking-tight">
+                          <span className="text-[10px] text-[var(--muted)] uppercase block">Proposed Bid (NPR)</span>
+                          <span className="text-[22px] font-bold text-[var(--signal)] block">
                             {formatCurrency(proposal.proposedBudget)}
                           </span>
                         </div>
@@ -250,29 +235,27 @@ export default function MyProposalsPage() {
 
                       {proposal.proposedTimeline && (
                         <span className="text-[11px] text-[var(--ink)] font-bold block">
-                          TIMELINE: {proposal.proposedTimeline}
+                          Timeline: {proposal.proposedTimeline}
                         </span>
                       )}
                     </div>
-
                   </div>
 
-                  {/* Actions Footer */}
-                  <div className="pt-4 border-t border-[var(--line)] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 font-mono-ledger text-[11px]">
+                  <div className="pt-3 border-t border-[var(--line)] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 font-mono-ledger text-[11px]">
                     <Link
                       href={`/projects/${proposal.projectId}`}
-                      className="text-[var(--ink)] hover:text-[var(--signal)] font-bold uppercase underline text-[11px]"
+                      className="text-[var(--ink)] font-bold hover:text-[var(--signal)] underline"
                     >
-                      VIEW PROJECT SPECIMEN BRIEF →
+                      View project brief →
                     </Link>
 
                     {proposal.status === "pending" && (
                       <button
                         onClick={() => handleWithdraw(proposal.id)}
                         disabled={actionLoading[proposal.id] === "withdrawing"}
-                        className="px-4 py-2 border border-[var(--ink)] bg-[var(--paper-2)] text-[var(--signal)] hover:bg-red-50 font-bold uppercase transition-colors"
+                        className="text-[var(--signal)] hover:underline font-bold"
                       >
-                        {actionLoading[proposal.id] === "withdrawing" ? "WITHDRAWING..." : "WITHDRAW PROPOSAL"}
+                        {actionLoading[proposal.id] === "withdrawing" ? "Withdrawing..." : "Withdraw proposal"}
                       </button>
                     )}
                   </div>
@@ -286,9 +269,9 @@ export default function MyProposalsPage() {
       </main>
 
       {/* Editorial Footer */}
-      <footer className="border-t border-[var(--line)] py-6 text-center mt-12 font-mono-ledger text-[12px] text-[var(--muted)]">
+      <footer className="border-t border-[var(--line)] py-6 text-center font-mono-ledger text-[12px] text-[var(--muted)]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 flex flex-col sm:flex-row items-center justify-between gap-2">
-          <span>FreelanceHub · Proposal Register & Bids Archive</span>
+          <span>FreelanceHub · Proposal Register Archetype E</span>
           <span>Engineered by Nantio Studio (www.nantio.it.com)</span>
         </div>
       </footer>

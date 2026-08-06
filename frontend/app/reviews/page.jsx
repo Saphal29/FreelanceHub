@@ -67,7 +67,7 @@ export default function ReviewsPage() {
               <ArrowLeft className="h-3.5 w-3.5" />
               <span>RETURN TO PROFILE SPECIMEN</span>
             </Link>
-            <span className="text-[var(--signal)] font-bold">[VERIFIED REPUTATION]</span>
+            <span className="text-[var(--signal)] font-bold">FREELANCEHUB REGISTER · REPUTATION & REVIEWS</span>
           </div>
 
           <div className="space-y-2">

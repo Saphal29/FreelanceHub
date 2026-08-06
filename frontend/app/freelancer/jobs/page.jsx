@@ -8,16 +8,7 @@ import EmptyState from "@/components/common/EmptyState";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProtectedRoute } from "@/hooks/useProtectedRoute";
 import { getProjects, getProjectCategories } from "@/lib/api";
-import {
-  Search,
-  Filter,
-  Banknote,
-  Clock,
-  Briefcase,
-  AlertCircle,
-  ArrowRight,
-  Tag
-} from "lucide-react";
+import { Search, AlertCircle, Banknote } from "lucide-react";
 import { formatCurrency } from "@/lib/currency";
 
 export default function FindWorkPage() {
@@ -26,7 +17,7 @@ export default function FindWorkPage() {
   const { isAuthorized, isLoading, UnauthorizedUI, LoadingUI } = useProtectedRoute('FREELANCER');
   
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState("All Jobs");
+  const [selectedCategory, setSelectedCategory] = useState("All jobs");
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -34,13 +25,11 @@ export default function FindWorkPage() {
   const [sortBy, setSortBy] = useState("created_at");
   const [sortOrder, setSortOrder] = useState("DESC");
   
-  // Filter states
   const [filters, setFilters] = useState({
     budgetRanges: [],
     durations: [],
   });
 
-  // Load categories from database
   useEffect(() => {
     const loadCategories = async () => {
       try {
@@ -55,7 +44,6 @@ export default function FindWorkPage() {
     loadCategories();
   }, []);
 
-  // Fetch projects
   useEffect(() => {
     if (user && user.role === "FREELANCER") {
       fetchProjects();
@@ -78,7 +66,7 @@ export default function FindWorkPage() {
         params.search = searchQuery.trim();
       }
 
-      if (selectedCategory && selectedCategory !== "All Jobs") {
+      if (selectedCategory && selectedCategory !== "All jobs") {
         params.category = selectedCategory;
       }
 
@@ -87,7 +75,6 @@ export default function FindWorkPage() {
       if (response.success) {
         let fetchedProjects = response.projects || [];
 
-        // Apply budget range filters
         if (filters.budgetRanges.length > 0) {
           fetchedProjects = fetchedProjects.filter(p => {
             const bMin = p.budget_min || p.budgetMin || 0;
@@ -127,7 +114,7 @@ export default function FindWorkPage() {
 
   const clearAllFilters = () => {
     setSearchQuery("");
-    setSelectedCategory("All Jobs");
+    setSelectedCategory("All jobs");
     setSortBy("created_at");
     setSortOrder("DESC");
     setFilters({ budgetRanges: [], durations: [] });
@@ -138,13 +125,8 @@ export default function FindWorkPage() {
     fetchProjects();
   };
 
-  if (authLoading || isLoading) {
-    return <LoadingUI />;
-  }
-
-  if (!isAuthorized) {
-    return <UnauthorizedUI />;
-  }
+  if (authLoading || isLoading) return <LoadingUI />;
+  if (!isAuthorized) return <UnauthorizedUI />;
 
   return (
     <div className="min-h-screen bg-[var(--paper)] text-[var(--ink)] font-sans-ledger selection:bg-[var(--signal)] selection:text-[var(--paper)] flex flex-col justify-between">
@@ -153,13 +135,13 @@ export default function FindWorkPage() {
       <Navbar userType="freelancer" />
 
       {/* Main Container */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 py-8 sm:py-12 space-y-10 flex-1 w-full pb-24 lg:pb-12 text-left">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 py-8 sm:py-12 space-y-8 flex-1 w-full pb-24 lg:pb-12 text-left">
         
         {/* EDITORIAL HEADER */}
         <section className="space-y-4 border-b border-[var(--ink)] pb-8">
           <p className="font-mono-ledger text-[11px] uppercase tracking-[0.08em] text-[var(--muted)] flex items-center space-x-2">
             <span className="w-2 h-2 rounded-full bg-[var(--signal)] inline-block animate-pulse"></span>
-            <span>FREELANCER WORKSPACE · OPEN BRIEF DIRECTORY</span>
+            <span>FREELANCEHUB DIRECTORY · OPEN PROJECT BRIEFS</span>
           </p>
           
           <div className="space-y-2">
@@ -172,50 +154,64 @@ export default function FindWorkPage() {
           </div>
         </section>
 
-        {/* SEARCH BAR & CATEGORIES */}
-        <section className="space-y-6 font-mono-ledger text-[12px]">
+        {/* ARCHETYPE E: THE ONE FILTER BAR */}
+        <section className="border-y border-[var(--ink)] py-3 font-mono-ledger text-[11px] space-y-3">
           
-          {/* Search Bar */}
-          <form onSubmit={handleSearchSubmit} className="flex gap-3">
-            <div className="relative flex-1">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-[var(--muted)]" />
-              <input
-                type="text"
-                placeholder="Search by keywords, required skills, or brief title..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-[var(--paper-2)] border-2 border-[var(--ink)] py-3 pl-11 pr-4 text-[13px] text-[var(--ink)] placeholder-[var(--muted)] focus:outline-none focus:border-[var(--signal)]"
-              />
-            </div>
+          {/* Row 1: Search Bar with Neutral --ink Button */}
+          <form onSubmit={handleSearchSubmit} className="flex gap-2">
+            <input
+              type="text"
+              placeholder="Search by keywords, required skills, or brief title..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="flex-1 bg-[var(--paper-2)] border border-[var(--ink)] p-2.5 text-[12px] text-[var(--ink)] placeholder:[var(--muted)] outline-none"
+            />
             <button
               type="submit"
-              className="bg-[var(--ink)] text-[var(--paper)] font-bold px-6 py-3 hover:bg-[var(--signal)] transition-colors uppercase"
+              className="bg-[var(--ink)] text-[var(--paper)] font-bold px-5 py-2.5 text-[11px] uppercase tracking-wider hover:bg-[var(--signal)] transition-colors shrink-0"
             >
-              SEARCH BRIEFS
+              Search briefs
             </button>
           </form>
 
-          {/* Category Filter Horizontal Pills */}
-          <div className="flex flex-wrap items-center gap-2 border-b border-[var(--line)] pb-4">
-            <span className="text-[var(--muted)] text-[10px] uppercase font-bold mr-2">CATEGORY:</span>
-            {["All Jobs", ...dbCategories.map(c => c.name)].map((cat) => (
-              <button
-                key={cat}
-                onClick={() => setSelectedCategory(cat)}
-                className={`px-3 py-1.5 text-[11px] border transition-colors ${
-                  selectedCategory === cat
-                    ? "bg-[var(--ink)] text-[var(--paper)] border-[var(--ink)] font-bold"
-                    : "bg-[var(--paper-2)] text-[var(--ink)] border-[var(--line)] hover:border-[var(--ink)]"
-                }`}
+          {/* Row 2: Inline Category Tabs */}
+          <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-[var(--muted)] font-bold mr-1 uppercase">Category:</span>
+              {["All jobs", ...dbCategories.map(c => c.name)].map((cat) => (
+                <button
+                  key={cat}
+                  onClick={() => setSelectedCategory(cat)}
+                  className={`px-3 py-1 border transition-colors ${
+                    selectedCategory === cat
+                      ? "bg-[var(--ink)] text-[var(--paper)] border-[var(--ink)] font-bold"
+                      : "bg-[var(--paper)] text-[var(--ink)] border-[var(--line)] hover:border-[var(--ink)]"
+                  }`}
+                >
+                  {cat}
+                </button>
+              ))}
+            </div>
+
+            <div className="flex items-center space-x-2">
+              <span className="text-[var(--muted)] font-bold uppercase">Sort:</span>
+              <select
+                value={sortBy === "created_at" && sortOrder === "DESC" ? "newest" : "oldest"}
+                onChange={(e) => {
+                  if (e.target.value === "newest") { setSortBy("created_at"); setSortOrder("DESC"); }
+                  else { setSortBy("created_at"); setSortOrder("ASC"); }
+                }}
+                className="bg-[var(--paper-2)] border border-[var(--ink)] px-2 py-1 text-[11px] font-mono-ledger outline-none"
               >
-                {cat}
-              </button>
-            ))}
+                <option value="newest">Newest first</option>
+                <option value="oldest">Oldest first</option>
+              </select>
+            </div>
           </div>
 
         </section>
 
-        {/* ERROR NOTIFICATION */}
+        {/* ERROR BANNER */}
         {error && (
           <div className="p-4 bg-red-50 border border-[var(--signal)] text-[var(--signal-dark)] font-mono-ledger text-[12px] flex items-center justify-between">
             <div className="flex items-center space-x-2">
@@ -223,25 +219,20 @@ export default function FindWorkPage() {
               <span>{error}</span>
             </div>
             <button onClick={fetchProjects} className="px-3 py-1 bg-[var(--signal)] text-[var(--paper)] font-bold uppercase hover:bg-[var(--signal-dark)]">
-              RETRY
+              Retry sync
             </button>
           </div>
         )}
 
-        {/* 2-COLUMN LAYOUT: SIDEBAR FILTERS & BRIEFS LIST */}
+        {/* 2-COLUMN LAYOUT: BUDGET SIDEBAR & BRIEF ROWS */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
           
           {/* SIDEBAR FILTERS */}
-          <aside className="lg:col-span-3 space-y-6 font-mono-ledger text-[12px]">
-            
-            {/* Filter Card: Budget Ranges */}
-            <div className="border-2 border-[var(--ink)] bg-[var(--paper-2)] p-5 space-y-3">
-              <div className="flex items-center justify-between border-b border-[var(--line)] pb-2 font-bold uppercase text-[var(--ink)]">
-                <span className="flex items-center gap-1.5">
-                  <Banknote className="h-4 w-4 text-[var(--signal)]" />
-                  <span>BUDGET FILTER</span>
-                </span>
-              </div>
+          <aside className="lg:col-span-3 space-y-4 font-mono-ledger text-[11px]">
+            <div className="border border-[var(--ink)] bg-[var(--paper-2)] p-4 space-y-3">
+              <span className="font-bold text-[var(--ink)] uppercase block border-b border-[var(--line)] pb-2">
+                Budget Filter (NPR)
+              </span>
               <div className="space-y-2 pt-1">
                 {[
                   "Under Rs. 5,000",
@@ -264,73 +255,45 @@ export default function FindWorkPage() {
                 onClick={fetchProjects}
                 className="w-full py-2 bg-[var(--ink)] text-[var(--paper)] font-bold text-[11px] uppercase hover:bg-[var(--signal)] transition-colors mt-2"
               >
-                APPLY BUDGET FILTER
+                Apply budget filter
               </button>
             </div>
 
-            {/* Clear All Filters Button */}
-            {(searchQuery || selectedCategory !== "All Jobs" || filters.budgetRanges.length > 0) && (
+            {(searchQuery || selectedCategory !== "All jobs" || filters.budgetRanges.length > 0) && (
               <button
                 onClick={clearAllFilters}
-                className="w-full py-2.5 border-2 border-[var(--signal)] text-[var(--signal)] font-bold text-[11px] uppercase hover:bg-[var(--signal)] hover:text-[var(--paper)] transition-colors"
+                className="w-full py-2 border border-[var(--signal)] text-[var(--signal)] font-bold text-[11px] uppercase hover:bg-[var(--signal)] hover:text-[var(--paper)] transition-colors"
               >
-                CLEAR ALL FILTERS ×
+                Clear all filters ×
               </button>
             )}
-
           </aside>
 
-          {/* MAIN RESULTS COLUMN */}
-          <div className="lg:col-span-9 space-y-6">
-            
-            {/* Header Result Count & Sort Selector */}
-            <div className="flex items-center justify-between font-mono-ledger text-[12px] border-b border-[var(--ink)] pb-3">
-              <span className="text-[var(--muted)]">
-                SHOWING <strong className="text-[var(--ink)]">{projects.length}</strong> OPEN BRIEF SPECIMENS
-              </span>
-
-              <div className="flex items-center space-x-2">
-                <span className="text-[var(--muted)] uppercase text-[10px]">SORT:</span>
-                <select
-                  value={sortBy === "created_at" && sortOrder === "DESC" ? "newest" : "oldest"}
-                  onChange={(e) => {
-                    if (e.target.value === "newest") { setSortBy("created_at"); setSortOrder("DESC"); }
-                    else { setSortBy("created_at"); setSortOrder("ASC"); }
-                  }}
-                  className="bg-[var(--paper-2)] border border-[var(--ink)] px-3 py-1.5 text-[11px] focus:outline-none"
-                >
-                  <option value="newest">Newest First</option>
-                  <option value="oldest">Oldest First</option>
-                </select>
-              </div>
-            </div>
-
-            {/* BRIEF SPECIMENS LIST */}
+          {/* MAIN RESULTS STREAM */}
+          <div className="lg:col-span-9 space-y-4">
             {loading ? (
-              <div className="space-y-4">
-                {[1, 2, 3, 4].map((n) => (
-                  <div key={n} className="border-2 border-[var(--line)] bg-[var(--paper-2)] h-36 animate-pulse p-6"></div>
-                ))}
+              <div className="space-y-3 font-mono-ledger text-[12px] text-[var(--muted)] py-12 text-center border border-[var(--line)]">
+                LOADING PROJECT BRIEFS...
               </div>
             ) : projects.length === 0 ? (
               <EmptyState
-                marker="BRIEF DIRECTORY"
+                marker="BRIEF DIRECTORY · STATUS: EMPTY"
                 title="No matching project briefs found."
-                description="Try adjusting your search criteria or category filter to discover more client opportunities."
-                actionLabel="RESET ALL FILTERS"
+                description="Try adjusting your search query or category filter to discover available client briefs."
+                actionLabel="Find open projects →"
                 onActionClick={clearAllFilters}
               />
             ) : (
-              <div className="space-y-4">
+              <div className="border border-[var(--ink)] divide-y divide-[var(--line)] bg-[var(--paper)]">
                 {projects.map((project) => (
                   <div
                     key={project.id}
-                    className="border-2 border-[var(--ink)] bg-[var(--paper)] p-6 space-y-4 text-left hover:border-[var(--signal)] transition-colors shadow-xs group"
+                    className="p-5 sm:p-6 space-y-3 hover:bg-[var(--paper-2)] transition-colors group"
                   >
                     <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
                       
-                      <div className="space-y-2 flex-1">
-                        <div className="flex items-center space-x-3 font-mono-ledger text-[10px] uppercase">
+                      <div className="space-y-1.5 flex-1">
+                        <div className="flex items-center space-x-2 font-mono-ledger text-[10px] uppercase">
                           <span className="text-[var(--signal)] font-bold">
                             SPECIMEN / #{project.id?.slice(0, 6) || '0042'}
                           </span>
@@ -340,23 +303,22 @@ export default function FindWorkPage() {
                           </span>
                         </div>
 
-                        <h3 className="font-serif-ledger text-[22px] font-medium text-[var(--ink)] group-hover:text-[var(--signal)] transition-colors leading-snug">
+                        <h3 className="font-serif-ledger text-[20px] font-medium text-[var(--ink)] group-hover:text-[var(--signal)] transition-colors leading-snug">
                           <Link href={`/projects/${project.id}`}>
                             {project.title}
                           </Link>
                         </h3>
 
-                        <p className="font-sans-ledger text-[14px] text-[var(--muted)] line-clamp-2 leading-relaxed">
+                        <p className="font-sans-ledger text-[13px] text-[var(--muted)] line-clamp-2 leading-relaxed">
                           {project.description}
                         </p>
 
-                        {/* Skills Pills */}
                         {project.skills && project.skills.length > 0 && (
-                          <div className="flex flex-wrap gap-1.5 pt-1">
+                          <div className="flex flex-wrap gap-1.5 pt-1 font-mono-ledger text-[10px]">
                             {project.skills.map((skill, idx) => (
                               <span
                                 key={idx}
-                                className="font-mono-ledger text-[10px] uppercase px-2.5 py-0.5 bg-[var(--paper-2)] border border-[var(--line)] text-[var(--ink)]"
+                                className="px-2 py-0.5 bg-[var(--paper-2)] border border-[var(--line)] text-[var(--ink)]"
                               >
                                 {skill}
                               </span>
@@ -365,11 +327,10 @@ export default function FindWorkPage() {
                         )}
                       </div>
 
-                      {/* Right Budget Column */}
                       <div className="sm:text-right space-y-2 shrink-0 font-mono-ledger text-[12px] border-t sm:border-t-0 sm:border-l border-[var(--line)] pt-3 sm:pt-0 sm:pl-6">
-                        <span className="text-[var(--muted)] text-[10px] uppercase block">BUDGET RANGE:</span>
+                        <span className="text-[var(--muted)] text-[10px] uppercase block">Budget (NPR)</span>
                         <div className="font-bold text-[var(--signal)] text-[16px]">
-                          NPR {project.budget_min?.toLocaleString() || project.budgetMin?.toLocaleString() || '10,000'} - {project.budget_max?.toLocaleString() || project.budgetMax?.toLocaleString() || '50,000'}
+                          {formatCurrency(project.budget_min || project.budgetMin || 0)} - {formatCurrency(project.budget_max || project.budgetMax || 0)}
                         </div>
                         <span className="text-[10px] text-[var(--muted)] block">
                           [{project.project_type === 'hourly' ? 'HOURLY RATE' : 'FIXED PRICE'}]
@@ -377,9 +338,9 @@ export default function FindWorkPage() {
 
                         <Link
                           href={`/projects/${project.id}`}
-                          className="inline-flex items-center space-x-1 bg-[var(--ink)] hover:bg-[var(--signal)] text-[var(--paper)] font-bold text-[11px] uppercase tracking-wider px-4 py-2 transition-colors mt-2"
+                          className="inline-block bg-[var(--signal)] hover:bg-[var(--signal-dark)] text-[var(--paper)] font-bold text-[11px] uppercase tracking-wider px-4 py-2 transition-colors mt-2"
                         >
-                          <span>SUBMIT PROPOSAL →</span>
+                          Submit proposal →
                         </Link>
                       </div>
 
@@ -388,17 +349,16 @@ export default function FindWorkPage() {
                 ))}
               </div>
             )}
-
           </div>
 
         </div>
 
       </main>
 
-      {/* Footer */}
-      <footer className="border-t border-[var(--line)] py-6 text-center mt-12 font-mono-ledger text-[12px] text-[var(--muted)]">
+      {/* Editorial Footer */}
+      <footer className="border-t border-[var(--line)] py-6 text-center font-mono-ledger text-[12px] text-[var(--muted)]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 flex flex-col sm:flex-row items-center justify-between gap-2">
-          <span>FreelanceHub · Freelancer Job Finder</span>
+          <span>FreelanceHub · Job Directory Archetype E</span>
           <span>Engineered by Nantio Studio (www.nantio.it.com)</span>
         </div>
       </footer>

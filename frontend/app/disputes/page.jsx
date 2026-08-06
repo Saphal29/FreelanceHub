@@ -7,36 +7,26 @@ import Navbar from "@/components/layout/Navbar";
 import EmptyState from "@/components/common/EmptyState";
 import { useAuth } from "@/contexts/AuthContext";
 import { getDisputes } from "@/lib/api";
-import {
-  AlertCircle,
-  Plus,
-  FileText,
-  Clock,
-  CheckCircle,
-  XCircle,
-  MessageSquare,
-  Paperclip,
-  Filter,
-  ArrowRight
-} from "lucide-react";
+import { AlertCircle } from "lucide-react";
 import { formatCurrency } from "@/lib/currency";
 
-const STATUS_CONFIG = {
-  open: { label: "OPEN", color: "bg-amber-100 text-amber-900 border-amber-300" },
-  under_review: { label: "UNDER REVIEW", color: "bg-blue-100 text-blue-900 border-blue-300" },
-  in_mediation: { label: "IN MEDIATION", color: "bg-purple-100 text-purple-900 border-purple-300" },
-  resolved: { label: "RESOLVED", color: "bg-green-100 text-green-900 border-green-300" },
-  closed: { label: "CLOSED", color: "bg-gray-100 text-gray-800 border-gray-300" },
-};
+const STATUS_TABS = [
+  { id: "", label: "All cases" },
+  { id: "open", label: "Open" },
+  { id: "under_review", label: "Under review" },
+  { id: "in_mediation", label: "In mediation" },
+  { id: "resolved", label: "Resolved" },
+  { id: "closed", label: "Closed" }
+];
 
 const CATEGORY_OPTIONS = [
-  { value: "payment_issue", label: "Payment Issue" },
-  { value: "quality_of_work", label: "Quality of Work" },
-  { value: "missed_deadline", label: "Missed Deadline" },
-  { value: "scope_disagreement", label: "Scope Disagreement" },
-  { value: "communication_issue", label: "Communication Issue" },
-  { value: "contract_breach", label: "Contract Breach" },
-  { value: "other", label: "Other" },
+  { value: "payment_issue", label: "Payment issue" },
+  { value: "quality_of_work", label: "Quality of work" },
+  { value: "missed_deadline", label: "Missed deadline" },
+  { value: "scope_disagreement", label: "Scope disagreement" },
+  { value: "communication_issue", label: "Communication issue" },
+  { value: "contract_breach", label: "Contract breach" },
+  { value: "other", label: "Other" }
 ];
 
 export default function DisputesPage() {
@@ -94,13 +84,13 @@ export default function DisputesPage() {
       <Navbar userType={userType} />
 
       {/* Main Container */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 py-8 sm:py-12 space-y-10 flex-1 w-full pb-24 lg:pb-12 text-left">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 py-8 sm:py-12 space-y-8 flex-1 w-full pb-24 lg:pb-12 text-left">
         
         {/* EDITORIAL HEADER */}
         <section className="space-y-4 border-b border-[var(--ink)] pb-8">
           <p className="font-mono-ledger text-[11px] uppercase tracking-[0.08em] text-[var(--muted)] flex items-center space-x-2">
             <span className="w-2 h-2 rounded-full bg-[var(--signal)] inline-block animate-pulse"></span>
-            <span>FREELANCEHUB AUDIT · DISPUTE & MEDIATION REGISTER</span>
+            <span>FREELANCEHUB REGISTER · DISPUTE & MEDIATION</span>
           </p>
           
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
@@ -115,41 +105,41 @@ export default function DisputesPage() {
 
             <Link 
               href="/disputes/file" 
-              className="bg-[var(--signal)] hover:bg-[var(--signal-dark)] text-[var(--paper)] font-mono-ledger font-bold text-[12px] uppercase tracking-wider px-5 py-3 transition-colors inline-flex items-center space-x-2 shrink-0 shadow-xs"
+              className="bg-[var(--signal)] hover:bg-[var(--signal-dark)] text-[var(--paper)] font-mono-ledger font-bold text-[12px] uppercase tracking-wider px-5 py-3 transition-colors inline-flex items-center space-x-2 shrink-0"
             >
-              <span>FILE NEW DISPUTE RECORD →</span>
+              <span>File a dispute →</span>
             </Link>
           </div>
         </section>
 
-
-        {/* FILTERS BAR */}
-        <section className="border-2 border-[var(--ink)] bg-[var(--paper-2)] p-4 font-mono-ledger text-[12px] space-y-3">
-          <span className="font-bold text-[var(--ink)] uppercase text-[11px] block">FILTER DISPUTE RECORDS</span>
-          
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="space-y-1">
-              <label className="text-[10px] text-[var(--muted)] uppercase font-bold block">STATUS</label>
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="w-full bg-[var(--paper)] border border-[var(--ink)] p-2.5 text-[12px] focus:outline-none"
-              >
-                <option value="">ALL STATUSES</option>
-                {Object.entries(STATUS_CONFIG).map(([val, cfg]) => (
-                  <option key={val} value={val}>{cfg.label}</option>
-                ))}
-              </select>
+        {/* ARCHETYPE E: THE ONE FILTER BAR */}
+        <section className="border-y border-[var(--ink)] py-3 font-mono-ledger text-[11px]">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-[var(--muted)] font-bold mr-2 uppercase">Status:</span>
+              {STATUS_TABS.map((t) => (
+                <button
+                  key={t.id}
+                  onClick={() => setStatusFilter(t.id)}
+                  className={`px-3 py-1.5 border transition-colors ${
+                    statusFilter === t.id
+                      ? "bg-[var(--ink)] text-[var(--paper)] border-[var(--ink)] font-bold"
+                      : "bg-[var(--paper)] text-[var(--ink)] border-[var(--line)] hover:border-[var(--ink)]"
+                  }`}
+                >
+                  {t.label}
+                </button>
+              ))}
             </div>
 
-            <div className="space-y-1">
-              <label className="text-[10px] text-[var(--muted)] uppercase font-bold block">CATEGORY</label>
+            <div className="flex items-center space-x-2">
+              <span className="text-[var(--muted)] font-bold uppercase">Category:</span>
               <select
                 value={categoryFilter}
                 onChange={(e) => setCategoryFilter(e.target.value)}
-                className="w-full bg-[var(--paper)] border border-[var(--ink)] p-2.5 text-[12px] focus:outline-none"
+                className="bg-[var(--paper-2)] border border-[var(--ink)] px-3 py-1 text-[11px] font-mono-ledger outline-none"
               >
-                <option value="">ALL CATEGORIES</option>
+                <option value="">All categories</option>
                 {CATEGORY_OPTIONS.map((cat) => (
                   <option key={cat.value} value={cat.value}>{cat.label}</option>
                 ))}
@@ -157,7 +147,6 @@ export default function DisputesPage() {
             </div>
           </div>
         </section>
-
 
         {/* NOTIFICATIONS */}
         {error && (
@@ -167,52 +156,46 @@ export default function DisputesPage() {
           </div>
         )}
 
-
-        {/* DISPUTES SPECIMEN STREAM */}
-        <section className="space-y-6">
+        {/* DISPUTES REGISTER ROWS */}
+        <section className="space-y-4">
           {loading ? (
-            <div className="space-y-4">
-              {[1, 2, 3].map((n) => (
-                <div key={n} className="border-2 border-[var(--line)] bg-[var(--paper-2)] h-36 animate-pulse p-6"></div>
-              ))}
+            <div className="space-y-3 font-mono-ledger text-[12px] text-[var(--muted)] py-12 text-center border border-[var(--line)]">
+              LOADING DISPUTE REGISTER...
             </div>
           ) : disputes.length === 0 ? (
             <EmptyState
-              marker="DISPUTE REGISTER"
+              marker="DISPUTE REGISTER · STATUS: EMPTY"
               title="No formal dispute records found."
-              description={statusFilter || categoryFilter ? "No disputes matched your filter selection." : "You currently have no active or historical contract disputes on record."}
-              actionLabel="FILE DISPUTE RECORD →"
+              description={statusFilter || categoryFilter ? "No disputes matched your current filter criteria." : "You currently have no active or historical contract disputes on record."}
+              actionLabel="File a dispute →"
               actionHref="/disputes/file"
             />
           ) : (
-            <div className="space-y-6">
+            <div className="border border-[var(--ink)] divide-y divide-[var(--line)] bg-[var(--paper)]">
               {disputes.map((dispute) => {
-                const statusCfg = STATUS_CONFIG[dispute.status] || STATUS_CONFIG.open;
                 const isFiledByUser = dispute.filedBy === user?.id;
 
                 return (
                   <Link key={dispute.id} href={`/disputes/${dispute.id}`} className="block group">
-                    <div className="border-2 border-[var(--ink)] bg-[var(--paper)] p-6 space-y-4 text-left hover:border-[var(--signal)] transition-colors shadow-xs">
+                    <div className="p-5 sm:p-6 space-y-3 hover:bg-[var(--paper-2)] transition-colors text-left">
                       
-                      {/* Header */}
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-[var(--line)] pb-3 gap-2 font-mono-ledger text-[11px] uppercase">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 font-mono-ledger text-[11px]">
                         <span className="text-[var(--signal)] font-bold">
-                          DISPUTE SPECIMEN / #{dispute.id?.slice(0, 8) || '0001'}
+                          CASE / #{dispute.id?.slice(0, 8) || '0001'}
                         </span>
 
-                        <div className="flex items-center space-x-3 text-[10px]">
-                          <span className={`px-2 py-0.5 border font-bold ${statusCfg.color}`}>
-                            [{statusCfg.label}]
-                          </span>
+                        <div className="flex items-center space-x-2">
                           <span className="text-[var(--ink)] font-bold">
+                            [{dispute.status?.replace('_', ' ')?.toUpperCase() || 'OPEN'}]
+                          </span>
+                          <span className="text-[var(--muted)]">
                             [{dispute.category?.replace("_", " ")?.toUpperCase()}]
                           </span>
                         </div>
                       </div>
 
-                      {/* Content */}
-                      <div className="space-y-2">
-                        <h3 className="font-serif-ledger text-[22px] font-medium text-[var(--ink)] leading-snug group-hover:text-[var(--signal)] transition-colors">
+                      <div className="space-y-1">
+                        <h3 className="font-serif-ledger text-[20px] font-medium text-[var(--ink)] leading-snug group-hover:text-[var(--signal)] transition-colors">
                           {dispute.title}
                         </h3>
                         <p className="font-sans-ledger text-[13px] text-[var(--muted)] line-clamp-2 leading-relaxed">
@@ -220,21 +203,20 @@ export default function DisputesPage() {
                         </p>
                       </div>
 
-                      {/* Footer Details */}
                       <div className="pt-3 border-t border-[var(--line)] flex flex-wrap items-center justify-between gap-4 font-mono-ledger text-[11px]">
-                        <div className="flex flex-wrap items-center gap-3 text-[10px] text-[var(--muted)]">
-                          <span>PROJECT: <strong className="text-[var(--ink)]">{dispute.projectTitle}</strong></span>
-                          <span>•</span>
-                          <span>FILED: {isFiledByUser ? "BY YOU" : `BY ${dispute.filedByName?.toUpperCase() || 'PARTICIPANT'}`}</span>
-                          <span>•</span>
-                          <span>DATE: {new Date(dispute.createdAt || Date.now()).toLocaleDateString()}</span>
+                        <div className="flex flex-wrap items-center gap-2 text-[10px] text-[var(--muted)]">
+                          <span>Project: <strong className="text-[var(--ink)]">{dispute.projectTitle}</strong></span>
+                          <span>·</span>
+                          <span>Filed: {isFiledByUser ? "by you" : `by ${dispute.filedByName || 'participant'}`}</span>
+                          <span>·</span>
+                          <span>Date: {new Date(dispute.createdAt || Date.now()).toLocaleDateString()}</span>
                         </div>
 
-                        <div className="flex items-center space-x-4 text-[11px] font-bold text-[var(--signal)]">
+                        <div className="flex items-center space-x-3 text-[11px] font-bold text-[var(--signal)]">
                           {dispute.amountDisputed && (
-                            <span>NPR {dispute.amountDisputed.toLocaleString()} DISPUTED</span>
+                            <span>{formatCurrency(dispute.amountDisputed)} DISPUTED</span>
                           )}
-                          <span>OPEN MEDIATION LOG →</span>
+                          <span>Open case log →</span>
                         </div>
                       </div>
 
@@ -249,9 +231,9 @@ export default function DisputesPage() {
       </main>
 
       {/* Editorial Footer */}
-      <footer className="border-t border-[var(--line)] py-6 text-center mt-12 font-mono-ledger text-[12px] text-[var(--muted)]">
+      <footer className="border-t border-[var(--line)] py-6 text-center font-mono-ledger text-[12px] text-[var(--muted)]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 flex flex-col sm:flex-row items-center justify-between gap-2">
-          <span>FreelanceHub · Formal Dispute & Mediation Register</span>
+          <span>FreelanceHub · Dispute Register Archetype E</span>
           <span>Engineered by Nantio Studio (www.nantio.it.com)</span>
         </div>
       </footer>

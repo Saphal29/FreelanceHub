@@ -101,7 +101,7 @@ export default function ProjectsIndexPage() {
         <section className="space-y-4 text-left border-b border-[var(--ink)] pb-8">
           <p className="font-mono-ledger text-[11px] uppercase tracking-[0.08em] text-[var(--muted)] flex items-center space-x-2">
             <span className="w-2 h-2 rounded-full bg-[var(--signal)] inline-block animate-pulse"></span>
-            <span>FREELANCEHUB ARCHIVE · OPEN PROJECT BRIEFS</span>
+            <span>FREELANCEHUB DIRECTORY · OPEN PROJECT BRIEFS</span>
           </p>
           
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
@@ -117,9 +117,9 @@ export default function ProjectsIndexPage() {
             {user?.role === 'CLIENT' && (
               <Link 
                 href="/client/post-project" 
-                className="bg-[var(--signal)] hover:bg-[var(--signal-dark)] text-[var(--paper)] font-mono-ledger font-bold text-[12px] uppercase tracking-wider px-5 py-3 transition-colors inline-flex items-center space-x-2 shrink-0 shadow-xs"
+                className="bg-[var(--signal)] hover:bg-[var(--signal-dark)] text-[var(--paper)] font-mono-ledger font-bold text-[12px] uppercase tracking-wider px-5 py-3 transition-colors inline-flex items-center space-x-2 shrink-0"
               >
-                <span>POST A NEW BRIEF →</span>
+                <span>Post a project brief →</span>
               </Link>
             )}
           </div>

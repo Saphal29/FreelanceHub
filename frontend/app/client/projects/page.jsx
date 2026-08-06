@@ -4,149 +4,11 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Navbar from "@/components/layout/Navbar";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import EmptyState from "@/components/common/EmptyState";
 import { useAuth } from "@/contexts/AuthContext";
 import { getMyProjects, updateProject, deleteProject } from "@/lib/api";
-import { 
-  Search, 
-  Clock,
-  Banknote,
-  MapPin,
-  Filter,
-  ChevronDown,
-  Calendar,
-  Users,
-  Briefcase,
-  AlertCircle,
-  Plus,
-  Edit,
-  Trash2,
-  Send,
-  MoreVertical
-} from "lucide-react";
-import { Pagination } from "@/components/ui/pagination";
+import { AlertCircle, CheckCircle2 } from "lucide-react";
 import { formatCurrency } from "@/lib/currency";
-
-// Dummy project data (fallback)
-const dummyProjects = [
-  {
-    id: "1",
-    title: "E-commerce Website Development with React",
-    description: "Looking for an experienced React developer to build a modern e-commerce platform with payment integration, product management, and user authentication.",
-    budget: { min: 3000, max: 5000 },
-    duration: "2-3 months",
-    postedDate: "2 days ago",
-    proposals: 12,
-    category: "Web Development",
-    skills: ["React", "Node.js", "MongoDB", "Stripe", "AWS"],
-    experienceLevel: "Expert",
-    projectType: "Fixed Price",
-    client: {
-      name: "TechStart Inc",
-      location: "San Francisco, USA",
-      jobsPosted: 15,
-      hireRate: 87
-    }
-  },
-  {
-    id: "2",
-    title: "Mobile App UI/UX Design for Fitness Platform",
-    description: "Need a talented UI/UX designer to create modern, user-friendly designs for our fitness tracking mobile app. Must include wireframes and high-fidelity mockups.",
-    budget: { min: 1500, max: 2500 },
-    duration: "3-4 weeks",
-    postedDate: "5 hours ago",
-    proposals: 8,
-    category: "Design",
-    skills: ["Figma", "UI Design", "Mobile Design", "Prototyping"],
-    experienceLevel: "Intermediate",
-    projectType: "Fixed Price",
-    client: {
-      name: "FitLife Solutions",
-      location: "New York, USA",
-      jobsPosted: 8,
-      hireRate: 92
-    }
-  },
-  {
-    id: "3",
-    title: "SEO Optimization and Content Marketing Strategy",
-    description: "Seeking an SEO expert to improve our website rankings and develop a comprehensive content marketing strategy. Must have proven track record.",
-    budget: { min: 2000, max: 3500 },
-    duration: "1-2 months",
-    postedDate: "1 day ago",
-    proposals: 15,
-    category: "Marketing",
-    skills: ["SEO", "Content Strategy", "Google Analytics", "Link Building"],
-    experienceLevel: "Expert",
-    projectType: "Fixed Price",
-    client: {
-      name: "Digital Growth Co",
-      location: "London, UK",
-      jobsPosted: 23,
-      hireRate: 95
-    }
-  },
-  {
-    id: "4",
-    title: "Python Data Analysis and Visualization Dashboard",
-    description: "Need a data scientist to analyze sales data and create interactive dashboards using Python, Pandas, and visualization libraries.",
-    budget: { min: 1000, max: 2000 },
-    duration: "2-3 weeks",
-    postedDate: "3 days ago",
-    proposals: 10,
-    category: "Data Science",
-    skills: ["Python", "Pandas", "Data Visualization", "Tableau", "SQL"],
-    experienceLevel: "Intermediate",
-    projectType: "Fixed Price",
-    client: {
-      name: "Analytics Pro",
-      location: "Toronto, Canada",
-      jobsPosted: 12,
-      hireRate: 88
-    }
-  },
-  {
-    id: "5",
-    title: "WordPress Website Redesign and Optimization",
-    description: "Looking to redesign our existing WordPress site with modern design, improve loading speed, and implement SEO best practices.",
-    budget: { min: 800, max: 1500 },
-    duration: "2-4 weeks",
-    postedDate: "1 week ago",
-    proposals: 18,
-    category: "Web Development",
-    skills: ["WordPress", "PHP", "CSS", "SEO", "Page Speed"],
-    experienceLevel: "Intermediate",
-    projectType: "Fixed Price",
-    client: {
-      name: "Small Business Hub",
-      location: "Austin, USA",
-      jobsPosted: 5,
-      hireRate: 80
-    }
-  },
-  {
-    id: "6",
-    title: "Social Media Content Creation and Management",
-    description: "Need a creative content creator to manage our social media accounts, create engaging posts, and grow our online presence.",
-    budget: { min: 500, max: 1000 },
-    duration: "Ongoing",
-    postedDate: "4 days ago",
-    proposals: 22,
-    category: "Marketing",
-    skills: ["Social Media", "Content Creation", "Copywriting", "Canva", "Instagram"],
-    experienceLevel: "Entry Level",
-    projectType: "Hourly",
-    client: {
-      name: "Fashion Boutique",
-      location: "Los Angeles, USA",
-      jobsPosted: 3,
-      hireRate: 75
-    }
-  }
-];
 
 export default function BrowseProjectsPage() {
   const router = useRouter();
@@ -158,19 +20,13 @@ export default function BrowseProjectsPage() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [actionLoading, setActionLoading] = useState({});
   const [successMessage, setSuccessMessage] = useState("");
-  
-  // Pagination states
-  const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(4);
 
-  // Redirect if not authenticated or not a client
   useEffect(() => {
     if (!authLoading && (!user || user.role !== "CLIENT")) {
       router.push("/login");
     }
   }, [user, authLoading, router]);
 
-  // Fetch projects
   useEffect(() => {
     const fetchProjects = async () => {
       if (!user || user.role !== "CLIENT") return;
@@ -189,11 +45,11 @@ export default function BrowseProjectsPage() {
         if (response.success) {
           setProjects(response.projects || []);
         } else {
-          setError(response.error || "Failed to load projects");
+          setError(response.error || "Failed to load project register.");
         }
       } catch (err) {
         console.error("Error fetching projects:", err);
-        setError(err.message || "Failed to load projects");
+        setError(err.message || "Failed to load project register.");
       } finally {
         setLoading(false);
       }
@@ -204,11 +60,8 @@ export default function BrowseProjectsPage() {
     }
   }, [user, authLoading, statusFilter]);
 
-  // Handle publish draft
   const handlePublish = async (projectId) => {
-    if (!confirm("Are you sure you want to publish this project? It will become visible to freelancers.")) {
-      return;
-    }
+    if (!confirm("Are you sure you want to publish this project? It will become visible to freelancers.")) return;
 
     try {
       setActionLoading({ ...actionLoading, [projectId]: "publishing" });
@@ -219,11 +72,9 @@ export default function BrowseProjectsPage() {
 
       if (response.success) {
         setSuccessMessage("Project published successfully!");
-        // Update the project in the list
         setProjects(projects.map(p => 
           p.id === projectId ? { ...p, status: "active" } : p
         ));
-        // Clear success message after 3 seconds
         setTimeout(() => setSuccessMessage(""), 3000);
       } else {
         setError(response.error || "Failed to publish project");
@@ -236,11 +87,8 @@ export default function BrowseProjectsPage() {
     }
   };
 
-  // Handle delete project
   const handleDelete = async (projectId) => {
-    if (!confirm("Are you sure you want to delete this project? This action cannot be undone.")) {
-      return;
-    }
+    if (!confirm("Are you sure you want to delete this project? This action cannot be undone.")) return;
 
     try {
       setActionLoading({ ...actionLoading, [projectId]: "deleting" });
@@ -251,9 +99,7 @@ export default function BrowseProjectsPage() {
 
       if (response.success) {
         setSuccessMessage("Project deleted successfully!");
-        // Remove the project from the list
         setProjects(projects.filter(p => p.id !== projectId));
-        // Clear success message after 3 seconds
         setTimeout(() => setSuccessMessage(""), 3000);
       } else {
         setError(response.error || "Failed to delete project");
@@ -266,375 +112,228 @@ export default function BrowseProjectsPage() {
     }
   };
 
-  // Filter projects by search query
   const filteredProjects = projects.filter((project) => {
     if (!searchQuery) return true;
     const query = searchQuery.toLowerCase();
     return (
-      project.title.toLowerCase().includes(query) ||
-      project.description.toLowerCase().includes(query) ||
-      project.skills.some((skill) => skill.toLowerCase().includes(query))
+      project.title?.toLowerCase().includes(query) ||
+      project.description?.toLowerCase().includes(query) ||
+      project.skills?.some((skill) => skill.toLowerCase().includes(query))
     );
-  });
-  
-  console.log('Render state:', { 
-    totalProjects: projects.length, 
-    filteredProjects: filteredProjects.length,
-    statusFilter,
-    searchQuery 
   });
 
   if (authLoading || (loading && projects.length === 0)) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
+      <div className="min-h-screen bg-[var(--paper)] flex items-center justify-center font-mono-ledger">
+        <p className="text-[12px] text-[var(--muted)] uppercase">LOADING CLIENT REGISTER...</p>
       </div>
     );
   }
 
-  if (!user || user.role !== "CLIENT") {
-    return null;
-  }
+  if (!user || user.role !== "CLIENT") return null;
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-[var(--paper)] text-[var(--ink)] font-sans-ledger selection:bg-[var(--signal)] selection:text-[var(--paper)] flex flex-col justify-between">
+      
+      {/* Top Navbar */}
       <Navbar userType="client" />
 
-      {/* Hero Section */}
-      <section className="border-b border-border bg-gradient-hero py-12">
-        <div className="container mx-auto px-4">
-          <div className="flex items-start justify-between gap-8">
-            <div className="flex-1">
-              <h1 className="font-display text-4xl font-bold tracking-tight text-foreground sm:text-5xl mb-4">
-                My <span className="text-gradient-gold">Projects</span>
+      {/* Main Container */}
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 py-8 sm:py-12 space-y-8 flex-1 w-full pb-24 lg:pb-12 text-left">
+        
+        {/* EDITORIAL HEADER */}
+        <section className="space-y-4 border-b border-[var(--ink)] pb-8">
+          <p className="font-mono-ledger text-[11px] uppercase tracking-[0.08em] text-[var(--muted)] flex items-center space-x-2">
+            <span className="w-2 h-2 rounded-full bg-[var(--signal)] inline-block animate-pulse"></span>
+            <span>FREELANCEHUB REGISTER · CLIENT PROJECTS</span>
+          </p>
+          
+          <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+            <div className="space-y-2">
+              <h1 className="font-serif-ledger text-[38px] sm:text-[50px] leading-[1.05] font-medium tracking-tight text-[var(--ink)]">
+                My Projects.
               </h1>
-              <p className="text-lg text-muted-foreground">
-                Manage your posted projects and track their progress
+              <p className="text-[15px] text-[var(--muted)] max-w-xl">
+                Manage your posted project briefs, track incoming freelancer proposals, and publish draft specifications.
               </p>
             </div>
 
-            {/* Search Bar */}
-            <div className="w-full max-w-md">
-              <div className="relative">
-                <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  type="search"
-                  placeholder="Search projects..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="h-12 w-full rounded-xl border-border bg-card pl-12 pr-4 text-base"
-                />
-              </div>
+            <Link 
+              href="/client/post-project" 
+              className="bg-[var(--signal)] hover:bg-[var(--signal-dark)] text-[var(--paper)] font-mono-ledger font-bold text-[12px] uppercase tracking-wider px-5 py-3 transition-colors inline-flex items-center space-x-2 shrink-0"
+            >
+              <span>Post a project brief →</span>
+            </Link>
+          </div>
+        </section>
+
+        {/* ARCHETYPE E: THE ONE FILTER BAR */}
+        <section className="border-y border-[var(--ink)] py-3 font-mono-ledger text-[11px] space-y-3">
+          
+          <form onSubmit={(e) => e.preventDefault()} className="flex gap-2">
+            <input
+              type="text"
+              placeholder="Search posted project briefs by title or skill..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="flex-1 bg-[var(--paper-2)] border border-[var(--ink)] p-2.5 text-[12px] text-[var(--ink)] placeholder:[var(--muted)] outline-none"
+            />
+          </form>
+
+          <div className="flex flex-wrap items-center justify-between gap-4 pt-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-[var(--muted)] font-bold mr-2 uppercase">Status:</span>
+              {[
+                { id: "all", label: "All" },
+                { id: "draft", label: "Draft" },
+                { id: "active", label: "Active" },
+                { id: "in_progress", label: "In progress" },
+                { id: "completed", label: "Completed" },
+                { id: "cancelled", label: "Cancelled" }
+              ].map((t) => (
+                <button
+                  key={t.id}
+                  onClick={() => setStatusFilter(t.id)}
+                  className={`px-3 py-1.5 border transition-colors ${
+                    statusFilter === t.id
+                      ? "bg-[var(--ink)] text-[var(--paper)] border-[var(--ink)] font-bold"
+                      : "bg-[var(--paper)] text-[var(--ink)] border-[var(--line)] hover:border-[var(--ink)]"
+                  }`}
+                >
+                  {t.label}
+                </button>
+              ))}
+            </div>
+
+            <div className="text-[var(--muted)] text-[11px]">
+              Showing {filteredProjects.length} project record{filteredProjects.length === 1 ? '' : 's'}
             </div>
           </div>
-        </div>
-      </section>
 
-      {/* Filters Section */}
-      <section className="border-b border-border bg-card py-4">
-        <div className="container mx-auto px-4">
-          <div className="flex flex-wrap items-center gap-3">
-            <Button 
-              variant={statusFilter === "all" ? "accent" : "outline"} 
-              size="sm"
-              onClick={() => setStatusFilter("all")}
-            >
-              All
-            </Button>
-            <Button 
-              variant={statusFilter === "draft" ? "accent" : "outline"} 
-              size="sm"
-              onClick={() => setStatusFilter("draft")}
-            >
-              Draft
-            </Button>
-            <Button 
-              variant={statusFilter === "active" ? "accent" : "outline"} 
-              size="sm"
-              onClick={() => setStatusFilter("active")}
-            >
-              Active
-            </Button>
-            <Button 
-              variant={statusFilter === "in_progress" ? "accent" : "outline"} 
-              size="sm"
-              onClick={() => setStatusFilter("in_progress")}
-            >
-              In Progress
-            </Button>
-            <Button 
-              variant={statusFilter === "completed" ? "accent" : "outline"} 
-              size="sm"
-              onClick={() => setStatusFilter("completed")}
-            >
-              Completed
-            </Button>
-            <Button 
-              variant={statusFilter === "cancelled" ? "accent" : "outline"} 
-              size="sm"
-              onClick={() => setStatusFilter("cancelled")}
-            >
-              Cancelled
-            </Button>
+        </section>
+
+        {/* NOTIFICATIONS */}
+        {error && (
+          <div className="p-4 bg-red-50 border border-[var(--signal)] text-[var(--signal-dark)] font-mono-ledger text-[12px] flex items-center space-x-2">
+            <AlertCircle className="h-4 w-4 text-[var(--signal)] shrink-0" />
+            <span>{error}</span>
           </div>
-        </div>
-      </section>
+        )}
 
-      {/* Results Section */}
-      <section className="py-8">
-        <div className="container mx-auto px-4">
-          {/* Error Message */}
-          {error && (
-            <Alert className="mb-6 border-2 border-red-200 bg-red-50">
-              <AlertCircle className="h-5 w-5 text-red-600" />
-              <AlertDescription className="text-red-800 font-semibold">
-                {error}
-              </AlertDescription>
-            </Alert>
-          )}
-
-          {/* Success Message */}
-          {successMessage && (
-            <Alert className="mb-6 border-2 border-green-200 bg-green-50">
-              <AlertCircle className="h-5 w-5 text-green-600" />
-              <AlertDescription className="text-green-800 font-semibold">
-                {successMessage}
-              </AlertDescription>
-            </Alert>
-          )}
-
-          <div className="mb-6 flex items-center justify-between">
-            <p className="text-muted-foreground">
-              {filteredProjects.length} project{filteredProjects.length !== 1 ? "s" : ""} found
-            </p>
+        {successMessage && (
+          <div className="p-4 bg-[var(--paper-2)] border border-[var(--signal)] text-[var(--ink)] font-mono-ledger text-[12px] flex items-center space-x-2">
+            <CheckCircle2 className="h-4 w-4 text-[var(--signal)] shrink-0" />
+            <span className="font-bold">{successMessage}</span>
           </div>
+        )}
 
-          {/* Loading State */}
-          {loading && (
-            <div className="flex items-center justify-center py-12">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-accent"></div>
+        {/* CLIENT PROJECTS ROWS */}
+        <section className="space-y-4">
+          {loading ? (
+            <div className="space-y-3 font-mono-ledger text-[12px] text-[var(--muted)] py-12 text-center border border-[var(--line)]">
+              LOADING PROJECT REGISTER...
             </div>
-          )}
+          ) : filteredProjects.length === 0 ? (
+            <EmptyState
+              marker="CLIENT REGISTER · STATUS: EMPTY"
+              title="No project briefs found."
+              description="Get started by posting your first project brief to receive proposals from verified talent across Nepal."
+              actionLabel="Post a project brief →"
+              actionHref="/client/post-project"
+            />
+          ) : (
+            <div className="border border-[var(--ink)] divide-y divide-[var(--line)] bg-[var(--paper)]">
+              {filteredProjects.map((project) => (
+                <div
+                  key={project.id}
+                  className="p-5 sm:p-6 space-y-3 hover:bg-[var(--paper-2)] transition-colors text-left group"
+                >
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 font-mono-ledger text-[11px]">
+                    <span className="text-[var(--signal)] font-bold">
+                      PROJECT / #{project.id?.slice(0, 8) || '0001'}
+                    </span>
 
-          {/* Empty State */}
-          {!loading && filteredProjects.length === 0 && (
-            <div className="rounded-2xl border border-border bg-card p-12 text-center">
-              <Briefcase className="mx-auto h-12 w-12 text-muted-foreground" />
-              <h3 className="mt-4 font-display text-xl font-semibold text-foreground">
-                No projects found
-              </h3>
-              <p className="mt-2 text-muted-foreground">
-                {searchQuery
-                  ? "Try adjusting your search query"
-                  : "Get started by posting your first project"}
-              </p>
-              {!searchQuery && (
-                <Link href="/client/post-project">
-                  <Button variant="accent" className="mt-6">
-                    <Plus className="h-4 w-4 mr-2" />
-                    Post a Project
-                  </Button>
-                </Link>
-              )}
-            </div>
-          )}
+                    <div className="flex items-center space-x-2">
+                      <span className="text-[var(--muted)]">Proposals: {project.proposalsCount || 0}</span>
+                      <span>·</span>
+                      <span className="text-[var(--ink)] font-bold">
+                        [{project.status?.replace("_", " ")?.toUpperCase() || 'DRAFT'}]
+                      </span>
+                    </div>
+                  </div>
 
-          {/* Projects List */}
-          <div className="grid gap-4 md:grid-cols-2">
-            {filteredProjects
-              .slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
-              .map((project) => (
-              <Card
-                key={project.id}
-                className="border-border hover:shadow-lg transition-shadow cursor-pointer"
-                onClick={() => router.push(`/client/projects/${project.id}`)}
-              >
-                <CardHeader>
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex-1">
-                      <CardTitle className="font-display text-lg">
-                        {project.title}
-                      </CardTitle>
-                      <p className="text-sm text-muted-foreground mt-1">
-                        Project #{project.id.slice(0, 8)}
+                  <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-4">
+                    <div className="space-y-1 max-w-2xl">
+                      <Link href={`/client/projects/${project.id}`}>
+                        <h3 className="font-serif-ledger text-[20px] font-medium text-[var(--ink)] leading-snug group-hover:text-[var(--signal)] transition-colors">
+                          {project.title}
+                        </h3>
+                      </Link>
+
+                      <p className="font-sans-ledger text-[13px] text-[var(--muted)] line-clamp-2 leading-relaxed">
+                        {project.description}
                       </p>
                     </div>
-                    <div className="flex items-center gap-2">
-                      {/* Edit Button for active/in_progress projects */}
-                      {(project.status === "active" || project.status === "in_progress" || project.status === "draft") && (
-                        <Link 
-                          href={`/client/post-project?edit=${project.id}`}
-                          onClick={(e) => e.stopPropagation()}
+
+                    <div className="font-mono-ledger text-left lg:text-right shrink-0 space-y-0.5">
+                      <span className="text-[10px] text-[var(--muted)] uppercase block">Budget (NPR)</span>
+                      <span className="text-[22px] font-bold text-[var(--signal)] block">
+                        {formatCurrency(project.budget?.min || 0)} - {formatCurrency(project.budget?.max || 0)}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="pt-3 border-t border-[var(--line)] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 font-mono-ledger text-[11px]">
+                    <span className="text-[var(--muted)] text-[10px]">
+                      Posted: {new Date(project.createdAt || Date.now()).toLocaleDateString()}
+                    </span>
+
+                    <div className="flex items-center space-x-4">
+                      <Link
+                        href={`/client/post-project?edit=${project.id}`}
+                        className="text-[var(--ink)] font-bold hover:text-[var(--signal)] underline"
+                      >
+                        Edit specification →
+                      </Link>
+
+                      {project.status === "draft" && (
+                        <button
+                          onClick={() => handlePublish(project.id)}
+                          disabled={actionLoading[project.id] === "publishing"}
+                          className="bg-[var(--signal)] hover:bg-[var(--signal-dark)] text-[var(--paper)] font-bold px-3 py-1.5 text-[11px] uppercase transition-colors"
                         >
-                          <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                        </Link>
+                          {actionLoading[project.id] === "publishing" ? "Publishing..." : "Publish brief →"}
+                        </button>
                       )}
-                      {/* Status Badge */}
-                      <div className={`rounded-full px-3 py-1 text-xs font-medium whitespace-nowrap ${
-                        project.status === "active" ? "bg-green-100 text-green-700" :
-                        project.status === "draft" ? "bg-gray-100 text-gray-700" :
-                        project.status === "in_progress" ? "bg-blue-100 text-blue-700" :
-                        project.status === "completed" ? "bg-purple-100 text-purple-700" :
-                        "bg-red-100 text-red-700"
-                      }`}>
-                        {project.status.replace("_", " ").toUpperCase()}
-                      </div>
+
+                      {(project.status === "draft" || (project.status === "active" && project.proposalsCount === 0)) && (
+                        <button
+                          onClick={() => handleDelete(project.id)}
+                          disabled={actionLoading[project.id] === "deleting"}
+                          className="text-[var(--signal)] font-bold hover:underline"
+                        >
+                          {actionLoading[project.id] === "deleting" ? "Deleting..." : "Delete project"}
+                        </button>
+                      )}
                     </div>
                   </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    {/* Category Badge */}
-                    <div className="flex items-center gap-2">
-                      <Briefcase className="h-4 w-4 text-accent" />
-                      <span className="text-sm text-muted-foreground">Category:</span>
-                      <span className="font-semibold text-foreground">{project.category}</span>
-                    </div>
 
-                    {/* Budget */}
-                    <div className="flex items-center gap-2">
-                      <Banknote className="h-4 w-4 text-accent" />
-                      <span className="text-sm text-muted-foreground">Budget:</span>
-                      <span className="font-semibold text-foreground">
-                        {formatCurrency(project.budget.min)} - {formatCurrency(project.budget.max)}
-                      </span>
-                    </div>
-                    
-                    {/* Duration */}
-                    {project.duration && (
-                      <div className="flex items-center gap-2">
-                        <Clock className="h-4 w-4 text-accent" />
-                        <span className="text-sm text-muted-foreground">Duration:</span>
-                        <span className="font-semibold text-foreground">
-                          {project.duration}
-                        </span>
-                      </div>
-                    )}
-
-                    {/* Proposals Count */}
-                    <div className="flex items-center gap-2">
-                      <Users className="h-4 w-4 text-accent" />
-                      <span className="text-sm text-muted-foreground">Proposals:</span>
-                      <span className="font-semibold text-foreground">
-                        {project.proposalsCount}
-                      </span>
-                    </div>
-
-                    {/* Skills */}
-                    <div className="pt-3 border-t border-border">
-                      <p className="text-xs font-semibold text-foreground mb-2">Required Skills:</p>
-                      <div className="flex flex-wrap gap-1">
-                        {project.skills.slice(0, 3).map((skill, index) => (
-                          <span
-                            key={index}
-                            className="rounded-full bg-secondary px-2 py-1 text-xs text-foreground"
-                          >
-                            {skill}
-                          </span>
-                        ))}
-                        {project.skills.length > 3 && (
-                          <span className="rounded-full bg-secondary px-2 py-1 text-xs text-muted-foreground">
-                            +{project.skills.length - 3} more
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                    
-                    {/* Footer with Actions */}
-                    <div className="pt-3 border-t border-border">
-                      <div className="flex items-center justify-between text-xs text-muted-foreground mb-3">
-                        <span>Posted {new Date(project.createdAt).toLocaleDateString()}</span>
-                        {project.location && (
-                          <span className="flex items-center gap-1">
-                            <MapPin className="h-3 w-3" />
-                            {project.location}
-                          </span>
-                        )}
-                      </div>
-                      
-                      {/* Action Buttons */}
-                      <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
-                        {project.status === "draft" ? (
-                          <>
-                            <Button
-                              variant="accent"
-                              size="sm"
-                              className="flex-1"
-                              onClick={() => handlePublish(project.id)}
-                              disabled={actionLoading[project.id] === "publishing"}
-                            >
-                              {actionLoading[project.id] === "publishing" ? (
-                                <>
-                                  <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white mr-1"></div>
-                                  Publishing...
-                                </>
-                              ) : (
-                                <>
-                                  <Send className="h-3 w-3 mr-1" />
-                                  Publish
-                                </>
-                              )}
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleDelete(project.id)}
-                              disabled={actionLoading[project.id] === "deleting"}
-                              className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                            >
-                              {actionLoading[project.id] === "deleting" ? (
-                                <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-red-600"></div>
-                              ) : (
-                                <Trash2 className="h-3 w-3" />
-                              )}
-                            </Button>
-                          </>
-                        ) : project.status === "active" && project.proposalsCount === 0 ? (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="w-full text-red-600 hover:text-red-700 hover:bg-red-50"
-                            onClick={() => handleDelete(project.id)}
-                            disabled={actionLoading[project.id] === "deleting"}
-                          >
-                            {actionLoading[project.id] === "deleting" ? (
-                              <>
-                                <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-red-600 mr-1"></div>
-                                Deleting...
-                              </>
-                            ) : (
-                              <>
-                                <Trash2 className="h-3 w-3 mr-1" />
-                                Delete Project
-                              </>
-                            )}
-                          </Button>
-                        ) : null}
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-          
-          {/* Pagination */}
-          {filteredProjects.length > 0 && (
-            <Pagination
-              currentPage={currentPage}
-              totalPages={Math.ceil(filteredProjects.length / itemsPerPage)}
-              onPageChange={(page) => {
-                setCurrentPage(page);
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-              }}
-              itemsPerPage={itemsPerPage}
-              totalItems={filteredProjects.length}
-            />
+                </div>
+              ))}
+            </div>
           )}
+        </section>
+
+      </main>
+
+      {/* Editorial Footer */}
+      <footer className="border-t border-[var(--line)] py-6 text-center font-mono-ledger text-[12px] text-[var(--muted)]">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 flex flex-col sm:flex-row items-center justify-between gap-2">
+          <span>FreelanceHub · Client Projects Archetype E</span>
+          <span>Engineered by Nantio Studio (www.nantio.it.com)</span>
         </div>
-      </section>
+      </footer>
+
     </div>
   );
 }

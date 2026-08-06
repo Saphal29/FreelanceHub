@@ -260,7 +260,7 @@ function TimeTrackingContent() {
         <section className="space-y-4 border-b border-[var(--ink)] pb-8">
           <p className="font-mono-ledger text-[11px] uppercase tracking-[0.08em] text-[var(--muted)] flex items-center space-x-2">
             <span className="w-2 h-2 rounded-full bg-[var(--signal)] inline-block animate-pulse"></span>
-            <span>FREELANCEHUB AUDIT · HOURLY WORK LOG & TIMESHEET</span>
+            <span>FREELANCEHUB REGISTER · TIMESHEET DIRECTORY</span>
           </p>
           
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
