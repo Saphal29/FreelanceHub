@@ -4,25 +4,9 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Navbar from "@/components/layout/Navbar";
-import CommandRail from "@/components/layout/CommandRail";
-import EmptyState from "@/components/common/EmptyState";
 import { useAuth } from "@/contexts/AuthContext";
 import api from "@/lib/api";
-import {
-  Briefcase,
-  Clock,
-  Star,
-  ArrowRight,
-  TrendingUp,
-  AlertCircle,
-  Banknote,
-  RefreshCw,
-  UserCheck,
-  FileText,
-  Shield,
-  Layers,
-  ChevronRight
-} from "lucide-react";
+import { Star, AlertCircle, RefreshCw } from "lucide-react";
 import { formatCurrency } from "@/lib/currency";
 
 export default function FreelancerDashboard() {
@@ -113,21 +97,18 @@ export default function FreelancerDashboard() {
     }
   };
 
-  const firstName = user?.fullName?.split(' ')[0] || 'Freelancer';
+  const firstName = user?.fullName?.split(' ')[0] || 'Test';
 
   return (
     <div className="min-h-screen bg-[var(--paper)] text-[var(--ink)] font-sans-ledger selection:bg-[var(--signal)] selection:text-[var(--paper)] flex flex-col justify-between">
       
-      {/* Top Navbar */}
+      {/* Single Top Navigation (No Left Icon Rail) */}
       <Navbar userType="freelancer" />
 
-      {/* Floating Tool Rail */}
-      <CommandRail userType="freelancer" />
-
       {/* Main Workspace Stage */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 lg:pl-20 py-8 sm:py-12 space-y-10 flex-1 w-full pb-24 lg:pb-12">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 py-8 sm:py-12 space-y-10 flex-1 w-full pb-24 lg:pb-12">
         
-        {/* HEADER: WORKSPACE IDENTITY & ACTIONS */}
+        {/* PAGE HEADER */}
         <section className="space-y-4 text-left border-b border-[var(--ink)] pb-8">
           <p className="font-mono-ledger text-[11px] uppercase tracking-[0.08em] text-[var(--muted)] flex items-center space-x-2">
             <span className="w-2 h-2 rounded-full bg-[var(--signal)] inline-block animate-pulse"></span>
@@ -140,35 +121,28 @@ export default function FreelancerDashboard() {
                 Welcome back, {firstName}.
               </h1>
               <p className="text-[15px] text-[var(--muted)] max-w-xl">
-                Here’s where your work, proposals, and earnings ledger stand.
+                Here&apos;s where your work, proposals, and earnings ledger stand.
               </p>
             </div>
 
-            {/* Contextual Action Links */}
-            <div className="flex flex-wrap items-center gap-3 shrink-0">
+            {/* Exactly One Primary Action */}
+            <div className="shrink-0">
               <Link 
-                href="/projects" 
+                href="/freelancer/jobs" 
                 className="bg-[var(--signal)] hover:bg-[var(--signal-dark)] text-[var(--paper)] font-mono-ledger font-bold text-[12px] uppercase tracking-wider px-5 py-3 transition-colors inline-flex items-center space-x-2 shadow-xs"
               >
-                <span>FIND WORK →</span>
-              </Link>
-
-              <Link 
-                href="/freelancer/proposals" 
-                className="bg-[var(--paper-2)] border border-[var(--ink)] hover:bg-[var(--paper)] text-[var(--ink)] font-mono-ledger font-bold text-[12px] uppercase tracking-wider px-5 py-3 transition-colors inline-flex items-center space-x-2"
-              >
-                <span>VIEW PROPOSALS →</span>
+                <span>Find work →</span>
               </Link>
             </div>
           </div>
         </section>
 
 
-        {/* ACCOUNT POSITION (Single Full-Width Financial Statement Strip) */}
+        {/* ACCOUNT POSITION */}
         <section className="space-y-3 text-left">
           <div className="font-mono-ledger text-[11px] uppercase tracking-wider text-[var(--muted)] border-b border-[var(--ink)] pb-1.5 flex items-center justify-between">
             <span className="font-bold text-[var(--ink)]">ACCOUNT POSITION</span>
-            <span className="text-[var(--signal)]">[NPR LOCAL REGISTERED]</span>
+            <span className="text-[var(--signal)] font-bold">[NPR LOCAL REGISTERED]</span>
           </div>
 
           <div className="py-4">
@@ -181,7 +155,7 @@ export default function FreelancerDashboard() {
                   <span>EARNINGS</span>
                 </div>
                 <p className="font-mono-ledger text-[26px] sm:text-[34px] font-bold text-[var(--signal)] tracking-tight">
-                  {formatCurrency(stats.totalEarnings)}
+                  Rs. {stats.totalEarnings?.toLocaleString() || '0'}
                 </p>
                 <p className="font-mono-ledger text-[10px] text-[var(--muted)]">Released to bank</p>
               </div>
@@ -208,7 +182,7 @@ export default function FreelancerDashboard() {
                 <p className="font-mono-ledger text-[10px] text-[var(--muted)]">Under review</p>
               </div>
 
-              {/* Rating Metric */}
+              {/* Reputation Metric */}
               <div className="space-y-1 text-left border-l border-[var(--line)]/50 pl-4 sm:pl-6">
                 <div className="font-mono-ledger text-[10px] uppercase tracking-wider text-[var(--muted)] flex items-center space-x-1">
                   <Star className="h-3 w-3 text-[var(--signal)] fill-[var(--signal)]" />
@@ -250,7 +224,7 @@ export default function FreelancerDashboard() {
           {/* PRIMARY WORKSPACE COLUMN (~68% Width: Cols 1 to 8) */}
           <div className="lg:col-span-8 space-y-12">
             
-            {/* 01 / CURRENT WORK & ENGAGEMENTS */}
+            {/* 01 / CURRENT WORK & ENGAGEMENTS (Full Zero-State Section) */}
             <div className="space-y-4 text-left">
               <div className="flex items-center justify-between border-b border-[var(--ink)] pb-2 font-mono-ledger text-[11px] uppercase tracking-wider">
                 <span className="text-[var(--ink)] font-bold">01 / CURRENT WORK & ENGAGEMENTS</span>
@@ -265,15 +239,32 @@ export default function FreelancerDashboard() {
                   <div className="h-8 bg-[var(--line)] w-3/4"></div>
                 </div>
               ) : activeContracts.length === 0 ? (
-                <EmptyState 
-                  marker="01 / WORKSPACE"
-                  title="No active engagements yet."
-                  description="Your workspace is waiting for its first contract. Browse open projects and submit a proposal to begin your first milestone."
-                  actionLabel="FIND YOUR FIRST PROJECT →"
-                  actionHref="/projects"
-                />
+                /* Full Zero-State Treatment */
+                <div className="border-2 border-[var(--ink)] bg-[var(--paper-2)] p-8 text-left space-y-4 shadow-xs">
+                  <div className="font-mono-ledger text-[11px] text-[var(--signal)] font-bold flex items-center space-x-2">
+                    <span className="w-2 h-2 rounded-full bg-[var(--signal)] inline-block"></span>
+                    <span>01 / WORKSPACE · STATUS: EMPTY</span>
+                  </div>
+
+                  <h3 className="font-serif-ledger text-[24px] font-medium text-[var(--ink)] leading-snug">
+                    No active engagements yet.
+                  </h3>
+
+                  <p className="font-sans-ledger text-[14px] text-[var(--muted)] leading-relaxed max-w-xl">
+                    Your workspace is waiting for its first contract. Browse open projects and submit a proposal to begin your first milestone.
+                  </p>
+
+                  <div className="pt-2">
+                    <Link
+                      href="/freelancer/jobs"
+                      className="bg-[var(--signal)] hover:bg-[var(--signal-dark)] text-[var(--paper)] font-mono-ledger font-bold text-[11px] uppercase tracking-wider px-5 py-3 transition-colors inline-flex items-center space-x-1"
+                    >
+                      <span>Find your first project →</span>
+                    </Link>
+                  </div>
+                </div>
               ) : (
-                /* Contract Specimen Card */
+                /* Active Contract Card */
                 <div className="border-2 border-[var(--ink)] bg-[var(--paper)] p-6 space-y-4 text-left hover:border-[var(--signal)] transition-colors shadow-xs">
                   <div className="flex items-center justify-between border-b border-[var(--line)] pb-3 font-mono-ledger text-[11px] uppercase">
                     <span className="text-[var(--signal)] font-bold flex items-center space-x-1.5">
@@ -290,16 +281,6 @@ export default function FreelancerDashboard() {
                     <p className="font-mono-ledger text-[12px] text-[var(--muted)]">
                       CLIENT: {activeContracts[0].clientName || 'Client Participant'} • BUDGET: <span className="text-[var(--signal)] font-bold">NPR {activeContracts[0].agreedBudget?.toLocaleString() || 'Agreed'}</span>
                     </p>
-                  </div>
-
-                  <div className="space-y-1.5 pt-2 font-mono-ledger text-[11px]">
-                    <div className="flex items-center justify-between text-[var(--muted)]">
-                      <span>MILESTONE PROGRESS</span>
-                      <span>50% COMPLETE</span>
-                    </div>
-                    <div className="w-full bg-[var(--paper-2)] border border-[var(--ink)] h-3 p-0.5">
-                      <div className="bg-[var(--signal)] h-full w-1/2"></div>
-                    </div>
                   </div>
 
                   <div className="pt-3 border-t border-[var(--line)] flex items-center justify-between font-mono-ledger text-[11px]">
@@ -319,7 +300,7 @@ export default function FreelancerDashboard() {
             </div>
 
 
-            {/* 02 / PROPOSAL ACTIVITY FUNNEL VISUALIZATION */}
+            {/* 02 / PROPOSAL ACTIVITY FUNNEL (Short Quiet Zero-State) */}
             <div className="space-y-4 text-left">
               <div className="flex items-center justify-between border-b border-[var(--ink)] pb-2 font-mono-ledger text-[11px] uppercase tracking-wider">
                 <span className="text-[var(--ink)] font-bold">02 / PROPOSAL ACTIVITY FUNNEL</span>
@@ -328,22 +309,22 @@ export default function FreelancerDashboard() {
                 </Link>
               </div>
 
-              {/* Horizontal Process Funnel Visualization */}
-              <div className="py-4 font-mono-ledger text-[11px]">
+              {/* 5-Column Typographic Funnel */}
+              <div className="py-2 font-mono-ledger text-[11px]">
                 <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-center border border-[var(--ink)] bg-[var(--paper-2)] p-4">
                   
                   <div className="space-y-1 border-r border-[var(--line)]/50 pr-2">
                     <span className="text-[var(--muted)] text-[9px] uppercase block">01 / DRAFT</span>
                     <span className="font-bold text-[20px] text-[var(--ink)] block">00</span>
-                    <span className="text-[9px] text-[var(--muted)]">PREPARING</span>
+                    <span className="text-[9px] text-[var(--muted)]">Preparing</span>
                   </div>
 
                   <div className="space-y-1 border-r border-[var(--line)]/50 pr-2">
-                    <span className="text-[var(--muted)] text-[9px] uppercase block">02 / SUBMITTED</span>
-                    <span className="font-bold text-[20px] text-[var(--ink)] block">
+                    <span className="text-[var(--muted)] text-[9px] uppercase block text-[var(--signal)]">02 / SUBMITTED</span>
+                    <span className="font-bold text-[20px] text-[var(--signal)] block">
                       {String(proposals.length).padStart(2, '0')}
                     </span>
-                    <span className="text-[9px] text-[var(--muted)] font-bold text-[var(--signal)]">ACTIVE</span>
+                    <span className="text-[9px] font-bold text-[var(--signal)]">Active</span>
                   </div>
 
                   <div className="space-y-1 border-r border-[var(--line)]/50 pr-2">
@@ -351,34 +332,40 @@ export default function FreelancerDashboard() {
                     <span className="font-bold text-[20px] text-[var(--ink)] block">
                       {String(stats.pendingProposalsCount).padStart(2, '0')}
                     </span>
-                    <span className="text-[9px] text-[var(--muted)]">IN REVIEW</span>
+                    <span className="text-[9px] text-[var(--muted)]">In review</span>
                   </div>
 
                   <div className="space-y-1 border-r border-[var(--line)]/50 pr-2">
                     <span className="text-[var(--muted)] text-[9px] uppercase block">04 / SHORTLISTED</span>
                     <span className="font-bold text-[20px] text-[var(--ink)] block">00</span>
-                    <span className="text-[9px] text-[var(--muted)]">INTERVIEW</span>
+                    <span className="text-[9px] text-[var(--muted)]">Interview</span>
                   </div>
 
                   <div className="space-y-1">
                     <span className="text-[var(--muted)] text-[9px] uppercase block">05 / ACCEPTED</span>
-                    <span className="font-bold text-[20px] text-[var(--signal)] block">
+                    <span className="font-bold text-[20px] text-[var(--ink)] block">
                       {String(stats.acceptedProposalsCount).padStart(2, '0')}
                     </span>
-                    <span className="text-[9px] text-[var(--muted)]">HIRED</span>
+                    <span className="text-[9px] text-[var(--muted)]">Hired</span>
                   </div>
 
                 </div>
               </div>
 
+              {/* Short Quiet Zero-State Treatment for Section 02 */}
               {proposals.length === 0 ? (
-                <EmptyState 
-                  marker="02 / PIPELINE"
-                  title="No proposals submitted yet."
-                  description="Browse open project briefs matching your skills and send your first proposal to enter the pipeline."
-                  actionLabel="BROWSE OPEN PROJECTS →"
-                  actionHref="/projects"
-                />
+                <div className="border border-[var(--line)] bg-[var(--paper-2)] p-4 font-mono-ledger text-[12px] space-y-1">
+                  <div className="text-[var(--signal)] font-bold flex items-center space-x-1.5 text-[11px]">
+                    <span className="w-2 h-2 rounded-full bg-[var(--signal)] inline-block"></span>
+                    <span>02 / PIPELINE · STATUS: EMPTY</span>
+                  </div>
+                  <p className="text-[var(--ink)]">
+                    No proposals submitted yet.{" "}
+                    <Link href="/freelancer/jobs" className="text-[var(--signal)] font-bold hover:underline">
+                      Browse open projects →
+                    </Link>
+                  </p>
+                </div>
               ) : (
                 <div className="divide-y divide-[var(--line)] font-mono-ledger text-[12px]">
                   {proposals.slice(0, 3).map((proposal) => (
@@ -405,7 +392,7 @@ export default function FreelancerDashboard() {
             </div>
 
 
-            {/* 03 / EARNINGS LEDGER & SVG TIMELINE CHART */}
+            {/* 03 / EARNINGS LEDGER & TIMELINE CHART (Flat Chart for Zero History) */}
             <div className="space-y-4 text-left">
               <div className="flex items-center justify-between border-b border-[var(--ink)] pb-2 font-mono-ledger text-[11px] uppercase tracking-wider">
                 <span className="text-[var(--ink)] font-bold">03 / EARNINGS LEDGER & TIMELINE CHART</span>
@@ -414,32 +401,28 @@ export default function FreelancerDashboard() {
 
               <div className="border border-[var(--ink)] bg-[var(--paper-2)] p-6 space-y-6 font-mono-ledger text-[12px]">
                 
-                {/* SVG Line Graph */}
+                {/* Chart Panel */}
                 <div className="space-y-2">
                   <div className="flex justify-between items-center text-[10px] text-[var(--muted)] uppercase">
                     <span>EARNINGS TREND (NPR)</span>
                     <span className="text-[var(--signal)] font-bold">LIVE POSITION</span>
                   </div>
 
+                  {/* SVG Flat Line Graph (Zero History) */}
                   <div className="h-28 w-full relative flex items-end pt-4 pb-2 border-b border-[var(--ink)]">
                     <svg className="w-full h-full overflow-visible" preserveAspectRatio="none" viewBox="0 0 400 80">
                       {/* Grid Lines */}
                       <line x1="0" y1="20" x2="400" y2="20" stroke="var(--line)" strokeDasharray="3 3" />
                       <line x1="0" y1="50" x2="400" y2="50" stroke="var(--line)" strokeDasharray="3 3" />
                       
-                      {/* Trend Line (Editorial Vermillion Red) */}
-                      <path 
-                        d="M 0 70 Q 100 65, 200 60 T 400 20" 
-                        fill="none" 
-                        stroke="var(--signal)" 
-                        strokeWidth="2.5" 
-                      />
+                      {/* Flat Trend Line (Zero Values Across Range) */}
+                      <line x1="0" y1="70" x2="400" y2="70" stroke="var(--signal)" strokeWidth="2.5" />
 
                       {/* Points */}
                       <circle cx="0" cy="70" r="3" fill="var(--ink)" />
-                      <circle cx="133" cy="65" r="3" fill="var(--ink)" />
-                      <circle cx="266" cy="55" r="3" fill="var(--ink)" />
-                      <circle cx="400" cy="20" r="4" fill="var(--signal)" />
+                      <circle cx="133" cy="70" r="3" fill="var(--ink)" />
+                      <circle cx="266" cy="70" r="3" fill="var(--ink)" />
+                      <circle cx="400" cy="70" r="4" fill="var(--signal)" />
                     </svg>
                   </div>
 
@@ -473,14 +456,14 @@ export default function FreelancerDashboard() {
           </div>
 
 
-          {/* SECONDARY COLUMN (~32% Width: Cols 9 to 12 - STACKED EDITORIAL MODULES) */}
+          {/* SECONDARY SIDEBAR COLUMN (~32% Width: Exactly Two Modules) */}
           <div className="lg:col-span-4 space-y-8 text-left font-mono-ledger text-[12px]">
             
-            {/* MODULE 1: WORKSPACE SIGNALS */}
-            <div className="space-y-3 pb-6 border-b border-[var(--ink)]">
-              <div className="text-[11px] uppercase tracking-wider font-bold text-[var(--ink)] flex items-center justify-between">
+            {/* SIDEBAR MODULE 1: WORKSPACE SIGNALS */}
+            <div className="border-2 border-[var(--ink)] bg-[var(--paper-2)] p-5 space-y-3 shadow-xs">
+              <div className="text-[11px] uppercase tracking-wider font-bold text-[var(--ink)] flex items-center justify-between border-b border-[var(--line)] pb-2">
                 <span>WORKSPACE SIGNALS</span>
-                <span className="text-[var(--signal)]">• LIVE</span>
+                <span className="text-[var(--signal)]">● LIVE</span>
               </div>
 
               <div className="space-y-2 text-[12px]">
@@ -500,19 +483,14 @@ export default function FreelancerDashboard() {
             </div>
 
 
-            {/* MODULE 2: PROFILE RECORD */}
-            <div className="space-y-3 pb-6 border-b border-[var(--ink)]">
-              <div className="text-[11px] uppercase tracking-wider font-bold text-[var(--ink)] flex items-center justify-between">
+            {/* SIDEBAR MODULE 2: PROFILE RECORD (With Folded Direct Commands) */}
+            <div className="border-2 border-[var(--ink)] bg-[var(--paper-2)] p-5 space-y-4 shadow-xs">
+              <div className="text-[11px] uppercase tracking-wider font-bold text-[var(--ink)] flex items-center justify-between border-b border-[var(--line)] pb-2">
                 <span>PROFILE RECORD</span>
-                <span className="text-[var(--signal)]">68%</span>
               </div>
 
-              {/* Progress Bar */}
-              <div className="w-full bg-[var(--paper-2)] border border-[var(--ink)] h-2.5 p-0.5">
-                <div className="bg-[var(--signal)] h-full w-[68%]"></div>
-              </div>
-
-              <div className="space-y-2 text-[11px]">
+              {/* Status Tag List (No XP / Percentage Progress Bar) */}
+              <div className="space-y-2.5 text-[11px]">
                 <div className="flex items-center justify-between text-[var(--muted)]">
                   <span>BIO RECORD</span>
                   <span className="text-[var(--ink)] font-bold">[VERIFIED]</span>
@@ -527,71 +505,28 @@ export default function FreelancerDashboard() {
                 </div>
               </div>
 
-              <div className="pt-2">
+              <div className="pt-1">
                 <Link
                   href="/profile"
                   className="text-[11px] text-[var(--signal)] font-bold hover:underline block uppercase"
                 >
-                  COMPLETE PROFILE RECORD →
+                  Complete profile record →
                 </Link>
               </div>
-            </div>
 
-
-            {/* MODULE 3: ESCROW POSITION */}
-            <div className="space-y-3 pb-6 border-b border-[var(--ink)]">
-              <div className="text-[11px] uppercase tracking-wider font-bold text-[var(--ink)] flex items-center justify-between">
-                <span>ESCROW POSITION</span>
-                <span className="text-[var(--signal)]">NPR LOCAL</span>
-              </div>
-
-              <div className="space-y-2 text-[11px]">
-                <div className="flex items-center justify-between">
-                  <span className="text-[var(--muted)]">● RESERVED</span>
-                  <span className="font-bold text-[var(--ink)]">NPR 0</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-[var(--muted)]">● RELEASED</span>
-                  <span className="font-bold text-[var(--signal)]">NPR 0</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-[var(--muted)]">● PENDING</span>
-                  <span className="font-bold text-[var(--ink)]">NPR 0</span>
-                </div>
-              </div>
-            </div>
-
-
-            {/* MODULE 4: DIRECT WORKSPACE COMMANDS */}
-            <div className="space-y-3">
-              <div className="text-[11px] uppercase tracking-wider font-bold text-[var(--ink)] flex items-center justify-between">
-                <span>DIRECT COMMANDS</span>
-                <span className="text-[var(--signal)]">[ACTIONS]</span>
-              </div>
-
-              <div className="space-y-2">
-                <Link
-                  href="/projects"
-                  className="flex items-center justify-between py-2 border-b border-[var(--line)] hover:text-[var(--signal)] transition-colors font-bold text-[var(--ink)]"
-                >
-                  <span>01. FIND OPEN WORK</span>
-                  <span>→</span>
-                </Link>
-
+              {/* Folded Direct Commands (Small Mono Divider) */}
+              <div className="pt-3 border-t border-[var(--line)] space-y-2 text-[11px]">
                 <Link
                   href="/freelancer/proposals"
-                  className="flex items-center justify-between py-2 border-b border-[var(--line)] hover:text-[var(--signal)] transition-colors font-bold text-[var(--ink)]"
+                  className="text-[var(--ink)] font-bold hover:text-[var(--signal)] block transition-colors"
                 >
-                  <span>02. MANAGE PROPOSALS</span>
-                  <span>→</span>
+                  Manage proposals →
                 </Link>
-
                 <Link
                   href="/profile"
-                  className="flex items-center justify-between py-2 border-b border-[var(--line)] hover:text-[var(--signal)] transition-colors font-bold text-[var(--ink)]"
+                  className="text-[var(--ink)] font-bold hover:text-[var(--signal)] block transition-colors"
                 >
-                  <span>03. UPDATE PROFILE RECORD</span>
-                  <span>→</span>
+                  Update profile record →
                 </Link>
               </div>
             </div>
@@ -601,33 +536,39 @@ export default function FreelancerDashboard() {
         </div>
 
 
-        {/* 04 / RECOMMENDED OPPORTUNITIES */}
-        <section className="space-y-4 text-left pt-8 border-t border-[var(--ink)]">
-          <div className="flex items-center justify-between font-mono-ledger text-[11px] uppercase tracking-wider">
+        {/* 04 / RECOMMENDED OPPORTUNITIES (Short Quiet Zero-State) */}
+        <section className="space-y-4 text-left pt-8 border-t border-[var(--ink)] font-mono-ledger text-[12px]">
+          <div className="flex items-center justify-between uppercase tracking-wider">
             <span className="text-[var(--ink)] font-bold">04 / RECOMMENDED OPPORTUNITIES</span>
-            <Link href="/projects" className="text-[var(--signal)] hover:underline">
+            <Link href="/freelancer/jobs" className="text-[var(--signal)] hover:underline">
               <span>ALL RECOMMENDED PROJECTS →</span>
             </Link>
           </div>
 
           {loading ? (
-            <div className="py-8 space-y-4 animate-pulse">
+            <div className="py-6 space-y-2 animate-pulse">
               <div className="h-4 bg-[var(--line)] w-1/4"></div>
             </div>
           ) : recommendedJobs.length === 0 ? (
-            <EmptyState 
-              marker="04 / OPPORTUNITIES"
-              title="Nothing matched yet."
-              description="Complete your profile and skills list to improve project recommendations from our matching system."
-              actionLabel="COMPLETE PROFILE RECORD →"
-              actionHref="/profile"
-            />
+            /* Short Quiet Zero-State Treatment for Section 04 */
+            <div className="border border-[var(--line)] bg-[var(--paper-2)] p-4 space-y-1 text-left">
+              <div className="text-[var(--signal)] font-bold flex items-center space-x-1.5 text-[11px]">
+                <span className="w-2 h-2 rounded-full bg-[var(--signal)] inline-block"></span>
+                <span>04 / OPPORTUNITIES · STATUS: EMPTY</span>
+              </div>
+              <p className="text-[var(--ink)]">
+                Nothing matched yet.{" "}
+                <Link href="/profile" className="text-[var(--signal)] font-bold hover:underline">
+                  Complete your profile and skills list to improve recommendations →
+                </Link>
+              </p>
+            </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pt-2">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pt-2 font-sans-ledger">
               {recommendedJobs.slice(0, 6).map((job) => (
                 <div 
                   key={job.id}
-                  className="border border-[var(--ink)] bg-[var(--paper)] p-5 space-y-3 text-left hover:border-[var(--signal)] transition-colors flex flex-col justify-between"
+                  className="border-2 border-[var(--ink)] bg-[var(--paper)] p-5 space-y-3 text-left hover:border-[var(--signal)] transition-colors flex flex-col justify-between shadow-xs"
                 >
                   <div className="space-y-2">
                     <div className="flex items-center justify-between font-mono-ledger text-[10px] text-[var(--muted)]">
@@ -635,7 +576,7 @@ export default function FreelancerDashboard() {
                       <span className="text-[var(--signal)] font-bold">NPR {job.budget_min?.toLocaleString() || job.budget_max?.toLocaleString() || 'Agreed'}</span>
                     </div>
 
-                    <h3 className="font-serif-ledger text-[18px] font-normal text-[var(--ink)] line-clamp-2">
+                    <h3 className="font-serif-ledger text-[18px] font-medium text-[var(--ink)] line-clamp-2">
                       {job.title}
                     </h3>
 
@@ -661,7 +602,7 @@ export default function FreelancerDashboard() {
 
       </main>
 
-      {/* Editorial Footer */}
+      {/* Footer */}
       <footer className="border-t border-[var(--line)] py-6 text-center mt-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 flex flex-col sm:flex-row items-center justify-between text-[12px] font-mono-ledger text-[var(--muted)] gap-2">
           <span>FreelanceHub · Freelancer Editorial Workspace</span>
