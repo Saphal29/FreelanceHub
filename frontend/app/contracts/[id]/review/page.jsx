@@ -4,7 +4,6 @@ import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import Navbar from "@/components/layout/Navbar";
-import CommandRail from "@/components/layout/CommandRail";
 import ReviewForm from "@/components/reviews/ReviewForm";
 import { ArrowLeft, AlertCircle } from "lucide-react";
 import { canReviewContract, getContractById } from "@/lib/api";
@@ -75,9 +74,6 @@ export default function ContractReviewPage() {
       
       {/* Top Navbar */}
       <Navbar userType={userType} />
-
-      {/* Floating Tool Rail */}
-      <CommandRail userType={userType} />
 
       {/* Main Container */}
       <main className="max-w-3xl mx-auto px-4 sm:px-6 py-8 sm:py-12 space-y-8 flex-1 w-full pb-24 lg:pb-12 text-left font-mono-ledger">

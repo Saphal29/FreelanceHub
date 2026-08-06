@@ -4,7 +4,6 @@ import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 import Navbar from "@/components/layout/Navbar";
-import CommandRail from "@/components/layout/CommandRail";
 import SubmitProposalModal from "@/components/proposals/SubmitProposalModal";
 import { useAuth } from "@/contexts/AuthContext";
 import { getProjectById, getUserRatingStats, getReceivedReviews } from "@/lib/api";
@@ -118,7 +117,6 @@ export default function ProjectDetailPage() {
     return (
       <div className="min-h-screen bg-[var(--paper)] text-[var(--ink)] font-sans-ledger">
         <Navbar userType={user?.role?.toLowerCase() || "freelancer"} />
-        <CommandRail userType={user?.role?.toLowerCase() || "freelancer"} />
         <main className="max-w-4xl mx-auto px-4 py-16 space-y-6 text-left">
           <div className="p-4 bg-red-50 border border-[var(--signal)] text-[var(--signal-dark)] font-mono-ledger text-[12px]">
             {error || "Project brief specimen not found."}
@@ -144,11 +142,8 @@ export default function ProjectDetailPage() {
       {/* Top Navbar */}
       <Navbar userType={user?.role?.toLowerCase() || "freelancer"} />
 
-      {/* Floating Tool Rail */}
-      <CommandRail userType={user?.role?.toLowerCase() || "freelancer"} />
-
       {/* Main Specimen Container */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 lg:pl-20 py-8 sm:py-12 space-y-10 flex-1 w-full pb-24 lg:pb-12">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 py-8 sm:py-12 space-y-10 flex-1 w-full pb-24 lg:pb-12">
         
         {/* SPECIMEN HEADER */}
         <section className="space-y-4 text-left border-b border-[var(--ink)] pb-8">

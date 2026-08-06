@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import Navbar from "@/components/layout/Navbar";
-import CommandRail from "@/components/layout/CommandRail";
 import EmptyState from "@/components/common/EmptyState";
 import ReviewCard from "@/components/reviews/ReviewCard";
 import { Star, AlertCircle, ArrowLeft } from "lucide-react";
@@ -55,11 +54,8 @@ export default function ReviewsPage() {
       {/* Top Navbar */}
       <Navbar userType={userType} />
 
-      {/* Floating Tool Rail */}
-      <CommandRail userType={userType} />
-
       {/* Main Container */}
-      <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-12 lg:pl-20 py-8 sm:py-12 space-y-10 flex-1 w-full pb-24 lg:pb-12 text-left">
+      <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-12 py-8 sm:py-12 space-y-10 flex-1 w-full pb-24 lg:pb-12 text-left">
         
         {/* EDITORIAL HEADER */}
         <section className="space-y-4 border-b border-[var(--ink)] pb-8">

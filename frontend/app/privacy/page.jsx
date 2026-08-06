@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import Navbar from "@/components/layout/Navbar";
-import CommandRail from "@/components/layout/CommandRail";
 import { ArrowLeft, Lock, ShieldCheck, Eye, Database, Server } from "lucide-react";
 
 export default function PrivacyPolicyPage() {
@@ -11,9 +10,6 @@ export default function PrivacyPolicyPage() {
       
       {/* Top Navbar */}
       <Navbar userType="client" />
-
-      {/* Floating Tool Rail */}
-      <CommandRail userType="client" />
 
       {/* Main Container */}
       <main className="max-w-4xl mx-auto px-4 sm:px-6 py-10 sm:py-16 space-y-12 flex-1 w-full pb-24 lg:pb-12 text-left">

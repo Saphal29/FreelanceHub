@@ -3,7 +3,6 @@
 import { useState, useEffect, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Navbar from "@/components/layout/Navbar";
-import CommandRail from "@/components/layout/CommandRail";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSocket } from "@/contexts/SocketContext";
 import {
@@ -403,11 +402,8 @@ function ChatContent() {
       {/* Top Navbar */}
       <Navbar userType={userType} />
 
-      {/* Floating Tool Rail */}
-      <CommandRail userType={userType} />
-
       {/* Main Messaging Canvas */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 lg:pl-20 py-8 flex-1 w-full flex flex-col space-y-6">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 py-8 flex-1 w-full flex flex-col space-y-6">
         
         {/* EDITORIAL HEADER */}
         <section className="space-y-2 text-left border-b border-[var(--ink)] pb-4">

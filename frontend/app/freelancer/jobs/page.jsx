@@ -4,7 +4,6 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Navbar from "@/components/layout/Navbar";
-import CommandRail from "@/components/layout/CommandRail";
 import EmptyState from "@/components/common/EmptyState";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProtectedRoute } from "@/hooks/useProtectedRoute";
@@ -152,9 +151,6 @@ export default function FindWorkPage() {
       
       {/* Top Navbar */}
       <Navbar userType="freelancer" />
-
-      {/* Floating Tool Rail */}
-      <CommandRail userType="freelancer" />
 
       {/* Main Container */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 py-8 sm:py-12 space-y-10 flex-1 w-full pb-24 lg:pb-12 text-left">

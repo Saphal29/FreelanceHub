@@ -5,9 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import Link from 'next/link';
 import Navbar from '@/components/layout/Navbar';
-import CommandRail from '@/components/layout/CommandRail';
 import { 
   User, 
   Mail, 
@@ -266,9 +264,6 @@ export default function ProfilePage() {
       
       {/* Top Navbar */}
       <Navbar userType={userType} />
-
-      {/* Floating Tool Rail */}
-      <CommandRail userType={userType} />
 
       {/* Main Container */}
       <main className="max-w-4xl mx-auto px-4 sm:px-6 py-8 sm:py-12 space-y-10 flex-1 w-full pb-24 lg:pb-12 text-left">

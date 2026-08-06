@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
 import Navbar from "@/components/layout/Navbar";
-import CommandRail from "@/components/layout/CommandRail";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   getContractById, 
@@ -230,7 +229,6 @@ export default function ContractDetailPage() {
     return (
       <div className="min-h-screen bg-[var(--paper)] text-[var(--ink)] font-sans-ledger">
         <Navbar userType={user.role === "CLIENT" ? "client" : "freelancer"} />
-        <CommandRail userType={user.role === "CLIENT" ? "client" : "freelancer"} />
         <main className="max-w-4xl mx-auto px-4 py-16 space-y-6 text-left font-mono-ledger text-[12px]">
           <div className="p-4 bg-red-50 border border-[var(--signal)] text-[var(--signal-dark)]">
             {error}
@@ -264,11 +262,8 @@ export default function ContractDetailPage() {
       {/* Top Navbar */}
       <Navbar userType={userType} />
 
-      {/* Floating Tool Rail */}
-      <CommandRail userType={userType} />
-
       {/* Main Specimen Container */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 lg:pl-20 py-8 sm:py-12 space-y-10 flex-1 w-full pb-24 lg:pb-12">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 py-8 sm:py-12 space-y-10 flex-1 w-full pb-24 lg:pb-12">
         
         {/* CONTRACT HEADER */}
         <section className="space-y-4 text-left border-b border-[var(--ink)] pb-8">

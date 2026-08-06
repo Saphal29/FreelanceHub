@@ -6,7 +6,6 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import Navbar from "@/components/layout/Navbar";
-import CommandRail from "@/components/layout/CommandRail";
 import { useAuth } from "@/contexts/AuthContext";
 import { createProject, getProjectCategories, getProjectById, updateProject } from "@/lib/api";
 import FileUpload from "@/components/files/FileUpload";
@@ -277,9 +276,6 @@ function PostProjectForm() {
       
       {/* Top Navbar */}
       <Navbar userType="client" />
-
-      {/* Floating Tool Rail */}
-      <CommandRail userType="client" />
 
       {/* Main Container */}
       <main className="max-w-4xl mx-auto px-4 sm:px-6 py-8 sm:py-12 space-y-10 flex-1 w-full pb-24 lg:pb-12 text-left">

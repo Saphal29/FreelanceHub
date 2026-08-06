@@ -3,7 +3,6 @@
 import { useState, useEffect, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Navbar from "@/components/layout/Navbar";
-import CommandRail from "@/components/layout/CommandRail";
 import EmptyState from "@/components/common/EmptyState";
 import { useAuth } from "@/contexts/AuthContext";
 import {
@@ -254,11 +253,8 @@ function TimeTrackingContent() {
       {/* Top Navbar */}
       <Navbar userType={userType} />
 
-      {/* Floating Tool Rail */}
-      <CommandRail userType={userType} />
-
       {/* Main Container */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 lg:pl-20 py-8 sm:py-12 space-y-10 flex-1 w-full pb-24 lg:pb-12 text-left">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 py-8 sm:py-12 space-y-10 flex-1 w-full pb-24 lg:pb-12 text-left">
         
         {/* EDITORIAL HEADER */}
         <section className="space-y-4 border-b border-[var(--ink)] pb-8">
