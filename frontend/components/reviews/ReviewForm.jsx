@@ -1,11 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import StarRating from "./StarRating";
-import { Star, AlertCircle, CheckCircle } from "lucide-react";
+import { AlertCircle, CheckCircle2 } from "lucide-react";
 import { submitReview } from "@/lib/api";
 
 export default function ReviewForm({ contractId, onSuccess, onCancel }) {
@@ -60,123 +57,135 @@ export default function ReviewForm({ contractId, onSuccess, onCancel }) {
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Star className="h-5 w-5 text-yellow-400" />
-          Submit Your Review
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        {error && (
-          <Alert className="mb-4 border-red-200 bg-red-50">
-            <AlertCircle className="h-4 w-4 text-red-600" />
-            <AlertDescription className="text-red-800">{error}</AlertDescription>
-          </Alert>
-        )}
-        
-        {success && (
-          <Alert className="mb-4 border-green-200 bg-green-50">
-            <CheckCircle className="h-4 w-4 text-green-600" />
-            <AlertDescription className="text-green-800">{success}</AlertDescription>
-          </Alert>
-        )}
+    <div className="border border-[var(--ink)] bg-[var(--paper)] p-6 space-y-6 text-left font-mono-ledger text-[12px]">
+      
+      {/* Header */}
+      <div className="border-b border-[var(--ink)] pb-4 space-y-1">
+        <p className="text-[11px] uppercase tracking-[0.08em] text-[var(--signal)] font-bold">
+          FREELANCEHUB FORM · REPUTATION EVALUATION
+        </p>
+        <h3 className="font-serif-ledger text-[24px] font-medium text-[var(--ink)]">
+          Submit performance review
+        </h3>
+      </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Overall Rating */}
-          <div>
-            <label className="block text-sm font-medium mb-2">
-              Overall Rating *
+      {error && (
+        <div className="p-3 bg-red-50 border border-[var(--signal)] text-[var(--signal-dark)] flex items-center space-x-2">
+          <AlertCircle className="h-4 w-4 text-[var(--signal)] shrink-0" />
+          <span>{error}</span>
+        </div>
+      )}
+      
+      {success && (
+        <div className="p-3 bg-[var(--paper-2)] border border-[var(--signal)] text-[var(--ink)] flex items-center space-x-2">
+          <CheckCircle2 className="h-4 w-4 text-[var(--signal)] shrink-0" />
+          <span className="font-bold">{success}</span>
+        </div>
+      )}
+
+      <form onSubmit={handleSubmit} className="space-y-6">
+        {/* Overall Rating */}
+        <div className="space-y-2">
+          <label className="text-[10px] text-[var(--muted)] uppercase font-bold block">
+            Overall rating *
+          </label>
+          <StarRating
+            rating={formData.overallRating}
+            size="xl"
+            interactive
+            onChange={(rating) => setFormData({ ...formData, overallRating: rating })}
+          />
+        </div>
+
+        {/* Category Ratings */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 border-t border-[var(--line)] pt-4">
+          <div className="space-y-1">
+            <label className="text-[10px] text-[var(--muted)] uppercase font-bold block">
+              Communication
             </label>
             <StarRating
-              rating={formData.overallRating}
-              size="xl"
+              rating={formData.communicationRating}
+              size="lg"
               interactive
-              onChange={(rating) => setFormData({ ...formData, overallRating: rating })}
+              onChange={(rating) => setFormData({ ...formData, communicationRating: rating })}
             />
           </div>
 
-          {/* Category Ratings */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium mb-2">
-                Communication
-              </label>
-              <StarRating
-                rating={formData.communicationRating}
-                size="lg"
-                interactive
-                onChange={(rating) => setFormData({ ...formData, communicationRating: rating })}
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium mb-2">
-                Quality of Work
-              </label>
-              <StarRating
-                rating={formData.qualityRating}
-                size="lg"
-                interactive
-                onChange={(rating) => setFormData({ ...formData, qualityRating: rating })}
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium mb-2">
-                Timeliness
-              </label>
-              <StarRating
-                rating={formData.timelinessRating}
-                size="lg"
-                interactive
-                onChange={(rating) => setFormData({ ...formData, timelinessRating: rating })}
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium mb-2">
-                Professionalism
-              </label>
-              <StarRating
-                rating={formData.professionalismRating}
-                size="lg"
-                interactive
-                onChange={(rating) => setFormData({ ...formData, professionalismRating: rating })}
-              />
-            </div>
-          </div>
-
-          {/* Written Feedback */}
-          <div>
-            <label className="block text-sm font-medium mb-2">
-              Written Feedback *
+          <div className="space-y-1">
+            <label className="text-[10px] text-[var(--muted)] uppercase font-bold block">
+              Quality of work
             </label>
-            <textarea
-              value={formData.feedback}
-              onChange={(e) => setFormData({ ...formData, feedback: e.target.value })}
-              className="w-full px-3 py-2 border border-border rounded-xl bg-background min-h-[120px]"
-              placeholder="Share your experience working on this project..."
-              required
+            <StarRating
+              rating={formData.qualityRating}
+              size="lg"
+              interactive
+              onChange={(rating) => setFormData({ ...formData, qualityRating: rating })}
             />
-            <p className="text-xs text-muted-foreground mt-1">
-              Your honest feedback helps build trust in the community
-            </p>
           </div>
 
-          {/* Actions */}
-          <div className="flex gap-3">
-            <Button type="submit" disabled={submitting}>
-              {submitting ? "Submitting..." : "Submit Review"}
-            </Button>
-            {onCancel && (
-              <Button type="button" variant="outline" onClick={onCancel}>
-                Cancel
-              </Button>
-            )}
+          <div className="space-y-1">
+            <label className="text-[10px] text-[var(--muted)] uppercase font-bold block">
+              Timeliness
+            </label>
+            <StarRating
+              rating={formData.timelinessRating}
+              size="lg"
+              interactive
+              onChange={(rating) => setFormData({ ...formData, timelinessRating: rating })}
+            />
           </div>
-        </form>
-      </CardContent>
-    </Card>
+
+          <div className="space-y-1">
+            <label className="text-[10px] text-[var(--muted)] uppercase font-bold block">
+              Professionalism
+            </label>
+            <StarRating
+              rating={formData.professionalismRating}
+              size="lg"
+              interactive
+              onChange={(rating) => setFormData({ ...formData, professionalismRating: rating })}
+            />
+          </div>
+        </div>
+
+        {/* Written Feedback */}
+        <div className="space-y-1">
+          <label className="text-[10px] text-[var(--muted)] uppercase font-bold block">
+            Written feedback *
+          </label>
+          <textarea
+            value={formData.feedback}
+            onChange={(e) => setFormData({ ...formData, feedback: e.target.value })}
+            className={`w-full bg-[var(--paper)] border p-3 text-[13px] text-[var(--ink)] font-sans-ledger leading-relaxed outline-none transition-colors ${
+              error && !formData.feedback.trim() ? "border-[var(--signal)]" : "border-[var(--line)] focus:border-[var(--ink)]"
+            }`}
+            placeholder="Share your experience working on this contract brief..."
+            rows={4}
+            required
+          />
+        </div>
+
+        {/* Actions (Sentence case) */}
+        <div className="flex justify-end gap-3 pt-4 border-t border-[var(--line)] text-[11px]">
+          {onCancel && (
+            <button
+              type="button"
+              onClick={onCancel}
+              className="px-5 py-2.5 border border-[var(--ink)] bg-[var(--paper)] text-[var(--ink)] font-bold hover:bg-[var(--paper-2)] transition-colors"
+            >
+              Cancel
+            </button>
+          )}
+
+          <button
+            type="submit"
+            disabled={submitting}
+            className="px-6 py-2.5 bg-[var(--signal)] hover:bg-[var(--signal-dark)] text-[var(--paper)] font-bold transition-colors"
+          >
+            {submitting ? "Submitting..." : "Submit review →"}
+          </button>
+        </div>
+      </form>
+    </div>
   );
 }

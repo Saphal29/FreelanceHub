@@ -1,9 +1,7 @@
 "use client";
 
 import { useState, useRef } from "react";
-import { Button } from "@/components/ui/button";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Upload, X, File, Image, FileText, AlertCircle, CheckCircle, Loader2 } from "lucide-react";
+import { Upload, AlertCircle, CheckCircle, Loader2 } from "lucide-react";
 import { uploadFile } from "@/lib/api";
 
 export default function FileUpload({ 
@@ -15,7 +13,6 @@ export default function FileUpload({
   onUploadError,
   onUploadStart,
   metadata = {},
-  showPreview = true,
   className = ""
 }) {
   const [files, setFiles] = useState([]);
@@ -27,10 +24,9 @@ export default function FileUpload({
   const handleFileSelect = (e) => {
     const selectedFiles = Array.from(e.target.files || []);
     
-    // Validate file sizes
     const oversizedFiles = selectedFiles.filter(f => f.size > maxSize * 1024 * 1024);
     if (oversizedFiles.length > 0) {
-      setError(`Some files exceed the ${maxSize}MB limit`);
+      setError(`File size exceeds maximum ${maxSize}MB limit`);
       return;
     }
 
@@ -41,12 +37,7 @@ export default function FileUpload({
     }
     setError("");
     
-    // Auto-upload files immediately after selection
     handleUpload(selectedFiles);
-  };
-
-  const removeFile = (index) => {
-    setFiles(files.filter((_, i) => i !== index));
   };
 
   const handleUpload = async (filesToUpload = files) => {
@@ -70,7 +61,7 @@ export default function FileUpload({
 
       const results = await Promise.all(uploadPromises);
       
-      setSuccess(`Successfully uploaded ${results.length} file(s)`);
+      setSuccess(`Uploaded ${results.length} file(s)`);
       setFiles([]);
       
       if (onUploadSuccess) {
@@ -91,38 +82,24 @@ export default function FileUpload({
     }
   };
 
-  const getFileIcon = (file) => {
-    if (file.type.startsWith('image/')) {
-      return <Image className="h-8 w-8 text-blue-500" />;
-    } else if (file.type === 'application/pdf') {
-      return <FileText className="h-8 w-8 text-red-500" />;
-    } else {
-      return <File className="h-8 w-8 text-gray-500" />;
-    }
-  };
-
-  const formatFileSize = (bytes) => {
-    if (bytes === 0) return '0 Bytes';
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
-  };
-
   return (
-    <div className={`space-y-4 ${className}`}>
-      {/* Upload Area */}
+    <div className={`space-y-2 font-mono-ledger text-[12px] ${className}`}>
+      {/* ARCHETYPE G: SINGLE HAIRLINE-BORDERED UPLOAD ROW */}
       <div
         onClick={() => !uploading && fileInputRef.current?.click()}
-        className={`border-2 border-dashed border-border rounded-xl p-8 text-center cursor-pointer hover:border-accent hover:bg-accent/5 transition-colors ${uploading ? 'opacity-50 cursor-not-allowed' : ''}`}
+        className={`border border-[var(--ink)] bg-[var(--paper-2)] p-3.5 flex items-center justify-between cursor-pointer hover:bg-[var(--paper)] transition-colors ${uploading ? 'opacity-50 cursor-not-allowed' : ''}`}
       >
-        <Upload className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-        <p className="text-foreground font-medium mb-2">
-          {uploading ? 'Uploading...' : 'Click to upload or drag and drop'}
-        </p>
-        <p className="text-sm text-muted-foreground">
-          Maximum file size: {maxSize}MB
-        </p>
+        <div className="flex items-center space-x-3">
+          <Upload className="h-5 w-5 text-[var(--ink)] shrink-0" />
+          <span className="font-bold text-[var(--ink)]">
+            {uploading ? 'Uploading specimen file...' : 'Attach files'}
+          </span>
+        </div>
+
+        <span className="text-[11px] text-[var(--muted)]">
+          Up to {maxSize}MB
+        </span>
+
         <input
           ref={fileInputRef}
           type="file"
@@ -134,27 +111,27 @@ export default function FileUpload({
         />
       </div>
 
-      {/* Uploading Progress */}
+      {/* Uploading Status */}
       {uploading && (
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Loader2 className="h-4 w-4 animate-spin" />
-          <span>Uploading files...</span>
+        <div className="flex items-center space-x-2 text-[11px] text-[var(--muted)]">
+          <Loader2 className="h-3.5 w-3.5 animate-spin text-[var(--signal)]" />
+          <span>Uploading attachment to ledger...</span>
         </div>
       )}
 
       {/* Messages */}
       {error && (
-        <Alert className="border-red-200 bg-red-50">
-          <AlertCircle className="h-4 w-4 text-red-600" />
-          <AlertDescription className="text-red-800">{error}</AlertDescription>
-        </Alert>
+        <div className="p-2.5 bg-red-50 border border-[var(--signal)] text-[var(--signal-dark)] text-[11px] flex items-center space-x-2">
+          <AlertCircle className="h-3.5 w-3.5 text-[var(--signal)] shrink-0" />
+          <span>{error}</span>
+        </div>
       )}
 
       {success && (
-        <Alert className="border-green-200 bg-green-50">
-          <CheckCircle className="h-4 w-4 text-green-600" />
-          <AlertDescription className="text-green-800">{success}</AlertDescription>
-        </Alert>
+        <div className="p-2.5 bg-[var(--paper)] border border-[var(--signal)] text-[var(--ink)] text-[11px] flex items-center space-x-2">
+          <CheckCircle className="h-3.5 w-3.5 text-[var(--signal)] shrink-0" />
+          <span className="font-bold">{success}</span>
+        </div>
       )}
     </div>
   );

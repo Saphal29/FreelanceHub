@@ -1,10 +1,6 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSocket } from "@/contexts/SocketContext";
 import {
@@ -15,9 +11,6 @@ import {
 } from "@/lib/api";
 import {
   AlertCircle,
-  Send,
-  MessageSquare,
-  Shield,
   Paperclip,
   Download,
   FileText,
@@ -40,8 +33,8 @@ const formatBytes = (bytes) => {
   return (bytes / (1024 * 1024)).toFixed(1) + " MB";
 };
 
-const Avatar = ({ name, size = "h-7 w-7" }) => (
-  <div className={`${size} rounded-full bg-accent flex items-center justify-center text-accent-foreground font-bold text-xs shrink-0`}>
+const Avatar = ({ name }) => (
+  <div className="w-8 h-8 bg-[var(--ink)] text-[var(--paper)] font-bold text-[12px] flex items-center justify-center shrink-0">
     {name?.charAt(0)?.toUpperCase() || "?"}
   </div>
 );
@@ -110,38 +103,40 @@ const FileMessage = ({ msg, isOwn, onLightbox }) => {
 
   if (isImage) {
     return (
-      <div className="space-y-1">
+      <div className="space-y-1 font-mono-ledger">
         {imageLoading ? (
-          <div className="w-[240px] h-[200px] rounded-xl bg-muted animate-pulse flex items-center justify-center">
-            <ImageIcon className="h-12 w-12 text-muted-foreground" />
+          <div className="w-[240px] h-[160px] bg-[var(--paper-2)] border border-[var(--line)] flex items-center justify-center">
+            <ImageIcon className="h-8 w-8 text-[var(--muted)]" />
           </div>
         ) : imageSrc ? (
           <div className="relative group">
             <img
               src={imageSrc}
               alt={msg.fileName}
-              className="max-w-[240px] max-h-[200px] rounded-xl object-cover cursor-pointer hover:opacity-90 transition-opacity"
+              className="max-w-[240px] max-h-[180px] border border-[var(--ink)] object-cover cursor-pointer"
               onClick={() => onLightbox(imageSrc)}
             />
             <button
               onClick={handleDownload}
-              className="absolute top-2 right-2 bg-black/60 hover:bg-black/80 text-white rounded-full p-2 opacity-0 group-hover:opacity-100 transition-opacity"
+              className="absolute top-2 right-2 bg-[var(--ink)] text-[var(--paper)] p-1.5 opacity-0 group-hover:opacity-100 transition-opacity"
               title="Download image"
             >
               <Download className="h-4 w-4" />
             </button>
           </div>
         ) : (
-          <div className="p-4 border rounded-xl bg-muted text-center">
-            <ImageIcon className="h-12 w-12 mx-auto mb-2 text-muted-foreground" />
-            <p className="text-sm text-muted-foreground mb-2">{msg.fileName}</p>
-            <Button size="sm" variant="outline" onClick={handleDownload}>
-              <Download className="h-4 w-4 mr-2" />
-              Download Image
-            </Button>
+          <div className="p-3 border border-[var(--line)] bg-[var(--paper-2)] text-center">
+            <ImageIcon className="h-8 w-8 mx-auto mb-2 text-[var(--muted)]" />
+            <p className="text-[11px] text-[var(--muted)] mb-2">{msg.fileName}</p>
+            <button 
+              onClick={handleDownload}
+              className="px-3 py-1 bg-[var(--ink)] text-[var(--paper)] text-[10px] font-bold uppercase"
+            >
+              Download image
+            </button>
           </div>
         )}
-        <p className={`text-xs ${isOwn ? "text-accent-foreground/70" : "text-muted-foreground"}`}>
+        <p className="text-[10px] text-[var(--muted)]">
           {msg.fileName}
         </p>
       </div>
@@ -152,20 +147,20 @@ const FileMessage = ({ msg, isOwn, onLightbox }) => {
     <a
       href="#"
       onClick={handleDownload}
-      className={`flex items-center gap-3 p-3 rounded-xl border transition-colors hover:opacity-80 ${
-        isOwn ? "border-accent-foreground/20 bg-accent-foreground/10" : "border-border bg-muted"
+      className={`flex items-center gap-3 p-3 border font-mono-ledger text-[11px] ${
+        isOwn ? "border-[var(--ink)] bg-[var(--paper-2)]" : "border-[var(--line)] bg-[var(--paper)]"
       }`}
     >
-      <FileText className="h-8 w-8 shrink-0 text-accent" />
-      <div className="min-w-0">
-        <p className={`text-sm font-medium truncate ${isOwn ? "text-accent-foreground" : "text-foreground"}`}>
+      <FileText className="h-6 w-6 shrink-0 text-[var(--ink)]" />
+      <div className="min-w-0 flex-1">
+        <p className="font-bold truncate text-[var(--ink)]">
           {msg.fileName}
         </p>
-        <p className={`text-xs ${isOwn ? "text-accent-foreground/60" : "text-muted-foreground"}`}>
+        <p className="text-[10px] text-[var(--muted)]">
           {formatBytes(msg.fileSize)}
         </p>
       </div>
-      <Download className="h-4 w-4 shrink-0" />
+      <Download className="h-4 w-4 shrink-0 text-[var(--ink)]" />
     </a>
   );
 };
@@ -179,7 +174,6 @@ export default function DisputeMessages({ disputeId, isMediator = false }) {
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [sending, setSending] = useState(false);
   const [newMessage, setNewMessage] = useState("");
   const [uploading, setUploading] = useState(false);
   const [imagePreview, setImagePreview] = useState(null);
@@ -202,12 +196,8 @@ export default function DisputeMessages({ disputeId, isMediator = false }) {
     socket.on("message:new", (message) => {
       if (message.conversationId === conversation.id) {
         setMessages(prev => {
-          // Avoid duplicates - check if message already exists
           const exists = prev.find(m => m.id === message.id);
-          if (exists) {
-            console.log('Duplicate message prevented:', message.id);
-            return prev;
-          }
+          if (exists) return prev;
           return [...prev, message];
         });
         socket.emit("messages:read", { conversationId: message.conversationId });
@@ -343,201 +333,173 @@ export default function DisputeMessages({ disputeId, isMediator = false }) {
 
   if (loading) {
     return (
-      <Card className="border-border">
-        <CardContent className="py-12">
-          <div className="flex items-center justify-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-accent"></div>
-          </div>
-        </CardContent>
-      </Card>
+      <div className="py-8 text-center font-mono-ledger text-[12px] text-[var(--muted)]">
+        LOADING MEDIATION THREAD...
+      </div>
     );
   }
 
   return (
-    <>
-      <Card className="border-border">
-        <CardHeader>
-          <CardTitle className="flex items-center justify-between font-display text-xl">
-            <div className="flex items-center">
-              <MessageSquare className="h-5 w-5 mr-2 text-accent" />
-              Discussion Thread
-            </div>
-            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${isConnected ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>
-              {isConnected ? "● Live" : "● Offline"}
-            </span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {error && (
-            <Alert className="border-2 border-red-200 bg-red-50">
-              <AlertCircle className="h-5 w-5 text-red-600" />
-              <AlertDescription className="text-red-800 font-semibold">{error}</AlertDescription>
-            </Alert>
-          )}
+    <div className="border border-[var(--ink)] bg-[var(--paper)] p-5 space-y-4 font-mono-ledger text-[12px] text-left">
+      
+      {/* Header */}
+      <div className="border-b border-[var(--ink)] pb-3 flex items-center justify-between">
+        <span className="font-bold text-[var(--ink)] uppercase tracking-wider text-[11px]">
+          Mediation Thread & Case Dispatch
+        </span>
+        <span className={`text-[10px] font-bold px-2 py-0.5 border ${
+          isConnected ? "border-green-600 text-green-700 bg-green-50" : "border-[var(--signal)] text-[var(--signal-dark)] bg-red-50"
+        }`}>
+          [{isConnected ? "LIVE" : "OFFLINE"}]
+        </span>
+      </div>
 
-          {/* Messages List */}
-          <div className="space-y-3 max-h-[500px] overflow-y-auto p-4 bg-secondary/10 rounded-xl">
-            {messages.length === 0 ? (
-              <div className="text-center py-8">
-                <MessageSquare className="mx-auto h-12 w-12 text-muted-foreground" />
-                <h3 className="mt-4 font-display text-lg font-semibold text-foreground">
-                  No messages yet
-                </h3>
-                <p className="mt-2 text-muted-foreground">
-                  Start the conversation by sending a message
-                </p>
-              </div>
-            ) : (
-              <>
-                {messages.map(msg => {
-                  const isOwn = msg.senderId === user?.id;
-                  const isFile = msg.messageType === "file" || msg.messageType === "image";
-                  return (
-                    <div key={msg.id} className={`flex ${isOwn ? "justify-end" : "justify-start"}`}>
-                      {!isOwn && <Avatar name={msg.senderName} size="h-7 w-7 mr-2 mt-1" />}
-                      <div className="max-w-[70%]">
-                        {msg.isDeleted ? (
-                          <div className="rounded-2xl px-4 py-2 text-sm bg-muted text-muted-foreground italic">
-                            This message was deleted
-                          </div>
-                        ) : isFile ? (
-                          <div className={`rounded-2xl px-3 py-2 ${isOwn ? "bg-accent text-accent-foreground" : "bg-white border border-border"}`}>
-                            <FileMessage msg={msg} isOwn={isOwn} onLightbox={setLightboxSrc} />
-                            <span className={`block text-xs mt-1 ${isOwn ? "text-accent-foreground/60" : "text-muted-foreground"}`}>
-                              {formatTime(msg.createdAt)}{isOwn && msg.isRead && " ✓✓"}
-                            </span>
-                          </div>
-                        ) : (
-                          <div className={`rounded-2xl px-4 py-2 text-sm ${isOwn ? "bg-accent text-accent-foreground" : "bg-white text-foreground border border-border"}`}>
-                            <div className="flex items-center gap-2 mb-1">
-                              <span className="text-xs font-semibold">
-                                {msg.senderName}
-                              </span>
-                            </div>
-                            <p className="whitespace-pre-wrap">{msg.content}</p>
-                            <span className={`block text-xs mt-1 ${isOwn ? "text-accent-foreground/60" : "text-muted-foreground"}`}>
-                              {formatTime(msg.createdAt)}{isOwn && msg.isRead && " ✓✓"}
-                            </span>
-                          </div>
-                        )}
+      {error && (
+        <div className="p-3 bg-red-50 border border-[var(--signal)] text-[var(--signal-dark)] flex items-center space-x-2">
+          <AlertCircle className="h-4 w-4 text-[var(--signal)] shrink-0" />
+          <span>{error}</span>
+        </div>
+      )}
+
+      {/* Messages List */}
+      <div className="space-y-3 max-h-[420px] overflow-y-auto p-4 border border-[var(--line)] bg-[var(--paper-2)]">
+        {messages.length === 0 ? (
+          <div className="text-center py-8 text-[var(--muted)] space-y-1">
+            <span className="font-bold uppercase block text-[11px]">No messages on ledger</span>
+            <span className="text-[10px]">Start discussion by posting a statement below</span>
+          </div>
+        ) : (
+          <>
+            {messages.map(msg => {
+              const isOwn = msg.senderId === user?.id;
+              const isFile = msg.messageType === "file" || msg.messageType === "image";
+              return (
+                <div key={msg.id} className={`flex gap-3 ${isOwn ? "justify-end" : "justify-start"}`}>
+                  {!isOwn && <Avatar name={msg.senderName} />}
+                  <div className="max-w-[75%] space-y-1">
+                    <div className="flex items-center space-x-2 text-[10px] text-[var(--muted)]">
+                      <span className="font-bold text-[var(--ink)]">{msg.senderName}</span>
+                      <span>·</span>
+                      <span>{formatTime(msg.createdAt)}</span>
+                    </div>
+
+                    {msg.isDeleted ? (
+                      <div className="p-3 border border-[var(--line)] bg-[var(--paper)] text-[var(--muted)] italic text-[11px]">
+                        This message was deleted
                       </div>
-                    </div>
-                  );
-                })}
-                {isTyping && (
-                  <div className="flex items-center gap-2 text-muted-foreground text-xs">
-                    <div className="flex gap-1">
-                      <span className="animate-bounce">●</span>
-                      <span className="animate-bounce" style={{ animationDelay: "0.1s" }}>●</span>
-                      <span className="animate-bounce" style={{ animationDelay: "0.2s" }}>●</span>
-                    </div>
-                    Someone is typing...
+                    ) : isFile ? (
+                      <div className="border border-[var(--ink)] bg-[var(--paper)] p-3">
+                        <FileMessage msg={msg} isOwn={isOwn} onLightbox={setLightboxSrc} />
+                      </div>
+                    ) : (
+                      <div className={`p-3 border text-[13px] font-sans-ledger leading-relaxed ${
+                        isOwn ? "border-[var(--ink)] bg-[var(--paper)] text-[var(--ink)] font-medium" : "border-[var(--line)] bg-[var(--paper)] text-[var(--ink)]"
+                      }`}>
+                        <p className="whitespace-pre-wrap">{msg.content}</p>
+                      </div>
+                    )}
                   </div>
-                )}
-                <div ref={messagesEndRef} />
-              </>
+                </div>
+              );
+            })}
+
+            {isTyping && (
+              <div className="text-[10px] text-[var(--muted)] italic">
+                Participant is typing message...
+              </div>
             )}
+            <div ref={messagesEndRef} />
+          </>
+        )}
+      </div>
+
+      {/* Image preview before send */}
+      {imagePreview && (
+        <div className="p-3 border border-[var(--ink)] bg-[var(--paper-2)] flex items-center justify-between gap-3 text-[11px]">
+          <div className="flex items-center space-x-3">
+            <img src={imagePreview.src} alt="preview" className="h-12 w-12 border border-[var(--ink)] object-cover" />
+            <div>
+              <p className="font-bold truncate text-[var(--ink)]">{imagePreview.file.name}</p>
+              <p className="text-[10px] text-[var(--muted)]">{formatBytes(imagePreview.file.size)}</p>
+            </div>
           </div>
 
-          {/* Image preview before send */}
-          {imagePreview && (
-            <div className="px-4 py-2 border-t border-border bg-secondary flex items-center gap-3">
-              <img src={imagePreview.src} alt="preview" className="h-16 w-16 rounded-xl object-cover" />
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium truncate">{imagePreview.file.name}</p>
-                <p className="text-xs text-muted-foreground">{formatBytes(imagePreview.file.size)}</p>
-              </div>
-              <Button variant="accent" size="sm" disabled={uploading} onClick={() => sendFile(imagePreview.file)}>
-                {uploading ? <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" /> : "Send"}
-              </Button>
-              <Button variant="ghost" size="icon" onClick={() => { setImagePreview(null); if (fileInputRef.current) fileInputRef.current.value = ""; }}>
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
-          )}
-
-          {/* Message Input */}
-          <form onSubmit={handleSend} className="flex items-center gap-2">
-            <input
-              ref={fileInputRef}
-              type="file"
-              className="hidden"
-              accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt,.zip"
-              onChange={handleFileSelect}
-            />
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
+          <div className="flex items-center space-x-2">
+            <button
+              onClick={() => sendFile(imagePreview.file)}
               disabled={uploading}
-              onClick={() => fileInputRef.current?.click()}
-              title="Attach file"
+              className="bg-[var(--signal)] text-[var(--paper)] font-bold px-4 py-2 uppercase"
             >
-              {uploading
-                ? <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-accent" />
-                : <Paperclip className="h-4 w-4" />
-              }
-            </Button>
-            <Input
-              value={newMessage}
-              onChange={handleTyping}
-              placeholder="Type a message..."
-              className="flex-1 rounded-xl bg-background border-border"
-              onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) handleSend(e); }}
-            />
-            <Button type="submit" variant="accent" size="icon" disabled={!newMessage.trim()}>
-              <Send className="h-4 w-4" />
-            </Button>
-          </form>
-        </CardContent>
-      </Card>
+              {uploading ? "Uploading..." : "Send →"}
+            </button>
+            <button
+              onClick={() => setImagePreview(null)}
+              className="text-[var(--ink)] hover:text-[var(--signal)] font-bold p-1"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      )}
 
-      {/* Full-size image lightbox */}
+      {/* Message Input Form */}
+      <form onSubmit={handleSend} className="flex items-center gap-2">
+        <input
+          ref={fileInputRef}
+          type="file"
+          className="hidden"
+          accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt,.zip"
+          onChange={handleFileSelect}
+        />
+        <button
+          type="button"
+          disabled={uploading}
+          onClick={() => fileInputRef.current?.click()}
+          className="border border-[var(--ink)] bg-[var(--paper)] text-[var(--ink)] hover:bg-[var(--paper-2)] p-2.5 transition-colors shrink-0"
+          title="Attach file"
+        >
+          <Paperclip className="h-4 w-4" />
+        </button>
+
+        <input
+          value={newMessage}
+          onChange={handleTyping}
+          placeholder="Type message or mediation response..."
+          className="flex-1 bg-[var(--paper)] border border-[var(--line)] p-2.5 text-[13px] text-[var(--ink)] outline-none focus:border-[var(--ink)] font-sans-ledger"
+          onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) handleSend(e); }}
+        />
+
+        <button
+          type="submit"
+          disabled={!newMessage.trim()}
+          className="bg-[var(--signal)] hover:bg-[var(--signal-dark)] text-[var(--paper)] font-bold px-5 py-2.5 uppercase transition-colors shrink-0 disabled:opacity-50"
+        >
+          Send →
+        </button>
+      </form>
+
+      {/* Lightbox */}
       {lightboxSrc && (
         <div
-          className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4"
+          className="fixed inset-0 bg-[var(--ink)]/80 z-50 flex items-center justify-center p-4"
           onClick={() => setLightboxSrc(null)}
         >
           <div className="relative max-w-[90vw] max-h-[90vh]" onClick={(e) => e.stopPropagation()}>
             <img 
               src={lightboxSrc} 
               alt="preview" 
-              className="max-w-full max-h-[90vh] rounded-2xl object-contain" 
+              className="max-w-full max-h-[90vh] border-2 border-[var(--paper)] object-contain" 
             />
-            <div className="absolute top-4 right-4 flex gap-2">
-              <button
-                className="text-white bg-black/50 rounded-full p-2 hover:bg-black/80 transition-colors"
-                onClick={async () => {
-                  try {
-                    const response = await fetch(lightboxSrc);
-                    const blob = await response.blob();
-                    const url = window.URL.createObjectURL(blob);
-                    const link = document.createElement('a');
-                    link.href = url;
-                    link.download = 'image';
-                    document.body.appendChild(link);
-                    link.click();
-                    document.body.removeChild(link);
-                    window.URL.revokeObjectURL(url);
-                  } catch (error) {
-                    console.error('Download error:', error);
-                  }
-                }}
-                title="Download"
-              >
-                <Download className="h-5 w-5" />
-              </button>
-              <button
-                className="text-white bg-black/50 rounded-full p-2 hover:bg-black/80 transition-colors"
-                onClick={() => setLightboxSrc(null)}
-                title="Close"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
+            <button
+              className="absolute top-3 right-3 text-[var(--paper)] bg-[var(--ink)] p-2 hover:bg-[var(--signal)] transition-colors"
+              onClick={() => setLightboxSrc(null)}
+            >
+              <X className="h-5 w-5" />
+            </button>
           </div>
         </div>
       )}
-    </>
+
+    </div>
   );
 }

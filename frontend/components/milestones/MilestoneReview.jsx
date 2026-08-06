@@ -3,13 +3,13 @@
 import { useState, useEffect } from 'react';
 import { getMilestoneSubmissions, reviewMilestoneSubmission } from '@/lib/api';
 import { AlertCircle } from 'lucide-react';
+import { formatCurrency } from '@/lib/currency';
 
 export default function MilestoneReview({ milestone, onReviewComplete }) {
   const [submissions, setSubmissions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [reviewing, setReviewing] = useState(false);
   const [selectedSubmission, setSelectedSubmission] = useState(null);
-  const [reviewAction, setReviewAction] = useState('');
   const [reviewNotes, setReviewNotes] = useState('');
   const [error, setError] = useState('');
 
@@ -22,15 +22,14 @@ export default function MilestoneReview({ milestone, onReviewComplete }) {
       setLoading(true);
       const response = await getMilestoneSubmissions(milestone.id);
       if (response.success) {
-        setSubmissions(response.submissions);
-        // Auto-select the latest pending submission
-        const pending = response.submissions.find(s => s.status === 'pending');
+        setSubmissions(response.submissions || []);
+        const pending = (response.submissions || []).find(s => s.status === 'pending');
         if (pending) {
           setSelectedSubmission(pending);
         }
       }
     } catch (err) {
-      setError('Failed to load submissions');
+      setError('Failed to load milestone submissions');
     } finally {
       setLoading(false);
     }
@@ -44,7 +43,7 @@ export default function MilestoneReview({ milestone, onReviewComplete }) {
 
     try {
       const reviewData = {
-        action, // 'approve', 'reject', 'request_revision'
+        action,
         notes: reviewNotes.trim() || null
       };
 
@@ -52,35 +51,30 @@ export default function MilestoneReview({ milestone, onReviewComplete }) {
       
       if (response.success) {
         onReviewComplete?.(response.submission);
-        loadSubmissions(); // Reload to show updated status
+        loadSubmissions();
         setReviewNotes('');
-        setReviewAction('');
       }
     } catch (err) {
-      console.error('Review error:', err); // Debug log
-      
-      // Extract error message from different possible formats
-      const errorMessage = err.message || err.error || err.toString() || 'Failed to submit review';
-      
-      // Check if error is about missing escrow
-      if (errorMessage.toLowerCase().includes('escrow') || errorMessage.toLowerCase().includes('deposit')) {
-        setError(errorMessage);
-      } else {
-        setError(errorMessage);
-      }
+      console.error('Review error:', err);
+      const errorMessage = err.message || err.error || 'Failed to submit milestone review';
+      setError(errorMessage);
     } finally {
       setReviewing(false);
     }
   };
 
   if (loading) {
-    return <div className="text-center py-8">Loading submissions...</div>;
+    return (
+      <div className="py-8 text-center font-mono-ledger text-[12px] text-[var(--muted)] uppercase">
+        LOADING SUBMISSIONS...
+      </div>
+    );
   }
 
   if (submissions.length === 0) {
     return (
-      <div className="bg-gray-50 border border-gray-200 rounded-lg p-6 text-center">
-        <p className="text-gray-600">No submissions yet. Waiting for freelancer to submit work.</p>
+      <div className="border border-[var(--line)] bg-[var(--paper-2)] p-6 text-center font-mono-ledger text-[12px] text-[var(--muted)]">
+        No deliverable submissions recorded on ledger yet.
       </div>
     );
   }
@@ -88,97 +82,54 @@ export default function MilestoneReview({ milestone, onReviewComplete }) {
   const pendingSubmission = submissions.find(s => s.status === 'pending');
 
   return (
-    <div className="space-y-6">
-      {/* Submission Details */}
+    <div className="space-y-6 text-left font-mono-ledger text-[12px]">
+      
+      {/* Selected Submission Details */}
       {selectedSubmission && (
-        <div className="bg-white border border-gray-200 rounded-lg p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold">Submission Details</h3>
-            <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-              selectedSubmission.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-              selectedSubmission.status === 'approved' ? 'bg-green-100 text-green-800' :
-              selectedSubmission.status === 'rejected' ? 'bg-red-100 text-red-800' :
-              'bg-blue-100 text-blue-800'
-            }`}>
-              {selectedSubmission.status.replace('_', ' ').toUpperCase()}
+        <div className="border border-[var(--ink)] bg-[var(--paper)] p-6 space-y-5">
+          <div className="flex items-center justify-between border-b border-[var(--ink)] pb-3">
+            <h3 className="font-serif-ledger text-[22px] font-medium text-[var(--ink)]">
+              Milestone deliverable submission
+            </h3>
+            <span className="text-[11px] font-bold text-[var(--signal)]">
+              [{selectedSubmission.status?.toUpperCase()}]
             </span>
           </div>
 
-          <div className="space-y-4">
+          <div className="space-y-3">
             <div>
-              <p className="text-sm text-gray-500">Submitted by</p>
-              <p className="font-medium">{selectedSubmission.submittedByName}</p>
-              <p className="text-sm text-gray-500">
+              <span className="text-[10px] text-[var(--muted)] uppercase block font-bold">SUBMITTED BY</span>
+              <span className="font-bold text-[var(--ink)]">{selectedSubmission.submittedByName}</span>
+              <span className="text-[10px] text-[var(--muted)] block">
                 {new Date(selectedSubmission.createdAt).toLocaleString()}
-              </p>
+              </span>
             </div>
 
             {selectedSubmission.submissionNotes && (
-              <div>
-                <p className="text-sm text-gray-500 mb-1">Notes</p>
-                <p className="text-gray-700">{selectedSubmission.submissionNotes}</p>
-              </div>
-            )}
-
-            {selectedSubmission.attachments && selectedSubmission.attachments.length > 0 && (
-              <div>
-                <p className="text-sm text-gray-500 mb-2">Attachments</p>
-                <div className="space-y-1">
-                  {selectedSubmission.attachments.map((attachment, index) => (
-                    <a
-                      key={index}
-                      href={attachment.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="block text-blue-600 hover:text-blue-800 text-sm"
-                    >
-                      📎 {attachment.name}
-                    </a>
-                  ))}
-                </div>
+              <div className="space-y-1">
+                <span className="text-[10px] text-[var(--muted)] uppercase block font-bold">SUBMISSION NOTES</span>
+                <p className="font-sans-ledger text-[13px] text-[var(--ink)] border border-[var(--line)] bg-[var(--paper-2)] p-3 leading-relaxed">
+                  {selectedSubmission.submissionNotes}
+                </p>
               </div>
             )}
 
             {/* Deliverable Files */}
             {selectedSubmission.deliverableFiles && selectedSubmission.deliverableFiles.length > 0 && (
-              <div>
-                <p className="text-sm text-gray-500 mb-2">Deliverable Files</p>
-                <div className="space-y-2">
+              <div className="space-y-2 pt-2">
+                <span className="text-[10px] text-[var(--muted)] uppercase block font-bold">DELIVERABLE SPECIMENS</span>
+                <div className="space-y-1.5">
                   {selectedSubmission.deliverableFiles.map((file) => {
                     const fileUrl = file.file_url || `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/files/${file.id}/download`;
-                    const fileSizeKB = (file.file_size / 1024).toFixed(2);
-                    const fileSizeMB = (file.file_size / (1024 * 1024)).toFixed(2);
-                    const displaySize = file.file_size > 1024 * 1024 ? `${fileSizeMB} MB` : `${fileSizeKB} KB`;
-                    
-                    // Get file icon based on mime type
-                    const getFileIcon = (mimeType) => {
-                      if (mimeType.startsWith('image/')) return '🖼️';
-                      if (mimeType.startsWith('video/')) return '🎥';
-                      if (mimeType.includes('pdf')) return '📄';
-                      if (mimeType.includes('word') || mimeType.includes('document')) return '📝';
-                      if (mimeType.includes('sheet') || mimeType.includes('excel')) return '📊';
-                      if (mimeType.includes('presentation') || mimeType.includes('powerpoint')) return '📽️';
-                      if (mimeType.includes('zip') || mimeType.includes('rar') || mimeType.includes('compressed')) return '📦';
-                      return '📎';
-                    };
-
                     return (
-                      <div key={file.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200">
-                        <div className="flex items-center gap-3 flex-1 min-w-0">
-                          <span className="text-2xl">{getFileIcon(file.mime_type)}</span>
-                          <div className="flex-1 min-w-0">
-                            <p className="font-medium text-gray-900 truncate">{file.original_name}</p>
-                            <p className="text-xs text-gray-500">
-                              {displaySize} • {new Date(file.created_at).toLocaleDateString()}
-                            </p>
-                          </div>
-                        </div>
+                      <div key={file.id} className="flex items-center justify-between p-3 border border-[var(--line)] bg-[var(--paper-2)]">
+                        <span className="font-bold text-[var(--ink)] truncate">{file.original_name}</span>
                         <a
                           href={fileUrl}
                           download
-                          className="ml-3 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium whitespace-nowrap"
+                          className="px-3 py-1 bg-[var(--ink)] text-[var(--paper)] text-[10px] font-bold uppercase hover:bg-[var(--signal)] transition-colors"
                         >
-                          Download
+                          Download →
                         </a>
                       </div>
                     );
@@ -187,156 +138,84 @@ export default function MilestoneReview({ milestone, onReviewComplete }) {
               </div>
             )}
 
-            {/* Time Tracking Summary */}
-            <div className="bg-gray-50 rounded-lg p-4">
-              <h4 className="font-medium mb-2">Time Tracking Summary</h4>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-sm text-gray-500">Total Hours</p>
-                  <p className="text-lg font-semibold">{selectedSubmission.totalHours?.toFixed(2) || 0} hrs</p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500">Total Amount</p>
-                  <p className="text-lg font-semibold">NPR {selectedSubmission.totalAmount?.toFixed(2) || 0}</p>
-                </div>
+            {/* Hours & Amount */}
+            <div className="border-t border-[var(--line)] pt-3 flex justify-between">
+              <div>
+                <span className="text-[10px] text-[var(--muted)] uppercase block">Total Hours Logged</span>
+                <span className="font-bold text-[var(--ink)]">{selectedSubmission.totalHours?.toFixed(2) || 0} hrs</span>
               </div>
-              
-              {selectedSubmission.timeEntriesSnapshot && selectedSubmission.timeEntriesSnapshot.length > 0 && (
-                <div className="mt-4">
-                  <p className="text-sm font-medium mb-2">Time Entries ({selectedSubmission.timeEntriesSnapshot.length})</p>
-                  <div className="max-h-48 overflow-y-auto space-y-2">
-                    {selectedSubmission.timeEntriesSnapshot.map((entry, index) => (
-                      <div key={index} className="text-sm bg-white p-2 rounded border border-gray-200">
-                        <div className="flex justify-between">
-                          <span className="text-gray-700">{entry.description || 'No description'}</span>
-                          <span className="font-medium">{(entry.duration_minutes / 60).toFixed(2)} hrs</span>
-                        </div>
-                        <div className="text-xs text-gray-500 mt-1">
-                          {new Date(entry.start_time).toLocaleString()} - {new Date(entry.end_time).toLocaleString()}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
+              <div className="text-right">
+                <span className="text-[10px] text-[var(--muted)] uppercase block">Total Amount</span>
+                <span className="font-bold text-[var(--signal)]">
+                  {formatCurrency(selectedSubmission.totalAmount || 0)}
+                </span>
+              </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* Review Actions (only for pending submissions) */}
+      {/* Review Actions Form */}
       {pendingSubmission && selectedSubmission?.status === 'pending' && (
-        <div className="bg-white border border-gray-200 rounded-lg p-6">
-          <h3 className="text-lg font-semibold mb-4">Review Submission</h3>
+        <div className="border border-[var(--ink)] bg-[var(--paper)] p-6 space-y-4">
+          <span className="font-bold text-[var(--ink)] uppercase text-[11px] block border-b border-[var(--ink)] pb-2">
+            Review & Escrow Release Action
+          </span>
           
           <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Review Notes
+            <div className="space-y-1">
+              <label className="text-[10px] text-[var(--muted)] uppercase font-bold block">
+                Review notes (optional)
               </label>
               <textarea
                 value={reviewNotes}
                 onChange={(e) => setReviewNotes(e.target.value)}
-                placeholder="Add feedback or comments..."
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="Add review feedback or revision notes..."
+                className="w-full bg-[var(--paper)] border border-[var(--line)] p-2.5 text-[13px] text-[var(--ink)] font-sans-ledger outline-none focus:border-[var(--ink)]"
                 rows={3}
               />
             </div>
 
             {error && (
-              <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                <div className="flex items-start gap-3">
-                  <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
-                  <div className="flex-1">
-                    <p className="text-red-800 text-sm font-semibold mb-1">
-                      {error.toLowerCase().includes('escrow') || error.toLowerCase().includes('deposit') 
-                        ? '⚠️ Payment Required' 
-                        : 'Error'}
-                    </p>
-                    <p className="text-red-700 text-sm">{error}</p>
-                    {(error.toLowerCase().includes('escrow') || error.toLowerCase().includes('deposit')) && (
-                      <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                        <p className="text-blue-800 text-xs font-medium">
-                          💡 <strong>What to do next:</strong>
-                        </p>
-                        <ol className="text-blue-700 text-xs mt-2 ml-4 list-decimal space-y-1">
-                          <li>Go to the Contract or Payments page</li>
-                          <li>Click "Deposit to Escrow" or "Make Payment"</li>
-                          <li>Complete the payment process</li>
-                          <li>Return here to approve the milestone</li>
-                        </ol>
-                      </div>
-                    )}
-                  </div>
-                </div>
+              <div className="p-3 bg-red-50 border border-[var(--signal)] text-[var(--signal-dark)] flex items-center space-x-2">
+                <AlertCircle className="h-4 w-4 text-[var(--signal)] shrink-0" />
+                <span>{error}</span>
               </div>
             )}
 
-            <div className="flex gap-3">
+            {/* Actions (Sentence case, ONE solid --signal primary) */}
+            <div className="flex flex-wrap items-center justify-end gap-3 pt-2">
               <button
-                onClick={() => handleReview('approve')}
-                disabled={reviewing}
-                className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
-              >
-                {reviewing ? 'Processing...' : '✓ Approve & Release Payment'}
-              </button>
-              
-              <button
+                type="button"
                 onClick={() => handleReview('request_revision')}
                 disabled={reviewing}
-                className="px-6 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+                className="px-4 py-2.5 border border-[var(--ink)] bg-[var(--paper)] text-[var(--ink)] font-bold uppercase transition-colors"
               >
-                {reviewing ? 'Processing...' : '↻ Request Revision'}
+                Request revision
               </button>
-              
+
               <button
+                type="button"
                 onClick={() => handleReview('reject')}
                 disabled={reviewing}
-                className="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+                className="px-4 py-2.5 border border-[var(--ink)] bg-[var(--paper)] text-[var(--signal-dark)] font-bold uppercase transition-colors"
               >
-                {reviewing ? 'Processing...' : '✗ Reject'}
+                Reject submission
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleReview('approve')}
+                disabled={reviewing}
+                className="px-6 py-2.5 bg-[var(--signal)] hover:bg-[var(--signal-dark)] text-[var(--paper)] font-bold uppercase transition-colors"
+              >
+                {reviewing ? 'Processing...' : 'Approve & release payment →'}
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Submission History */}
-      {submissions.length > 1 && (
-        <div className="bg-white border border-gray-200 rounded-lg p-6">
-          <h3 className="text-lg font-semibold mb-4">Submission History</h3>
-          <div className="space-y-2">
-            {submissions.map((submission) => (
-              <div
-                key={submission.id}
-                onClick={() => setSelectedSubmission(submission)}
-                className={`p-3 rounded-lg border cursor-pointer transition-colors ${
-                  selectedSubmission?.id === submission.id
-                    ? 'border-blue-500 bg-blue-50'
-                    : 'border-gray-200 hover:bg-gray-50'
-                }`}
-              >
-                <div className="flex justify-between items-center">
-                  <div>
-                    <p className="font-medium">{new Date(submission.createdAt).toLocaleString()}</p>
-                    <p className="text-sm text-gray-500">
-                      {submission.totalHours?.toFixed(2)} hrs • NPR {submission.totalAmount?.toFixed(2)}
-                    </p>
-                  </div>
-                  <span className={`px-2 py-1 rounded text-xs font-medium ${
-                    submission.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                    submission.status === 'approved' ? 'bg-green-100 text-green-800' :
-                    submission.status === 'rejected' ? 'bg-red-100 text-red-800' :
-                    'bg-blue-100 text-blue-800'
-                  }`}>
-                    {submission.status}
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
     </div>
   );
 }

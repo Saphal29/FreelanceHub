@@ -1,9 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { X, Send, AlertCircle, CheckCircle } from "lucide-react";
+import { X, AlertCircle, CheckCircle2 } from "lucide-react";
 import { getClientProjectsForInvite, sendInvitation } from "@/lib/api";
-import { formatCurrency } from "@/lib/currency";
 
 export default function InviteModal({ freelancer, onClose }) {
   const [projects, setProjects] = useState([]);
@@ -73,18 +72,23 @@ export default function InviteModal({ freelancer, onClose }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--ink)]/60 backdrop-blur-xs p-4 text-left font-sans-ledger">
-      <div className="relative w-full max-w-xl border-2 border-[var(--ink)] bg-[var(--paper)] shadow-2xl flex flex-col font-mono-ledger text-[12px]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--ink)]/40 p-4 text-left font-sans-ledger">
+      {/* ARCHETYPE G: MODAL SHELL */}
+      <div className="relative w-full max-w-xl border border-[var(--line)] bg-[var(--paper)] flex flex-col font-mono-ledger text-[12px] rounded-none">
         
         {/* Header */}
-        <div className="border-b border-[var(--ink)] p-5 bg-[var(--paper-2)] flex items-center justify-between uppercase">
-          <div>
-            <span className="text-[var(--signal)] font-bold block">TALENT INVITATION SPECIMEN</span>
-            <span className="text-[var(--ink)] font-bold text-[14px]">{freelancer.fullName}</span>
+        <div className="border-b border-[var(--line)] p-5 flex items-start justify-between">
+          <div className="space-y-1">
+            <p className="font-mono-ledger text-[11px] uppercase tracking-[0.08em] text-[var(--signal)] font-bold">
+              TALENT INVITATION SPECIMEN
+            </p>
+            <h2 className="font-serif-ledger text-[24px] sm:text-[28px] font-medium text-[var(--ink)] leading-snug">
+              Invite {freelancer.fullName}
+            </h2>
           </div>
           <button
             onClick={onClose}
-            className="text-[var(--muted)] hover:text-[var(--ink)] font-bold text-[14px]"
+            className="text-[var(--ink)] hover:opacity-70 p-1"
           >
             <X className="h-5 w-5" />
           </button>
@@ -94,14 +98,14 @@ export default function InviteModal({ freelancer, onClose }) {
         <div className="p-6 space-y-5">
           
           {success && (
-            <div className="p-4 bg-green-50 border border-green-600 text-green-800 text-[12px] flex items-center space-x-2 font-bold">
-              <CheckCircle className="h-4 w-4 text-green-600 shrink-0" />
+            <div className="p-4 bg-[var(--paper-2)] border border-[var(--signal)] text-[var(--ink)] text-[12px] flex items-center space-x-2 font-bold">
+              <CheckCircle2 className="h-4 w-4 text-[var(--signal)] shrink-0" />
               <span>Invitation dispatched! Freelancer has been notified.</span>
             </div>
           )}
 
           {error && !success && (
-            <div className="p-4 bg-red-50 border border-[var(--signal)] text-[var(--signal-dark)] text-[12px] flex items-center space-x-2 font-bold">
+            <div className="p-4 bg-red-50 border border-[var(--signal)] text-[var(--signal-dark)] text-[12px] flex items-center space-x-2">
               <AlertCircle className="h-4 w-4 text-[var(--signal)] shrink-0" />
               <span>{error}</span>
             </div>
@@ -116,15 +120,15 @@ export default function InviteModal({ freelancer, onClose }) {
               
               <div className="space-y-1">
                 <label className="text-[10px] text-[var(--muted)] uppercase font-bold block">
-                  SELECT PROJECT BRIEF *
+                  Select project brief *
                 </label>
                 <select
                   value={selectedProject}
                   onChange={(e) => setSelectedProject(e.target.value)}
                   disabled={projects.length === 0 || sending}
-                  className="w-full bg-[var(--paper-2)] border-2 border-[var(--ink)] p-3 text-[13px] font-bold focus:outline-none"
+                  className="w-full bg-[var(--paper)] border border-[var(--line)] p-2.5 text-[13px] text-[var(--ink)] outline-none focus:border-[var(--ink)]"
                 >
-                  <option value="">CHOOSE A PROJECT BRIEF...</option>
+                  <option value="">Choose a project brief...</option>
                   {projects.map((project) => (
                     <option key={project.id} value={project.id}>
                       {project.title} - [{project.category}]
@@ -135,7 +139,7 @@ export default function InviteModal({ freelancer, onClose }) {
 
               <div className="space-y-1">
                 <label className="text-[10px] text-[var(--muted)] uppercase font-bold block">
-                  PERSONAL INVITATION MESSAGE (OPTIONAL)
+                  Personal invitation message (optional)
                 </label>
                 <textarea
                   value={message}
@@ -143,7 +147,7 @@ export default function InviteModal({ freelancer, onClose }) {
                   disabled={sending}
                   placeholder="Add a personal message inviting this talent to review your scope..."
                   rows={4}
-                  className="w-full bg-[var(--paper-2)] border-2 border-[var(--ink)] p-3 text-[13px] text-[var(--ink)] focus:outline-none font-sans-ledger"
+                  className="w-full bg-[var(--paper)] border border-[var(--line)] p-2.5 text-[13px] text-[var(--ink)] outline-none focus:border-[var(--ink)] font-sans-ledger"
                 />
               </div>
 
@@ -153,14 +157,14 @@ export default function InviteModal({ freelancer, onClose }) {
         </div>
 
         {/* Footer */}
-        <div className="border-t border-[var(--ink)] p-4 bg-[var(--paper-2)] flex justify-end gap-3 uppercase text-[11px]">
+        <div className="border-t border-[var(--line)] p-4 flex justify-end gap-3 text-[11px]">
           <button
             type="button"
             onClick={onClose}
             disabled={sending}
-            className="px-5 py-2.5 border border-[var(--ink)] bg-[var(--paper)] text-[var(--ink)] font-bold"
+            className="px-5 py-2.5 border border-[var(--ink)] bg-[var(--paper)] text-[var(--ink)] font-bold hover:bg-[var(--paper-2)] transition-colors"
           >
-            CANCEL
+            Cancel
           </button>
           <button
             type="button"
@@ -168,7 +172,7 @@ export default function InviteModal({ freelancer, onClose }) {
             disabled={!selectedProject || sending || projects.length === 0 || success}
             className="px-6 py-2.5 bg-[var(--signal)] hover:bg-[var(--signal-dark)] text-[var(--paper)] font-bold transition-colors"
           >
-            {sending ? "DISPATCHING..." : "DISPATCH INVITATION →"}
+            {sending ? "Sending..." : "Send invitation →"}
           </button>
         </div>
 

@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { submitMilestone } from '@/lib/api';
 import FileUpload from '@/components/files/FileUpload';
+import { AlertCircle, CheckCircle2 } from 'lucide-react';
 
 export default function MilestoneSubmission({ milestone, onSubmitSuccess }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -15,7 +16,7 @@ export default function MilestoneSubmission({ milestone, onSubmitSuccess }) {
     setError('');
 
     if (deliverables.length === 0) {
-      setError('Please upload at least one deliverable file');
+      setError('Please attach at least one deliverable file');
       return;
     }
 
@@ -24,7 +25,7 @@ export default function MilestoneSubmission({ milestone, onSubmitSuccess }) {
     try {
       const submissionData = {
         notes: notes.trim() || null,
-        fileIds: deliverables.map(f => f.file.id)
+        fileIds: deliverables.map(f => f.file?.id || f.id).filter(Boolean)
       };
 
       const response = await submitMilestone(milestone.id, submissionData);
@@ -41,78 +42,78 @@ export default function MilestoneSubmission({ milestone, onSubmitSuccess }) {
 
   if (milestone.status === 'completed') {
     return (
-      <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-        <p className="text-green-800">✓ This milestone has been completed and approved</p>
+      <div className="bg-[var(--paper-2)] border border-[var(--signal)] p-4 font-mono-ledger text-[12px] text-[var(--ink)] flex items-center space-x-2">
+        <CheckCircle2 className="h-4 w-4 text-[var(--signal)] shrink-0" />
+        <span className="font-bold">✓ This milestone has been completed and approved on ledger</span>
       </div>
     );
   }
 
   if (milestone.status === 'under_review') {
     return (
-      <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
-        <p className="text-amber-800">⏳ This milestone is currently under review</p>
+      <div className="bg-amber-50 border border-[var(--ink)] p-4 font-mono-ledger text-[12px] text-[var(--ink)]">
+        <span className="font-bold">⏳ Milestone deliverable is currently under review</span>
       </div>
     );
   }
 
   return (
-    <div className="bg-white border border-gray-200 rounded-lg p-6">
-      <h3 className="text-lg font-semibold mb-4">Submit Milestone for Review</h3>
+    <div className="border border-[var(--ink)] bg-[var(--paper)] p-6 space-y-6 font-mono-ledger text-[12px] text-left">
       
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Submission Notes
+      {/* Header */}
+      <div className="border-b border-[var(--ink)] pb-4 space-y-1">
+        <p className="text-[11px] uppercase tracking-[0.08em] text-[var(--signal)] font-bold">
+          MILESTONE SUBMISSION SPECIMEN
+        </p>
+        <h3 className="font-serif-ledger text-[24px] font-medium text-[var(--ink)]">
+          Submit milestone for review
+        </h3>
+      </div>
+      
+      <form onSubmit={handleSubmit} className="space-y-6">
+        <div className="space-y-1">
+          <label className="text-[10px] text-[var(--muted)] uppercase font-bold block">
+            Submission notes (optional)
           </label>
           <textarea
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
-            placeholder="Describe what you've completed, any challenges faced, or additional information..."
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+            placeholder="Describe completed deliverables, technical notes, or implementation details..."
+            className="w-full bg-[var(--paper)] border border-[var(--line)] p-3 text-[13px] text-[var(--ink)] font-sans-ledger leading-relaxed outline-none focus:border-[var(--ink)]"
             rows={4}
           />
         </div>
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Deliverables *
+        <div className="space-y-1.5">
+          <label className="text-[10px] text-[var(--muted)] uppercase font-bold block">
+            Deliverable attachments *
           </label>
           <FileUpload
             category="milestone_attachment"
             maxSize={50}
             multiple={true}
-            onUploadSuccess={(files) => {
-              setDeliverables(files);
-            }}
+            onUploadSuccess={(files) => setDeliverables(files)}
           />
-          <p className="text-xs text-gray-500 mt-1">
-            Upload your completed work (Max 50MB per file)
-          </p>
         </div>
 
         {error && (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-            <p className="text-red-800 text-sm">{error}</p>
+          <div className="p-3 bg-red-50 border border-[var(--signal)] text-[var(--signal-dark)] flex items-center space-x-2">
+            <AlertCircle className="h-4 w-4 text-[var(--signal)] shrink-0" />
+            <span>{error}</span>
           </div>
         )}
 
-        <div className="flex gap-3">
+        <div className="flex justify-end pt-4 border-t border-[var(--line)]">
           <button
             type="submit"
             disabled={isSubmitting || deliverables.length === 0}
-            className="px-6 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+            className="px-6 py-2.5 bg-[var(--signal)] hover:bg-[var(--signal-dark)] text-[var(--paper)] font-bold text-[11px] uppercase transition-colors disabled:opacity-50"
           >
-            {isSubmitting ? 'Submitting...' : 'Submit for Review'}
+            {isSubmitting ? 'Submitting...' : 'Submit for review →'}
           </button>
         </div>
       </form>
 
-      <div className="mt-4 p-4 bg-gray-50 rounded-lg">
-        <p className="text-sm text-gray-600">
-          <strong>Note:</strong> Once submitted, the client will review your work along with tracked time entries. 
-          They can approve, request revisions, or reject the submission.
-        </p>
-      </div>
     </div>
   );
 }

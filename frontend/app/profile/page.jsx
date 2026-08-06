@@ -6,28 +6,13 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import Navbar from '@/components/layout/Navbar';
-import { 
-  User, 
-  Mail, 
-  Phone, 
-  ArrowLeft, 
-  Save, 
-  Briefcase, 
-  Building,
-  MapPin,
-  Globe,
-  CheckCircle,
-  AlertCircle,
-  DollarSign,
-  LogOut,
-  Camera,
-  Star
-} from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { updateProfile, getProfile, uploadProfileImage } from '@/lib/api';
 import RatingDisplay from '@/components/reviews/RatingDisplay';
+import { AlertCircle, CheckCircle2, ArrowLeft } from 'lucide-react';
+import Link from 'next/link';
+import { formatCurrency } from '@/lib/currency';
 
-// Base validation schema
 const baseProfileSchema = z.object({
   fullName: z.string()
     .min(2, 'Name must be at least 2 characters')
@@ -46,7 +31,6 @@ const baseProfileSchema = z.object({
     })
 });
 
-// Freelancer schema
 const freelancerProfileSchema = baseProfileSchema.extend({
   title: z.string()
     .min(5, 'Professional title must be at least 5 characters')
@@ -63,7 +47,6 @@ const freelancerProfileSchema = baseProfileSchema.extend({
     })
 });
 
-// Client schema
 const clientProfileSchema = baseProfileSchema.extend({
   companyName: z.string()
     .min(2, 'Company name must be at least 2 characters')
@@ -114,7 +97,6 @@ export default function ProfilePage() {
     }
   });
 
-  // Populate form data
   useEffect(() => {
     const loadProfile = async () => {
       if (user) {
@@ -160,7 +142,6 @@ export default function ProfilePage() {
     loadProfile();
   }, [user, reset, isFreelancer, isClient]);
 
-  // Auth check
   useEffect(() => {
     if (!authLoading && !user) {
       router.push('/login');
@@ -246,11 +227,8 @@ export default function ProfilePage() {
 
   if (authLoading) {
     return (
-      <div className="min-h-screen bg-[var(--paper)] flex items-center justify-center font-mono-ledger">
-        <div className="space-y-3 text-center">
-          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[var(--signal)] mx-auto"></div>
-          <p className="text-[12px] text-[var(--muted)] uppercase">LOADING PROFILE SPECIMEN...</p>
-        </div>
+      <div className="min-h-screen bg-[var(--paper)] flex items-center justify-center font-mono-ledger text-[12px] text-[var(--muted)]">
+        LOADING PROFILE SPECIMEN...
       </div>
     );
   }
@@ -266,31 +244,34 @@ export default function ProfilePage() {
       <Navbar userType={userType} />
 
       {/* Main Container */}
-      <main className="max-w-4xl mx-auto px-4 sm:px-6 py-8 sm:py-12 space-y-10 flex-1 w-full pb-24 lg:pb-12 text-left">
+      <main className="max-w-4xl mx-auto px-4 sm:px-6 py-8 sm:py-12 space-y-8 flex-1 w-full pb-24 lg:pb-12 text-left">
         
-        {/* EDITORIAL HEADER */}
+        {/* HEADER */}
         <section className="space-y-4 border-b border-[var(--ink)] pb-8">
-          <div className="flex items-center justify-between font-mono-ledger text-[11px] uppercase tracking-wider">
+          <div className="flex items-center justify-between font-mono-ledger text-[11px]">
             <Link 
               href={isFreelancer ? "/freelancer" : "/dashboard"} 
-              className="text-[var(--muted)] hover:text-[var(--ink)] flex items-center space-x-1"
+              className="text-[var(--muted)] hover:text-[var(--ink)] transition-colors"
             >
-              <ArrowLeft className="h-3.5 w-3.5" />
-              <span>RETURN TO WORKSPACE</span>
+              ← Return to workspace
             </Link>
 
             <button
               onClick={handleLogout}
               disabled={isLoggingOut}
-              className="px-3.5 py-1.5 border border-[var(--ink)] text-[var(--signal)] hover:bg-red-50 font-bold uppercase transition-colors"
+              className="text-[var(--signal)] font-bold hover:underline"
             >
-              {isLoggingOut ? "SIGNING OUT..." : "SIGN OUT"}
+              {isLoggingOut ? "Signing out..." : "Sign out"}
             </button>
           </div>
 
           <div className="space-y-2">
-            <h1 className="font-serif-ledger text-[36px] sm:text-[48px] leading-[1.05] font-medium tracking-tight text-[var(--ink)]">
-              Account Profile.
+            <p className="font-mono-ledger text-[11px] uppercase tracking-[0.08em] text-[var(--muted)] flex items-center space-x-2">
+              <span className="w-2 h-2 rounded-full bg-[var(--signal)] inline-block animate-pulse"></span>
+              <span>FREELANCEHUB FORM · PROFILE SPECIMEN</span>
+            </p>
+            <h1 className="font-serif-ledger text-[38px] sm:text-[48px] leading-[1.05] font-medium tracking-tight text-[var(--ink)]">
+              Account profile
             </h1>
             <p className="text-[15px] text-[var(--muted)]">
               Update your individual identification record, professional title, contact details, and reputation history.
@@ -298,11 +279,10 @@ export default function ProfilePage() {
           </div>
         </section>
 
-
         {/* NOTIFICATIONS */}
         {success && (
-          <div className="p-4 bg-green-50 border border-green-600 text-green-800 font-mono-ledger text-[12px] flex items-center space-x-2">
-            <CheckCircle className="h-4 w-4 text-green-600 shrink-0" />
+          <div className="p-4 bg-[var(--paper-2)] border border-[var(--signal)] text-[var(--ink)] font-mono-ledger text-[12px] flex items-center space-x-2">
+            <CheckCircle2 className="h-4 w-4 text-[var(--signal)] shrink-0" />
             <span className="font-bold">{success}</span>
           </div>
         )}
@@ -310,46 +290,45 @@ export default function ProfilePage() {
         {error && (
           <div className="p-4 bg-red-50 border border-[var(--signal)] text-[var(--signal-dark)] font-mono-ledger text-[12px] flex items-center space-x-2">
             <AlertCircle className="h-4 w-4 text-[var(--signal)] shrink-0" />
-            <span className="font-bold">{error}</span>
+            <span>{error}</span>
           </div>
         )}
 
-
         {/* PROFILE FORM */}
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-10">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-8 font-mono-ledger text-[12px]">
           
-          {/* AVATAR SPECIMEN BLOCK */}
-          <div className="border-2 border-[var(--ink)] bg-[var(--paper-2)] p-6 flex flex-col sm:flex-row items-center space-y-4 sm:space-y-0 sm:space-x-6">
+          {/* AVATAR STRIP */}
+          <div className="border border-[var(--ink)] bg-[var(--paper-2)] p-5 flex flex-col sm:flex-row items-center space-y-4 sm:space-y-0 sm:space-x-6">
             <div className="relative shrink-0">
               {imagePreview ? (
                 <img
                   src={imagePreview.startsWith('http') ? imagePreview : `${process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'http://localhost:5000'}${imagePreview}`}
                   alt="Profile Avatar"
-                  className="w-24 h-24 border-2 border-[var(--ink)] object-cover"
+                  className="w-20 h-20 border border-[var(--ink)] object-cover"
                 />
               ) : (
-                <div className="w-24 h-24 bg-[var(--ink)] text-[var(--paper)] font-bold text-[32px] flex items-center justify-center border-2 border-[var(--ink)]">
+                <div className="w-20 h-20 bg-[var(--ink)] text-[var(--paper)] font-bold text-[28px] flex items-center justify-center border border-[var(--ink)]">
                   {user.fullName?.charAt(0) || 'U'}
                 </div>
               )}
               {uploadingImage && (
-                <div className="absolute inset-0 bg-[var(--ink)]/60 flex items-center justify-center text-[var(--paper)] text-[10px] font-mono-ledger">
-                  UPLOADING...
+                <div className="absolute inset-0 bg-[var(--ink)]/60 flex items-center justify-center text-[var(--paper)] text-[10px]">
+                  Uploading...
                 </div>
               )}
             </div>
 
-            <div className="space-y-2 text-center sm:text-left font-mono-ledger">
+            <div className="space-y-2 text-center sm:text-left">
               <div>
                 <span className="font-bold text-[14px] text-[var(--ink)] block">{user.fullName || 'Registered Participant'}</span>
-                <span className="text-[11px] text-[var(--muted)] uppercase">{user.email} • [{user.role}]</span>
+                <span className="text-[11px] text-[var(--muted)] uppercase">{user.email} · [{user.role}]</span>
               </div>
 
               <label
                 htmlFor="avatar-upload"
                 className="inline-block bg-[var(--ink)] hover:bg-[var(--signal)] text-[var(--paper)] font-bold text-[10px] uppercase px-4 py-2 cursor-pointer transition-colors"
               >
-                UPLOAD PROFILE PHOTO →
+                Upload photo →
                 <input
                   id="avatar-upload"
                   type="file"
@@ -362,96 +341,102 @@ export default function ProfilePage() {
             </div>
           </div>
 
+          {/* 01 / BASIC IDENTIFICATION */}
+          <div className="space-y-4">
+            <span className="font-bold text-[var(--ink)] uppercase text-[11px] block border-b border-[var(--ink)] pb-2">
+              01 / Basic Identification & Contact
+            </span>
 
-          {/* 01 / BASIC IDENTIFICATION & CONTACT */}
-          <div className="space-y-5">
-            <div className="border-b border-[var(--ink)] pb-2 font-mono-ledger text-[11px] uppercase tracking-wider font-bold text-[var(--ink)]">
-              01 / BASIC IDENTIFICATION & CONTACT
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 font-mono-ledger">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1">
-                <label htmlFor="fullName" className="text-[10px] text-[var(--muted)] uppercase font-bold block">FULL NAME *</label>
+                <label htmlFor="fullName" className="text-[10px] text-[var(--muted)] uppercase font-bold block">Full name *</label>
                 <input
                   id="fullName"
                   type="text"
                   {...register('fullName')}
-                  className="w-full bg-[var(--paper-2)] border-2 border-[var(--ink)] p-3 text-[13px] font-bold focus:outline-none"
+                  className={`w-full bg-[var(--paper)] border p-2.5 text-[13px] text-[var(--ink)] outline-none transition-colors ${
+                    errors.fullName ? "border-[var(--signal)]" : "border-[var(--line)] focus:border-[var(--ink)]"
+                  }`}
                 />
-                {errors.fullName && <p className="text-[11px] text-[var(--signal)]">{errors.fullName.message}</p>}
+                {errors.fullName && <span className="text-[var(--signal-dark)] text-[10px] block">{errors.fullName.message}</span>}
               </div>
 
               <div className="space-y-1">
-                <label className="text-[10px] text-[var(--muted)] uppercase font-bold block">EMAIL ADDRESS (VERIFIED)</label>
+                <label className="text-[10px] text-[var(--muted)] uppercase font-bold block">Email address (verified)</label>
                 <input
                   type="email"
                   value={user.email}
                   disabled
-                  className="w-full bg-[var(--paper-2)]/60 border-2 border-[var(--line)] p-3 text-[13px] text-[var(--muted)] cursor-not-allowed font-bold"
+                  className="w-full bg-[var(--paper-2)] border border-[var(--line)] p-2.5 text-[13px] text-[var(--muted)] cursor-not-allowed font-bold"
                 />
               </div>
 
               <div className="space-y-1">
-                <label htmlFor="phone" className="text-[10px] text-[var(--muted)] uppercase font-bold block">PHONE NUMBER (NEPAL)</label>
+                <label htmlFor="phone" className="text-[10px] text-[var(--muted)] uppercase font-bold block">Phone number (Nepal)</label>
                 <input
                   id="phone"
                   type="text"
                   {...register('phone')}
                   placeholder="+977-98XXXXXXXX"
-                  className="w-full bg-[var(--paper-2)] border-2 border-[var(--ink)] p-3 text-[13px] focus:outline-none"
+                  className={`w-full bg-[var(--paper)] border p-2.5 text-[13px] text-[var(--ink)] outline-none transition-colors ${
+                    errors.phone ? "border-[var(--signal)]" : "border-[var(--line)] focus:border-[var(--ink)]"
+                  }`}
                 />
-                {errors.phone && <p className="text-[11px] text-[var(--signal)]">{errors.phone.message}</p>}
+                {errors.phone && <span className="text-[var(--signal-dark)] text-[10px] block">{errors.phone.message}</span>}
               </div>
 
               <div className="space-y-1">
-                <label htmlFor="location" className="text-[10px] text-[var(--muted)] uppercase font-bold block">PRIMARY LOCATION</label>
+                <label htmlFor="location" className="text-[10px] text-[var(--muted)] uppercase font-bold block">Primary location</label>
                 <input
                   id="location"
                   type="text"
                   {...register('location')}
                   placeholder="Kathmandu, Nepal"
-                  className="w-full bg-[var(--paper-2)] border-2 border-[var(--ink)] p-3 text-[13px] focus:outline-none"
+                  className="w-full bg-[var(--paper)] border border-[var(--line)] p-2.5 text-[13px] text-[var(--ink)] outline-none focus:border-[var(--ink)]"
                 />
               </div>
 
               <div className="space-y-1 sm:col-span-2">
-                <label htmlFor="website" className="text-[10px] text-[var(--muted)] uppercase font-bold block">WEBSITE / PORTFOLIO LINK</label>
+                <label htmlFor="website" className="text-[10px] text-[var(--muted)] uppercase font-bold block">Website / portfolio link</label>
                 <input
                   id="website"
                   type="text"
                   {...register('website')}
                   placeholder="https://yourportfolio.com"
-                  className="w-full bg-[var(--paper-2)] border-2 border-[var(--ink)] p-3 text-[13px] focus:outline-none"
+                  className={`w-full bg-[var(--paper)] border p-2.5 text-[13px] text-[var(--ink)] outline-none transition-colors ${
+                    errors.website ? "border-[var(--signal)]" : "border-[var(--line)] focus:border-[var(--ink)]"
+                  }`}
                 />
-                {errors.website && <p className="text-[11px] text-[var(--signal)]">{errors.website.message}</p>}
+                {errors.website && <span className="text-[var(--signal-dark)] text-[10px] block">{errors.website.message}</span>}
               </div>
             </div>
           </div>
 
-
-          {/* 02 / ROLE-SPECIFIC DISCIPLINE SPECIMEN */}
+          {/* 02 / FREELANCER DISCIPLINE */}
           {isFreelancer && (
-            <div className="space-y-5">
-              <div className="border-b border-[var(--ink)] pb-2 font-mono-ledger text-[11px] uppercase tracking-wider font-bold text-[var(--ink)]">
-                02 / FREELANCER DISCIPLINE & HOURLY RATE
-              </div>
+            <div className="space-y-4">
+              <span className="font-bold text-[var(--ink)] uppercase text-[11px] block border-b border-[var(--ink)] pb-2">
+                02 / Freelancer Discipline & Hourly Rate
+              </span>
 
-              <div className="space-y-4 font-mono-ledger">
+              <div className="space-y-4">
                 <div className="space-y-1">
-                  <label htmlFor="title" className="text-[10px] text-[var(--muted)] uppercase font-bold block">PROFESSIONAL TITLE</label>
+                  <label htmlFor="title" className="text-[10px] text-[var(--muted)] uppercase font-bold block">Professional title</label>
                   <input
                     id="title"
                     type="text"
                     {...register('title')}
                     placeholder="e.g. Senior Full Stack Engineer & System Architect"
-                    className="w-full bg-[var(--paper-2)] border-2 border-[var(--ink)] p-3 text-[13px] font-bold focus:outline-none font-sans-ledger"
+                    className={`w-full bg-[var(--paper)] border p-2.5 text-[13px] text-[var(--ink)] font-sans-ledger outline-none transition-colors ${
+                      errors.title ? "border-[var(--signal)]" : "border-[var(--line)] focus:border-[var(--ink)]"
+                    }`}
                   />
-                  {errors.title && <p className="text-[11px] text-[var(--signal)]">{errors.title.message}</p>}
+                  {errors.title && <span className="text-[var(--signal-dark)] text-[10px] block">{errors.title.message}</span>}
                 </div>
 
                 <div className="space-y-1">
                   <div className="flex justify-between text-[10px] text-[var(--muted)] uppercase font-bold">
-                    <label htmlFor="bio">PROFESSIONAL SUMMARY & BIO</label>
+                    <label htmlFor="bio">Professional summary & bio</label>
                     <span>{watch('bio')?.length || 0}/500</span>
                   </div>
                   <textarea
@@ -459,101 +444,51 @@ export default function ProfilePage() {
                     rows={4}
                     {...register('bio')}
                     placeholder="Describe your technical expertise, track record, and delivery methodology..."
-                    className="w-full bg-[var(--paper-2)] border-2 border-[var(--ink)] p-3 text-[13px] text-[var(--ink)] focus:outline-none font-sans-ledger leading-relaxed"
+                    className="w-full bg-[var(--paper)] border border-[var(--line)] p-3 text-[13px] text-[var(--ink)] font-sans-ledger leading-relaxed outline-none focus:border-[var(--ink)]"
                     maxLength={500}
                   />
-                  {errors.bio && <p className="text-[11px] text-[var(--signal)]">{errors.bio.message}</p>}
+                  {errors.bio && <span className="text-[var(--signal-dark)] text-[10px] block">{errors.bio.message}</span>}
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-1">
-                    <label htmlFor="skills" className="text-[10px] text-[var(--muted)] uppercase font-bold block">SKILLS (COMMA SEPARATED)</label>
+                    <label htmlFor="skills" className="text-[10px] text-[var(--muted)] uppercase font-bold block">Skills (comma separated)</label>
                     <input
                       id="skills"
                       type="text"
                       {...register('skills')}
                       placeholder="React, Node.js, PostgreSQL, System Design"
-                      className="w-full bg-[var(--paper-2)] border-2 border-[var(--ink)] p-3 text-[13px] focus:outline-none"
+                      className="w-full bg-[var(--paper)] border border-[var(--line)] p-2.5 text-[13px] text-[var(--ink)] outline-none focus:border-[var(--ink)]"
                     />
                   </div>
 
                   <div className="space-y-1">
-                    <label htmlFor="hourlyRate" className="text-[10px] text-[var(--muted)] uppercase font-bold block">HOURLY RATE ESTIMATE (NPR)</label>
-                    <input
-                      id="hourlyRate"
-                      type="text"
-                      {...register('hourlyRate')}
-                      placeholder="1500"
-                      className="w-full bg-[var(--paper-2)] border-2 border-[var(--ink)] p-3 text-[14px] font-bold focus:outline-none"
-                    />
-                    {errors.hourlyRate && <p className="text-[11px] text-[var(--signal)]">{errors.hourlyRate.message}</p>}
+                    <label htmlFor="hourlyRate" className="text-[10px] text-[var(--muted)] uppercase font-bold block">Hourly rate estimate (NPR)</label>
+                    <div className="flex items-center border border-[var(--line)] bg-[var(--paper)] focus-within:border-[var(--ink)]">
+                      <span className="px-3 py-2 bg-[var(--paper-2)] border-r border-[var(--line)] text-[var(--muted)] font-bold">NPR</span>
+                      <input
+                        id="hourlyRate"
+                        type="text"
+                        {...register('hourlyRate')}
+                        placeholder="1500"
+                        className="w-full bg-transparent p-2 text-[13px] font-bold text-[var(--ink)] outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                      />
+                    </div>
+                    {errors.hourlyRate && <span className="text-[var(--signal-dark)] text-[10px] block">{errors.hourlyRate.message}</span>}
                   </div>
                 </div>
               </div>
             </div>
           )}
 
-          {isClient && (
-            <div className="space-y-5">
-              <div className="border-b border-[var(--ink)] pb-2 font-mono-ledger text-[11px] uppercase tracking-wider font-bold text-[var(--ink)]">
-                02 / COMPANY PARTICIPANT PROFILE
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 font-mono-ledger">
-                <div className="space-y-1">
-                  <label htmlFor="companyName" className="text-[10px] text-[var(--muted)] uppercase font-bold block">COMPANY NAME</label>
-                  <input
-                    id="companyName"
-                    type="text"
-                    {...register('companyName')}
-                    placeholder="Nantio Studio"
-                    className="w-full bg-[var(--paper-2)] border-2 border-[var(--ink)] p-3 text-[13px] font-bold focus:outline-none"
-                  />
-                  {errors.companyName && <p className="text-[11px] text-[var(--signal)]">{errors.companyName.message}</p>}
-                </div>
-
-                <div className="space-y-1">
-                  <label htmlFor="companySize" className="text-[10px] text-[var(--muted)] uppercase font-bold block">COMPANY SIZE</label>
-                  <select
-                    id="companySize"
-                    {...register('companySize')}
-                    className="w-full bg-[var(--paper-2)] border-2 border-[var(--ink)] p-3 text-[13px] focus:outline-none"
-                  >
-                    <option value="">Select Company Size</option>
-                    <option value="1-10">1-10 employees</option>
-                    <option value="11-50">11-50 employees</option>
-                    <option value="51-200">51-200 employees</option>
-                    <option value="500+">500+ employees</option>
-                  </select>
-                </div>
-              </div>
-            </div>
-          )}
-
-
-          {/* 03 / REPUTATION & RATING DISPLAY */}
-          <div className="space-y-4">
-            <div className="border-b border-[var(--ink)] pb-2 font-mono-ledger text-[11px] uppercase tracking-wider font-bold text-[var(--ink)] flex items-center justify-between">
-              <span>03 / VERIFIED REPUTATION & REVIEWS RECORD</span>
-              <Link href="/reviews" className="text-[var(--signal)] hover:underline">
-                VIEW FULL REVIEWS LOG →
-              </Link>
-            </div>
-
-            <div className="border-2 border-[var(--ink)] bg-[var(--paper)] p-6 font-mono-ledger">
-              <RatingDisplay userId={user.id} showDetails={true} />
-            </div>
-          </div>
-
-
           {/* SUBMIT BUTTON */}
-          <div className="pt-6 border-t border-[var(--ink)] flex justify-end font-mono-ledger">
+          <div className="pt-6 border-t border-[var(--ink)] flex justify-end">
             <button
               type="submit"
               disabled={loading || !isDirty}
-              className="bg-[var(--signal)] hover:bg-[var(--signal-dark)] text-[var(--paper)] font-bold text-[12px] uppercase tracking-wider px-8 py-3.5 transition-colors shadow-xs disabled:opacity-50"
+              className="bg-[var(--signal)] hover:bg-[var(--signal-dark)] text-[var(--paper)] font-bold text-[11px] uppercase tracking-wider px-6 py-2.5 transition-colors disabled:opacity-50"
             >
-              {loading ? "SAVING CHANGES..." : "SAVE PROFILE SPECIMEN →"}
+              {loading ? "Saving changes..." : "Save profile changes →"}
             </button>
           </div>
 
@@ -561,10 +496,10 @@ export default function ProfilePage() {
 
       </main>
 
-      {/* Footer */}
-      <footer className="border-t border-[var(--line)] py-6 text-center mt-12 font-mono-ledger text-[12px] text-[var(--muted)]">
+      {/* Editorial Footer */}
+      <footer className="border-t border-[var(--line)] py-6 text-center font-mono-ledger text-[12px] text-[var(--muted)]">
         <div className="max-w-4xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
-          <span>FreelanceHub · Account Profile Specimen</span>
+          <span>FreelanceHub · Profile Form Archetype G</span>
           <span>Engineered by Nantio Studio (www.nantio.it.com)</span>
         </div>
       </footer>

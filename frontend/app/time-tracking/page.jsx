@@ -351,26 +351,26 @@ function TimeTrackingContent() {
 
           {/* START TIMER CONTROLS */}
           {isFreelancer && !activeTimer && selectedContract && (
-            <div className="border-2 border-[var(--ink)] bg-[var(--paper)] p-6 space-y-4">
+            <div className="border border-[var(--ink)] bg-[var(--paper)] p-6 space-y-4">
               <div className="border-b border-[var(--ink)] pb-2 text-[11px] uppercase font-bold text-[var(--ink)]">
-                INITIATE NEW WORK LOG
+                Initiate new work log
               </div>
 
               {!showStartForm && !showManualForm ? (
                 <div className="flex flex-wrap gap-3 text-[11px]">
                   <button
                     onClick={() => setShowStartForm(true)}
-                    className="bg-[var(--signal)] hover:bg-[var(--signal-dark)] text-[var(--paper)] font-bold px-6 py-3 uppercase transition-colors flex items-center space-x-1"
+                    className="bg-[var(--signal)] hover:bg-[var(--signal-dark)] text-[var(--paper)] font-bold px-5 py-2.5 uppercase transition-colors flex items-center space-x-1"
                   >
                     <Play className="h-3.5 w-3.5" />
-                    <span>START INSTANT STOPWATCH →</span>
+                    <span>Start instant stopwatch →</span>
                   </button>
 
                   <button
                     onClick={() => setShowManualForm(true)}
-                    className="bg-[var(--paper-2)] border border-[var(--ink)] text-[var(--ink)] hover:bg-[var(--paper)] font-bold px-6 py-3 uppercase transition-colors"
+                    className="bg-[var(--paper)] border border-[var(--ink)] text-[var(--ink)] hover:bg-[var(--paper-2)] font-bold px-5 py-2.5 uppercase transition-colors"
                   >
-                    + ADD MANUAL TIME ENTRY
+                    Add manual time entry
                   </button>
                 </div>
               ) : showStartForm ? (
@@ -380,14 +380,14 @@ function TimeTrackingContent() {
                     placeholder="Work description (e.g. Refactoring API Endpoint Architecture)"
                     value={timerDesc}
                     onChange={e => setTimerDesc(e.target.value)}
-                    className="w-full bg-[var(--paper-2)] border-2 border-[var(--ink)] p-3 text-[13px] focus:outline-none"
+                    className="w-full bg-[var(--paper)] border border-[var(--line)] p-2.5 text-[13px] text-[var(--ink)] outline-none focus:border-[var(--ink)]"
                   />
                   <div className="flex gap-2">
-                    <button type="submit" className="bg-[var(--signal)] text-[var(--paper)] font-bold px-6 py-2.5 uppercase text-[11px]">
-                      START TIMER NOW
+                    <button type="submit" className="bg-[var(--signal)] text-[var(--paper)] font-bold px-5 py-2 uppercase text-[11px]">
+                      Start timer now →
                     </button>
-                    <button type="button" onClick={() => setShowStartForm(false)} className="px-4 py-2.5 border border-[var(--ink)] text-[11px]">
-                      CANCEL
+                    <button type="button" onClick={() => setShowStartForm(false)} className="px-4 py-2 border border-[var(--ink)] text-[11px] font-bold">
+                      Cancel
                     </button>
                   </div>
                 </form>
@@ -398,37 +398,37 @@ function TimeTrackingContent() {
                     placeholder="Description of work completed"
                     value={manualForm.description}
                     onChange={e => setManualForm(p => ({ ...p, description: e.target.value }))}
-                    className="w-full bg-[var(--paper-2)] border-2 border-[var(--ink)] p-3 text-[13px] focus:outline-none"
+                    className="w-full bg-[var(--paper)] border border-[var(--line)] p-2.5 text-[13px] text-[var(--ink)] outline-none focus:border-[var(--ink)]"
                     required
                   />
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
-                      <label className="text-[10px] text-[var(--muted)] uppercase block">START TIME</label>
+                      <label className="text-[10px] text-[var(--muted)] uppercase block">Start time</label>
                       <input
                         type="datetime-local"
                         value={manualForm.startTime}
                         onChange={e => setManualForm(p => ({ ...p, startTime: e.target.value }))}
-                        className="w-full bg-[var(--paper-2)] border border-[var(--ink)] p-2.5"
+                        className="w-full bg-[var(--paper)] border border-[var(--line)] p-2 text-[12px] text-[var(--ink)] outline-none focus:border-[var(--ink)]"
                         required
                       />
                     </div>
                     <div>
-                      <label className="text-[10px] text-[var(--muted)] uppercase block">END TIME</label>
+                      <label className="text-[10px] text-[var(--muted)] uppercase block">End time</label>
                       <input
                         type="datetime-local"
                         value={manualForm.endTime}
                         onChange={e => setManualForm(p => ({ ...p, endTime: e.target.value }))}
-                        className="w-full bg-[var(--paper-2)] border border-[var(--ink)] p-2.5"
+                        className="w-full bg-[var(--paper)] border border-[var(--line)] p-2 text-[12px] text-[var(--ink)] outline-none focus:border-[var(--ink)]"
                         required
                       />
                     </div>
                   </div>
                   <div className="flex gap-2 pt-2">
-                    <button type="submit" className="bg-[var(--ink)] text-[var(--paper)] font-bold px-6 py-2.5 uppercase text-[11px]">
-                      LOG MANUAL ENTRY →
+                    <button type="submit" className="bg-[var(--signal)] text-[var(--paper)] font-bold px-5 py-2 uppercase text-[11px]">
+                      Log manual entry →
                     </button>
-                    <button type="button" onClick={() => setShowManualForm(false)} className="px-4 py-2.5 border border-[var(--ink)] text-[11px]">
-                      CANCEL
+                    <button type="button" onClick={() => setShowManualForm(false)} className="px-4 py-2 border border-[var(--ink)] text-[11px] font-bold">
+                      Cancel
                     </button>
                   </div>
                 </form>
