@@ -1,26 +1,29 @@
 "use client";
 
 import Link from "next/link";
-import Navbar from "@/components/layout/Navbar";
 import { ArrowLeft, ShieldCheck, RefreshCw, Banknote, AlertCircle, FileCheck } from "lucide-react";
 
 export default function RefundPolicyPage() {
   return (
     <div className="min-h-screen bg-[var(--paper)] text-[var(--ink)] font-sans-ledger selection:bg-[var(--signal)] selection:text-[var(--paper)] flex flex-col justify-between">
-      
-      {/* Top Navbar */}
-      <Navbar userType="client" />
+
+      {/* Public header — no auth required */}
+      <header className="border-b border-[var(--ink)] px-4 sm:px-6 lg:px-12 py-4 flex items-center justify-between">
+        <Link href="/" className="font-serif-ledger text-[18px] font-medium text-[var(--ink)] hover:text-[var(--signal)] transition-colors">
+          FreelanceHub
+        </Link>
+        <Link href="/" className="font-mono-ledger text-[11px] uppercase tracking-wider text-[var(--muted)] hover:text-[var(--ink)] transition-colors flex items-center space-x-1">
+          <ArrowLeft className="h-3 w-3" />
+          <span>Return home</span>
+        </Link>
+      </header>
 
       {/* Main Container */}
       <main className="max-w-4xl mx-auto px-4 sm:px-6 py-10 sm:py-16 space-y-12 flex-1 w-full pb-24 lg:pb-12 text-left">
         
         {/* HEADER */}
         <section className="space-y-4 border-b border-[var(--ink)] pb-8">
-          <div className="flex items-center justify-between font-mono-ledger text-[11px] uppercase tracking-wider">
-            <Link href="/" className="text-[var(--muted)] hover:text-[var(--ink)] flex items-center space-x-1">
-              <ArrowLeft className="h-3.5 w-3.5" />
-              <span>RETURN HOME</span>
-            </Link>
+          <div className="font-mono-ledger text-[11px] uppercase tracking-wider text-right">
             <span className="text-[var(--signal)] font-bold">[ESCROW GUARANTEE SPECIMEN]</span>
           </div>
 
@@ -107,7 +110,7 @@ export default function RefundPolicyPage() {
           {/* SECTION 5 */}
           <section className="space-y-3 border-t border-[var(--ink)] pt-6 font-mono-ledger text-[12px] text-[var(--muted)]">
             <p>
-              To request escrow arbitration or check refund status, visit the <strong>Dispute Resolution Register (`/disputes`)</strong> or email <strong>billing@nantio.it.com</strong>.
+              To request escrow arbitration or check refund status, visit the <strong>Dispute Resolution Register (`/disputes`)</strong> or email <strong>nantio.official@gmail.com</strong>.
             </p>
           </section>
 

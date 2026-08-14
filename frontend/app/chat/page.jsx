@@ -403,7 +403,7 @@ function ChatContent() {
       <Navbar userType={userType} />
 
       {/* Main Messaging Canvas */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 py-8 flex-1 w-full flex flex-col space-y-6">
+      <main data-tour="chat-panel" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 py-8 flex-1 w-full flex flex-col space-y-6">
         
         {/* EDITORIAL HEADER */}
         <section className="space-y-2 text-left border-b border-[var(--ink)] pb-4">

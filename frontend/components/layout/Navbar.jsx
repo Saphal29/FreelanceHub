@@ -187,6 +187,7 @@ const Navbar = ({ userType = "client" }) => {
             <div className="relative" ref={profileDropdownRef}>
               <button
                 onClick={() => setOpenDropdown(openDropdown === 'profile' ? null : 'profile')}
+                data-tour="profile-dropdown"
                 className="flex items-center space-x-2 p-1.5 border border-[var(--line)] bg-[var(--paper-2)] hover:border-[var(--ink)] transition-all text-left"
               >
                 <div className="w-7 h-7 bg-[var(--ink)] text-[var(--paper)] font-mono-ledger text-[11px] font-bold flex items-center justify-center">

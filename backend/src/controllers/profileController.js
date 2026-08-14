@@ -16,6 +16,7 @@ const getCurrentUserProfile = async (req, res) => {
       query = `
         SELECT 
           u.id, u.full_name, u.email, u.role, u.phone, u.avatar_url, u.verified,
+          u.has_completed_tour,
           fp.title, fp.bio, fp.skills, fp.hourly_rate, fp.experience_years,
           fp.location, fp.availability_status, fp.website
         FROM users u
@@ -26,6 +27,7 @@ const getCurrentUserProfile = async (req, res) => {
       query = `
         SELECT 
           u.id, u.full_name, u.email, u.role, u.phone, u.avatar_url, u.verified,
+          u.has_completed_tour,
           cp.company_name, cp.industry, cp.website
         FROM users u
         LEFT JOIN client_profiles cp ON u.id = cp.user_id
@@ -34,7 +36,8 @@ const getCurrentUserProfile = async (req, res) => {
     } else {
       query = `
         SELECT 
-          u.id, u.full_name, u.email, u.role, u.phone, u.avatar_url, u.verified
+          u.id, u.full_name, u.email, u.role, u.phone, u.avatar_url, u.verified,
+          u.has_completed_tour
         FROM users u
         WHERE u.id = $1
       `;
@@ -61,6 +64,7 @@ const getCurrentUserProfile = async (req, res) => {
         phone: profile.phone,
         avatarUrl: profile.avatar_url,
         verified: profile.verified,
+        hasCompletedTour: profile.has_completed_tour ?? false,
         ...(role === 'FREELANCER' && {
           title: profile.title,
           bio: profile.bio,
@@ -376,10 +380,28 @@ const getFreelancerProfile = async (req, res) => {
   }
 };
 
+/**
+ * Mark the onboarding tour as completed for the current user
+ */
+const completeTour = async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    await pool.query(
+      'UPDATE users SET has_completed_tour = TRUE WHERE id = $1',
+      [userId]
+    );
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error completing tour:', error);
+    res.status(500).json({ success: false, error: 'Failed to update tour status' });
+  }
+};
+
 module.exports = {
   searchFreelancers,
   getFreelancerProfile,
   getCurrentUserProfile,
   updateCurrentUserProfile,
-  uploadProfileImage
+  uploadProfileImage,
+  completeTour
 };

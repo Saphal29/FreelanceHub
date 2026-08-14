@@ -158,7 +158,7 @@ const findUserById = async (userId) => {
     const result = await query(
       `SELECT 
         u.id, u.email, u.role, u.full_name, u.phone,
-        u.avatar_url, u.verified, u.created_at,
+        u.avatar_url, u.verified, u.created_at, u.has_completed_tour,
         fp.id as freelancer_profile_id, fp.bio, fp.skills,
         fp.hourly_rate, fp.experience_years, fp.availability_status,
         cp.id as client_profile_id, cp.company_name, cp.industry, cp.website

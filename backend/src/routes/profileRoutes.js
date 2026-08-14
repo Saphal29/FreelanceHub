@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const multer = require('multer');
 const path = require('path');
-const { getFreelancerProfile, searchFreelancers, getCurrentUserProfile, updateCurrentUserProfile, uploadProfileImage } = require('../controllers/profileController');
+const { getFreelancerProfile, searchFreelancers, getCurrentUserProfile, updateCurrentUserProfile, uploadProfileImage, completeTour } = require('../controllers/profileController');
 const { authMiddleware } = require('../middlewares/authMiddleware');
 
 // Configure multer for profile image uploads
@@ -38,6 +38,9 @@ router.get('/', authMiddleware, getCurrentUserProfile);
 // Update current user's profile
 router.put('/', authMiddleware, updateCurrentUserProfile);
 router.patch('/', authMiddleware, updateCurrentUserProfile);
+
+// Mark onboarding tour as completed
+router.patch('/tour-complete', authMiddleware, completeTour);
 
 // Upload profile image
 router.post('/image', authMiddleware, upload.single('image'), uploadProfileImage);

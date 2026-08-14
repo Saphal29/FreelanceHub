@@ -9,9 +9,10 @@ import Navbar from '@/components/layout/Navbar';
 import { useAuth } from '@/contexts/AuthContext';
 import { updateProfile, getProfile, uploadProfileImage } from '@/lib/api';
 import RatingDisplay from '@/components/reviews/RatingDisplay';
-import { AlertCircle, CheckCircle2, ArrowLeft } from 'lucide-react';
+import { AlertCircle, CheckCircle2, ArrowLeft, MapPin } from 'lucide-react';
 import Link from 'next/link';
 import { formatCurrency } from '@/lib/currency';
+import { useTour } from '@/components/tour/TourContext';
 
 const baseProfileSchema = z.object({
   fullName: z.string()
@@ -71,6 +72,7 @@ export default function ProfilePage() {
 
   const isFreelancer = user?.role === 'FREELANCER';
   const isClient = user?.role === 'CLIENT';
+  const { start: startTour } = useTour();
 
   const validationSchema = isFreelancer ? freelancerProfileSchema : clientProfileSchema;
 
@@ -270,9 +272,18 @@ export default function ProfilePage() {
               <span className="w-2 h-2 rounded-full bg-[var(--signal)] inline-block animate-pulse"></span>
               <span>FREELANCEHUB FORM · PROFILE SPECIMEN</span>
             </p>
-            <h1 className="font-serif-ledger text-[38px] sm:text-[48px] leading-[1.05] font-medium tracking-tight text-[var(--ink)]">
-              Account profile
-            </h1>
+            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+              <h1 className="font-serif-ledger text-[38px] sm:text-[48px] leading-[1.05] font-medium tracking-tight text-[var(--ink)]">
+                Account profile
+              </h1>
+              <button
+                data-tour="walkthrough-trigger"
+                onClick={() => startTour(user?.role)}
+                className="shrink-0 border-2 border-[var(--ink)] hover:border-[var(--signal)] hover:text-[var(--signal)] text-[var(--ink)] font-mono-ledger font-bold text-[11px] uppercase tracking-wider px-4 py-2.5 transition-colors self-start"
+              >
+                Take the walkthrough →
+              </button>
+            </div>
             <p className="text-[15px] text-[var(--muted)]">
               Update your individual identification record, professional title, contact details, and reputation history.
             </p>
@@ -414,7 +425,7 @@ export default function ProfilePage() {
 
           {/* 02 / FREELANCER DISCIPLINE */}
           {isFreelancer && (
-            <div className="space-y-4">
+            <div className="space-y-4" data-tour="freelancer-discipline">
               <span className="font-bold text-[var(--ink)] uppercase text-[11px] block border-b border-[var(--ink)] pb-2">
                 02 / Freelancer Discipline & Hourly Rate
               </span>

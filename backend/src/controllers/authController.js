@@ -20,6 +20,7 @@ const formatUserResponse = (user) => {
     phone: user.phone,
     avatarUrl: user.avatar_url,
     verified: user.verified,
+    hasCompletedTour: user.has_completed_tour ?? false,
     createdAt: user.created_at
   };
 
