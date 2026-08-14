@@ -1,5 +1,6 @@
 const express = require('express');
 const cors = require('cors');
+const cookieParser = require('cookie-parser');
 const path = require('path');
 const http = require('http');
 const { Server } = require('socket.io');
@@ -49,6 +50,8 @@ app.use(cors({
 // Body parsing middleware
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+// Cookie parsing (required for HttpOnly auth cookies)
+app.use(cookieParser());
 
 // Increase timeout for slow Render startup (120 seconds)
 app.use((req, res, next) => {

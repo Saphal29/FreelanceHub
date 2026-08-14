@@ -110,7 +110,7 @@ const getTimeSummary = async (req, res) => {
   }
 };
 
-// Debug endpoint to stop all active timers for current user
+// Stop all active timers for the current authenticated user
 const stopAllActiveTimers = async (req, res) => {
   try {
     const { query } = require('../utils/dbQueries');

@@ -236,7 +236,6 @@ const downloadFile = async (req, res) => {
     
     logger.info('Attempting to download file', { 
       fileId: id, 
-      filePath, 
       originalName: file.original_name,
       mimeType: file.mime_type 
     });
@@ -245,7 +244,7 @@ const downloadFile = async (req, res) => {
     try {
       await fs.access(filePath);
     } catch (err) {
-      logger.error('File not found on disk', { fileId: id, filePath });
+      logger.error('File not found on disk', { fileId: id });
       return res.status(404).json({
         success: false,
         error: 'File not found on server',
@@ -260,7 +259,7 @@ const downloadFile = async (req, res) => {
     // Send file
     res.download(filePath, file.original_name, (err) => {
       if (err) {
-        logger.error('Error sending file', { fileId: id, error: err.message });
+        logger.error('Error sending file', { fileId: id });
       } else {
         logger.info('File downloaded successfully', { fileId: id, originalName: file.original_name });
       }
@@ -339,7 +338,30 @@ const generateDownloadLink = async (req, res) => {
 const getProposalFiles = async (req, res) => {
   try {
     const { proposalId } = req.params;
+    const userId = req.user.userId;
+    const userRole = req.user.role;
     const { query } = require('../utils/dbQueries');
+
+    // Verify the requesting user is the proposal's freelancer or the project's client
+    const accessCheck = await query(
+      `SELECT pp.freelancer_id, p.client_id
+       FROM project_proposals pp
+       JOIN projects p ON pp.project_id = p.id
+       WHERE pp.id = $1`,
+      [proposalId]
+    );
+
+    if (accessCheck.rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Proposal not found', code: 'NOT_FOUND' });
+    }
+
+    const { freelancer_id, client_id } = accessCheck.rows[0];
+    const isParty = userId === freelancer_id || userId === client_id;
+    const isAdmin = userRole === 'ADMIN';
+
+    if (!isParty && !isAdmin) {
+      return res.status(403).json({ success: false, error: 'Unauthorized to access proposal files', code: 'UNAUTHORIZED' });
+    }
 
     const result = await query(
       `SELECT * FROM files 

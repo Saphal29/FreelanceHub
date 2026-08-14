@@ -22,19 +22,18 @@ export const SocketProvider = ({ children }) => {
       return;
     }
 
-    const token = localStorage.getItem("token");
-    if (!token) return;
-
     const SOCKET_URL = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api").replace("/api", "");
 
+    // Use withCredentials so the HttpOnly auth_token cookie is sent automatically.
+    // No localStorage token needed.
     const newSocket = io(SOCKET_URL, {
-      auth: { token },
-      transports: ["websocket", "polling"], // Try WebSocket first, fallback to polling
+      withCredentials: true,
+      transports: ["websocket", "polling"],
       reconnection: true,
       reconnectionDelay: 1000,
       reconnectionDelayMax: 5000,
-      reconnectionAttempts: Infinity, // Keep trying to reconnect
-      timeout: 20000, // Longer timeout for Render cold starts
+      reconnectionAttempts: Infinity,
+      timeout: 20000,
       autoConnect: true,
       forceNew: true
     });

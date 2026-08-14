@@ -2,6 +2,23 @@ const jwt = require('jsonwebtoken');
 const chatService = require('../services/chatService');
 const logger = require('../utils/logger');
 
+/**
+ * Extract and verify the JWT from either the cookie or the auth handshake token.
+ * Cookie takes precedence (set by the backend on login).
+ */
+const verifySocketToken = (socket) => {
+  // 1. Try HttpOnly cookie (sent automatically by the browser with withCredentials)
+  const cookieHeader = socket.handshake.headers?.cookie || '';
+  const cookieMatch = cookieHeader.match(/auth_token=([^;]+)/);
+  const cookieToken = cookieMatch ? cookieMatch[1] : null;
+
+  // 2. Fall back to auth.token (API clients / mobile)
+  const token = cookieToken || socket.handshake.auth?.token;
+  if (!token) throw new Error('Authentication required');
+
+  return jwt.verify(token, process.env.JWT_SECRET, { algorithms: ['HS256'] });
+};
+
 // In-memory online users map: userId -> Set of socketIds
 const onlineUsers = new Map();
 
@@ -22,16 +39,13 @@ const isUserOnline = (userId) => onlineUsers.has(userId) && onlineUsers.get(user
 const initSocket = (io) => {
   // Auth middleware for socket connections
   io.use((socket, next) => {
-    const token = socket.handshake.auth?.token || socket.handshake.headers?.authorization?.split(' ')[1];
-    if (!token) return next(new Error('Authentication required'));
-
     try {
-      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      const decoded = verifySocketToken(socket);
       socket.userId = decoded.userId;
       socket.userRole = decoded.role;
       next();
     } catch (err) {
-      next(new Error('Invalid token'));
+      next(new Error('Authentication required'));
     }
   });
 

@@ -3,28 +3,19 @@ import axios from 'axios';
 // Create axios instance with base configuration
 const api = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api',
-  timeout: 60000, // 60 seconds timeout (for Render free tier cold starts)
+  timeout: 60000,
+  withCredentials: true, // REQUIRED: sends the HttpOnly auth_token cookie on every request
   headers: {
     'Content-Type': 'application/json'
   }
 });
 
-// Request interceptor: Attach JWT token to requests
+// Request interceptor — no localStorage token needed; cookie is sent automatically
 api.interceptors.request.use(
   (config) => {
-    // Only attach token on client side
-    if (typeof window !== 'undefined') {
-      const token = localStorage.getItem('token');
-      if (token) {
-        config.headers.Authorization = `Bearer ${token}`;
-      }
-    }
-    
-    // Log request in development
     if (process.env.NODE_ENV === 'development') {
       console.log(`🔄 API Request: ${config.method?.toUpperCase()} ${config.url}`);
     }
-    
     return config;
   },
   (error) => {
@@ -33,61 +24,41 @@ api.interceptors.request.use(
   }
 );
 
-// Response interceptor: Handle responses and errors
+// Response interceptor
 api.interceptors.response.use(
   (response) => {
-    // Log successful response in development
     if (process.env.NODE_ENV === 'development') {
       console.log(`✅ API Response: ${response.status} ${response.config.url}`);
     }
-    
     return response;
   },
   (error) => {
-    // Handle different types of errors
     if (error.response) {
-      // Server responded with error status
-      const { status, data } = error.response;
-      
-      console.error(`❌ API Error: ${status}`, data);
-      
-      // Handle authentication errors
+      const { status } = error.response;
+      console.error(`❌ API Error: ${status}`, error.response.data);
+
+      // Session expired — redirect to login
       if (status === 401 && typeof window !== 'undefined') {
-        // Token expired or invalid
-        localStorage.removeItem('token');
-        
-        // Redirect to login page if not already there
         if (!window.location.pathname.includes('/login')) {
           window.location.href = '/login?expired=true';
         }
       }
-      
-      // Handle rate limiting
+
       if (status === 429) {
         const retryAfter = error.response.headers['retry-after'];
-        if (retryAfter) {
-          console.warn(`⏰ Rate limited. Retry after ${retryAfter} seconds`);
-        }
+        if (retryAfter) console.warn(`⏰ Rate limited. Retry after ${retryAfter} seconds`);
       }
-      
     } else if (error.request) {
-      // Network error
       console.error('🌐 Network Error:', error.message);
     } else {
-      // Other error
       console.error('❌ Error:', error.message);
     }
-    
     return Promise.reject(error);
   }
 );
 
-// API utility functions
-
 /**
  * Handle API errors consistently
- * @param {Error} error - Axios error object
- * @returns {Object} Formatted error object
  */
 export const handleApiError = (error) => {
   if (error.response?.data) {
@@ -98,95 +69,35 @@ export const handleApiError = (error) => {
       details: error.response.data.details || null
     };
   } else if (error.request) {
-    return {
-      message: 'Network error. Please check your connection.',
-      code: 'NETWORK_ERROR',
-      status: 0
-    };
+    return { message: 'Network error. Please check your connection.', code: 'NETWORK_ERROR', status: 0 };
   } else {
-    return {
-      message: error.message || 'An unexpected error occurred',
-      code: 'UNKNOWN_ERROR',
-      status: 0
-    };
+    return { message: error.message || 'An unexpected error occurred', code: 'UNKNOWN_ERROR', status: 0 };
   }
 };
 
 /**
- * Check if user is authenticated
- * @returns {boolean} Authentication status
+ * Check if user is authenticated by calling /api/auth/me.
+ * The cookie is sent automatically — no token parsing needed.
+ * Used only for synchronous checks; prefer AuthContext.isAuthenticated.
  */
 export const isAuthenticated = () => {
-  if (typeof window === 'undefined') return false;
-  
-  const token = localStorage.getItem('token');
-  if (!token) return false;
-  
-  try {
-    // Basic token format validation
-    const parts = token.split('.');
-    if (parts.length !== 3) return false;
-    
-    // Decode payload to check expiration
-    const payload = JSON.parse(atob(parts[1]));
-    const currentTime = Math.floor(Date.now() / 1000);
-    
-    return payload.exp > currentTime;
-  } catch (error) {
-    console.error('Token validation error:', error);
-    localStorage.removeItem('token');
-    return false;
-  }
+  // With cookie-based auth we cannot check client-side without a server round-trip.
+  // AuthContext.loadUser() handles the actual check on mount.
+  // Return true here to avoid blocking the initial render; AuthContext will correct it.
+  return true;
 };
 
-/**
- * Get token from localStorage
- * @returns {string|null} JWT token or null
- */
-export const getToken = () => {
-  if (typeof window === 'undefined') return null;
-  return localStorage.getItem('token');
-};
+/** No-op stubs kept for any legacy call sites that might still import these. */
+export const getToken = () => null;
+export const setToken = (_token) => {};
+export const removeToken = () => {};
 
 /**
- * Set token in localStorage
- * @param {string} token - JWT token
+ * Decode the user's role from the token stored in the cookie.
+ * Since the cookie is HttpOnly we cannot read it in JS.
+ * Use AuthContext.user instead.
  */
-export const setToken = (token) => {
-  if (typeof window !== 'undefined') {
-    localStorage.setItem('token', token);
-  }
-};
-
-/**
- * Remove token from localStorage
- */
-export const removeToken = () => {
-  if (typeof window !== 'undefined') {
-    localStorage.removeItem('token');
-  }
-};
-
-/**
- * Get user info from token
- * @returns {Object|null} User info or null
- */
-export const getUserFromToken = () => {
-  const token = getToken();
-  if (!token) return null;
-  
-  try {
-    const payload = JSON.parse(atob(token.split('.')[1]));
-    return {
-      userId: payload.userId,
-      email: payload.email,
-      role: payload.role
-    };
-  } catch (error) {
-    console.error('Error decoding token:', error);
-    return null;
-  }
-};
+export const getUserFromToken = () => null;
 
 // Authentication API endpoints
 
@@ -219,19 +130,12 @@ export const verifyEmail = async (token) => {
 };
 
 /**
- * Login user
- * @param {Object} credentials - Login credentials
- * @returns {Promise<Object>} API response
+ * Login user — the backend sets an HttpOnly cookie automatically.
  */
 export const login = async (credentials) => {
   try {
     const response = await api.post('/auth/login', credentials);
-    
-    // Store token if login successful
-    if (response.data.success && response.data.token) {
-      setToken(response.data.token);
-    }
-    
+    // Cookie is set by the server; no localStorage operation needed.
     return response.data;
   } catch (error) {
     throw handleApiError(error);
@@ -399,20 +303,14 @@ export const searchFreelancers = async (searchParams) => {
 };
 
 /**
- * Logout user
- * @returns {Promise<Object>} API response
+ * Logout user — server clears the cookie.
  */
 export const logout = async () => {
   try {
     const response = await api.post('/auth/logout');
-    
-    // Remove token from localStorage
-    removeToken();
-    
     return response.data;
   } catch (error) {
-    // Remove token even if API call fails
-    removeToken();
+    // Even if the API call fails, the cookie will expire naturally.
     throw handleApiError(error);
   }
 };

@@ -6,27 +6,23 @@ let videoSocket = null;
 
 /**
  * Get or create the singleton Socket.io client for the /video namespace.
- * Connects using the JWT token from localStorage.
+ * Uses withCredentials so the HttpOnly auth_token cookie is sent automatically.
  */
 export const getVideoSocket = () => {
-  // Reuse existing socket even if temporarily disconnected (let reconnection handle it)
   if (videoSocket) return videoSocket;
-
-  const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
-  if (!token) return null;
 
   const SOCKET_URL = (
     process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api"
   ).replace("/api", "");
 
   videoSocket = io(`${SOCKET_URL}/video`, {
-    auth: { token },
-    transports: ["websocket", "polling"], // Try WebSocket first
+    withCredentials: true,
+    transports: ["websocket", "polling"],
     reconnection: true,
     reconnectionDelay: 1000,
     reconnectionDelayMax: 5000,
     reconnectionAttempts: Infinity,
-    timeout: 20000, // Longer timeout for Render
+    timeout: 20000,
     autoConnect: false,
     forceNew: true
   });

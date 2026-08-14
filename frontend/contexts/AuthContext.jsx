@@ -5,10 +5,6 @@ import {
   getCurrentUser, 
   login as apiLogin, 
   logout as apiLogout,
-  isAuthenticated as checkTokenAuthenticated,
-  getToken,
-  setToken,
-  removeToken
 } from '@/lib/api';
 
 // Create the authentication context
@@ -47,36 +43,30 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   /**
-   * Load user data from API
+   * Load user data from API.
+   * With cookie-based auth, we simply call /api/auth/me.
+   * The browser sends the HttpOnly cookie automatically.
    */
   const loadUser = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
 
-      // Check if JWT token exists
-      if (!checkTokenAuthenticated()) {
-        setUser(null);
-        setLoading(false);
-        return;
-      }
-
-      // Get authenticated user data from API
       const response = await getCurrentUser();
       
       if (response && response.success) {
         setUser(response.user);
       } else {
-        removeToken();
         setUser(null);
       }
     } catch (error) {
-      console.error('Error loading authenticated user:', error);
-      if (error.status === 401) {
-        removeToken();
+      // 401 means no valid session — normal for unauthenticated visitors
+      if (error.status === 401 || error.response?.status === 401) {
         setUser(null);
       } else {
+        console.error('Error loading authenticated user:', error);
         setError(error.message || 'Failed to load user session');
+        setUser(null);
       }
     } finally {
       setLoading(false);
@@ -111,7 +101,7 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   /**
-   * Logout user
+   * Logout user — server clears the cookie.
    */
   const logout = useCallback(async () => {
     try {
@@ -123,7 +113,6 @@ export const AuthProvider = ({ children }) => {
     } finally {
       setUser(null);
       setLoading(false);
-      removeToken();
       if (typeof window !== 'undefined') {
         window.location.href = '/login';
       }
@@ -141,19 +130,13 @@ export const AuthProvider = ({ children }) => {
    * Refresh user data
    */
   const refreshUser = useCallback(async () => {
-    if (!checkTokenAuthenticated()) {
-      setUser(null);
-      return;
-    }
-
     try {
       const response = await getCurrentUser();
       if (response && response.success) {
         setUser(response.user);
       }
     } catch (error) {
-      if (error.status === 401) {
-        removeToken();
+      if (error.status === 401 || error.response?.status === 401) {
         setUser(null);
       }
     }
@@ -161,21 +144,6 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     loadUser();
-  }, [loadUser]);
-
-  useEffect(() => {
-    const handleStorageChange = (e) => {
-      if (e.key === 'token') {
-        if (e.newValue) {
-          loadUser();
-        } else {
-          setUser(null);
-        }
-      }
-    };
-
-    window.addEventListener('storage', handleStorageChange);
-    return () => window.removeEventListener('storage', handleStorageChange);
   }, [loadUser]);
 
   // Context value

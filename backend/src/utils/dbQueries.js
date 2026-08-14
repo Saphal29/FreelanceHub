@@ -1,4 +1,5 @@
 const { pool } = require('../config/database');
+const logger = require('./logger');
 
 /**
  * Execute a parameterized query with logging
@@ -11,18 +12,18 @@ const query = async (text, params) => {
   try {
     const res = await pool.query(text, params);
     const duration = Date.now() - start;
-    console.log('Executed query', { 
-      text: text.substring(0, 100) + (text.length > 100 ? '...' : ''), 
-      duration: `${duration}ms`, 
-      rows: res.rowCount 
+    logger.debug('Executed query', {
+      text: text.substring(0, 100) + (text.length > 100 ? '...' : ''),
+      duration: `${duration}ms`,
+      rows: res.rowCount
     });
     return res;
   } catch (error) {
     const duration = Date.now() - start;
-    console.error('Query error', { 
-      text: text.substring(0, 100) + (text.length > 100 ? '...' : ''), 
-      duration: `${duration}ms`, 
-      error: error.message 
+    logger.error('Query error', {
+      text: text.substring(0, 100) + (text.length > 100 ? '...' : ''),
+      duration: `${duration}ms`,
+      error: error.message
     });
     throw error;
   }
@@ -37,7 +38,7 @@ const getClient = async () => {
     const client = await pool.connect();
     return client;
   } catch (error) {
-    console.error('Failed to get database client:', error.message);
+    logger.error('Failed to get database client:', { error: error.message });
     throw error;
   }
 };
@@ -51,17 +52,14 @@ const transaction = async (callback) => {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
-    console.log('🔄 Transaction started');
-    
+    logger.debug('Transaction started');
     const result = await callback(client);
-    
     await client.query('COMMIT');
-    console.log('✅ Transaction committed');
-    
+    logger.debug('Transaction committed');
     return result;
   } catch (error) {
     await client.query('ROLLBACK');
-    console.error('❌ Transaction rolled back:', error.message);
+    logger.error('Transaction rolled back:', { error: error.message });
     throw error;
   } finally {
     client.release();
@@ -75,12 +73,13 @@ const transaction = async (callback) => {
 const testConnection = async () => {
   try {
     const result = await query('SELECT NOW() as current_time, version() as db_version');
-    console.log('✅ Database connection test successful');
-    console.log('📅 Current time:', result.rows[0].current_time);
-    console.log('🗄️  Database version:', result.rows[0].db_version.split(' ')[0]);
+    logger.info('Database connection test successful', {
+      currentTime: result.rows[0].current_time,
+      dbVersion: result.rows[0].db_version.split(' ')[0]
+    });
     return true;
   } catch (error) {
-    console.error('❌ Database connection test failed:', error.message);
+    logger.error('Database connection test failed:', { error: error.message });
     return false;
   }
 };
@@ -102,22 +101,27 @@ const tableExists = async (tableName) => {
     );
     return result.rows[0].exists;
   } catch (error) {
-    console.error(`Error checking if table ${tableName} exists:`, error.message);
+    logger.error(`Error checking if table ${tableName} exists:`, { error: error.message });
     return false;
   }
 };
 
 /**
- * Get table row count
- * @param {string} tableName - Name of the table
- * @returns {Promise<number>} Number of rows in table
+ * Get table row count — table name is validated against a whitelist
+ * to prevent SQL injection if this utility is ever called dynamically.
  */
+const ALLOWED_TABLES = new Set(['users', 'freelancer_profiles', 'client_profiles', 'projects', 'contracts', 'payments']);
+
 const getTableRowCount = async (tableName) => {
+  if (!ALLOWED_TABLES.has(tableName)) {
+    logger.error(`getTableRowCount called with disallowed table name: ${tableName}`);
+    throw new Error(`Invalid table name: ${tableName}`);
+  }
   try {
     const result = await query(`SELECT COUNT(*) as count FROM ${tableName}`);
     return parseInt(result.rows[0].count);
   } catch (error) {
-    console.error(`Error getting row count for table ${tableName}:`, error.message);
+    logger.error(`Error getting row count for table ${tableName}:`, { error: error.message });
     return 0;
   }
 };
@@ -130,49 +134,44 @@ const validateSchema = async () => {
   const requiredTables = ['users', 'freelancer_profiles', 'client_profiles'];
   
   try {
-    console.log('🔍 Validating database schema...');
+    logger.info('Validating database schema...');
     
     for (const table of requiredTables) {
       const exists = await tableExists(table);
       if (!exists) {
-        console.error(`❌ Required table '${table}' does not exist`);
+        logger.error(`Required table '${table}' does not exist`);
         return false;
       }
-      
       const rowCount = await getTableRowCount(table);
-      console.log(`✅ Table '${table}' exists with ${rowCount} rows`);
+      logger.info(`Table '${table}' exists`, { rows: rowCount });
     }
     
-    console.log('✅ Database schema validation successful');
+    logger.info('Database schema validation successful');
     return true;
   } catch (error) {
-    console.error('❌ Database schema validation failed:', error.message);
+    logger.error('Database schema validation failed:', { error: error.message });
     return false;
   }
 };
 
-/**
- * Gracefully close database connections
- * @returns {Promise<void>}
- */
 const closeConnections = async () => {
   try {
     await pool.end();
-    console.log('✅ Database connections closed gracefully');
+    logger.info('Database connections closed gracefully');
   } catch (error) {
-    console.error('❌ Error closing database connections:', error.message);
+    logger.error('Error closing database connections:', { error: error.message });
   }
 };
 
 // Handle process termination
 process.on('SIGINT', async () => {
-  console.log('\n🛑 Received SIGINT, closing database connections...');
+  logger.info('Received SIGINT, closing database connections...');
   await closeConnections();
   process.exit(0);
 });
 
 process.on('SIGTERM', async () => {
-  console.log('\n🛑 Received SIGTERM, closing database connections...');
+  logger.info('Received SIGTERM, closing database connections...');
   await closeConnections();
   process.exit(0);
 });

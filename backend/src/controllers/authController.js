@@ -1,10 +1,32 @@
 const authService = require('../services/authService');
 const bcrypt = require('bcrypt');
+const crypto = require('crypto');
 const { generateToken } = require('../utils/jwtUtils');
 const { v4: uuidv4 } = require('uuid');
 const { validateRegistrationData, validateLoginData } = require('../utils/validation');
 const logger = require('../utils/logger');
 const emailService = require('../services/emailService');
+
+/**
+ * Helper to set the auth cookie securely
+ */
+const setAuthCookie = (res, token) => {
+  const isProduction = process.env.NODE_ENV === 'production';
+  res.cookie('auth_token', token, {
+    httpOnly: true,
+    secure: isProduction,          // HTTPS only in production
+    sameSite: isProduction ? 'strict' : 'lax',
+    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days (matches JWT_EXPIRES_IN)
+    path: '/'
+  });
+};
+
+/**
+ * Helper to clear the auth cookie
+ */
+const clearAuthCookie = (res) => {
+  res.clearCookie('auth_token', { path: '/' });
+};
 
 /**
  * Helper function to format user response
@@ -434,6 +456,9 @@ const login = async (req, res) => {
       role: user.role 
     });
 
+    // Set HttpOnly cookie AND return token in body (body token for API clients / mobile)
+    setAuthCookie(res, token);
+
     res.json({
       success: true,
       message: 'Login successful',
@@ -476,18 +501,19 @@ const forgotPassword = async (req, res) => {
     const user = await authService.findUserByEmail(email.toLowerCase().trim());
 
     if (user) {
-      // Generate reset token
-      const resetToken = uuidv4();
-      const expires = new Date(Date.now() + 3600000); // 1 hour from now
+      // Generate reset token — store a SHA-256 hash, send plaintext in email
+      const plaintextToken = uuidv4();
+      const tokenHash = crypto.createHash('sha256').update(plaintextToken).digest('hex');
+      const expires = new Date(Date.now() + 3600000); // 1 hour
 
-      await authService.setPasswordResetToken(user.id, resetToken, expires);
+      await authService.setPasswordResetToken(user.id, tokenHash, expires);
 
-      // Send password reset email
+      // Send password reset email (use plaintext token in the link)
       try {
         const emailResult = await emailService.sendPasswordResetEmail(
           user.email,
           user.full_name,
-          resetToken
+          plaintextToken
         );
         
         if (emailResult.success) {
@@ -506,7 +532,7 @@ const forgotPassword = async (req, res) => {
       }
 
       // Log reset link for development/testing
-      const resetLink = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/reset-password?token=${resetToken}`;
+      const resetLink = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/reset-password?token=${plaintextToken}`;
       console.log('\n🔑 PASSWORD RESET LINK:');
       console.log(resetLink);
       console.log('\n');
@@ -568,8 +594,9 @@ const resetPassword = async (req, res) => {
       ip: req.ip 
     });
 
-    // Find user by reset token
-    const user = await authService.findUserByResetToken(token);
+    // Hash the submitted token and look up the hash in the database
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+    const user = await authService.findUserByResetToken(tokenHash);
 
     if (!user) {
       logger.auth('Password reset failed - invalid token', { 
@@ -778,15 +805,15 @@ const updateProfile = async (req, res) => {
 };
 
 /**
- * Logout controller
- * @param {Object} req - Express request object
- * @param {Object} res - Express response object
+ * Logout controller — clears the auth cookie server-side.
  */
 const logout = (req, res) => {
   logger.auth('User logout', { 
     userId: req.user?.userId, 
     email: req.user?.email 
   });
+  
+  clearAuthCookie(res);
   
   res.json({
     success: true,

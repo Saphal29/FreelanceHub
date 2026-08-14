@@ -3,6 +3,18 @@ const roomService = require('../services/roomService');
 const { query } = require('../utils/dbQueries');
 const logger = require('../utils/logger');
 
+/**
+ * Extract and verify JWT from cookie or auth handshake for socket connections.
+ */
+const verifySocketToken = (socket) => {
+  const cookieHeader = socket.handshake.headers?.cookie || '';
+  const cookieMatch = cookieHeader.match(/auth_token=([^;]+)/);
+  const cookieToken = cookieMatch ? cookieMatch[1] : null;
+  const token = cookieToken || socket.handshake.auth?.token;
+  if (!token) throw new Error('Authentication required');
+  return jwt.verify(token, process.env.JWT_SECRET, { algorithms: ['HS256'] });
+};
+
 // In-memory active call rooms: roomId -> Set<userId>
 const activeCallRooms = new Map();
 
@@ -74,18 +86,15 @@ const getIceServers = () => {
 const initVideoSignaling = (io) => {
   const videoNs = io.of('/video');
 
-  // JWT auth middleware
+  // JWT auth middleware — cookie first, then auth.token fallback
   videoNs.use((socket, next) => {
-    const token = socket.handshake.auth?.token;
-    if (!token) return next(new Error('Authentication required'));
-
     try {
-      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      const decoded = verifySocketToken(socket);
       socket.userId = decoded.userId;
       socket.userRole = decoded.role;
       next();
     } catch (err) {
-      next(new Error('Invalid token'));
+      next(new Error('Authentication required'));
     }
   });
 

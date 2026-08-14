@@ -11,9 +11,10 @@ const corsMiddleware = (req, res, next) => {
     process.env.FRONTEND_URL,
     process.env.CORS_ORIGIN,
     'https://freelance-hub-ochre.vercel.app',
-    'http://localhost:3000',
-    'http://127.0.0.1:3000',
-    'https://localhost:3000'
+    // Localhost only in development
+    ...(process.env.NODE_ENV !== 'production'
+      ? ['http://localhost:3000', 'http://127.0.0.1:3000', 'https://localhost:3000']
+      : [])
   ].filter(Boolean);
 
   const origin = req.headers.origin;
@@ -52,25 +53,33 @@ const securityHeaders = (req, res, next) => {
   // Prevent MIME type sniffing
   res.setHeader('X-Content-Type-Options', 'nosniff');
   
-  // Enable XSS protection
-  res.setHeader('X-XSS-Protection', '1; mode=block');
-  
   // Referrer policy
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
   
-  // Content Security Policy - allow websockets and API connections from local network
+  // Content Security Policy — environment-aware, no localhost in production
+  const apiHost = process.env.BACKEND_URL || '';
+  const wsHost = apiHost.replace(/^https?/, 'wss');
   if (process.env.NODE_ENV === 'development') {
-    res.setHeader('Content-Security-Policy', 
+    res.setHeader('Content-Security-Policy',
       "default-src 'self'; " +
       "connect-src 'self' ws://localhost:5000 wss://localhost:5000 http://localhost:5000 " +
       "ws://192.168.44.82:5000 wss://192.168.44.82:5000 http://192.168.44.82:5000"
     );
   } else {
-    res.setHeader('Content-Security-Policy', "default-src 'self'; connect-src 'self' ws://localhost:5000 wss://localhost:5000 http://localhost:5000");
+    res.setHeader('Content-Security-Policy',
+      `default-src 'self'; connect-src 'self' ${apiHost} ${wsHost}`
+    );
   }
   
   // Remove server information
   res.removeHeader('X-Powered-By');
+
+  // Strict Transport Security (HTTPS enforcement)
+  res.setHeader('Strict-Transport-Security', 'max-age=63072000; includeSubDomains; preload');
+
+  // Cross-Origin policies
+  res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
+  res.setHeader('Cross-Origin-Resource-Policy', 'same-site');
   
   next();
 };

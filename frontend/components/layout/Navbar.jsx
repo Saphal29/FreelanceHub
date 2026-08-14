@@ -32,9 +32,7 @@ const Navbar = ({ userType = "client" }) => {
   const profileDropdownRef = useRef(null);
 
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      sessionStorage.setItem('userType', userType);
-    }
+    // userType is passed as a prop — no need to persist it
   }, [userType]);
 
   useEffect(() => {

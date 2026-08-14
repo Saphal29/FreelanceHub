@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const disputeController = require('../controllers/disputeController');
 const { authMiddleware } = require('../middlewares/authMiddleware');
+const { roleMiddleware } = require('../middlewares/roleMiddleware');
 
 // ============================================
 // DISPUTE ROUTES
@@ -92,6 +93,7 @@ router.get(
 router.post(
   '/:id/assign-mediator',
   authMiddleware,
+  roleMiddleware(['ADMIN']),
   disputeController.assignMediator
 );
 

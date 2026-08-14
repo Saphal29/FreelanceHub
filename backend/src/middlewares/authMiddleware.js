@@ -2,36 +2,39 @@ const { verifyToken } = require('../utils/jwtUtils');
 const logger = require('../utils/logger');
 
 /**
- * Authentication middleware to verify JWT tokens
- * @param {Object} req - Express request object
- * @param {Object} res - Express response object
- * @param {Function} next - Express next function
+ * Authentication middleware.
+ * Reads the JWT from the HttpOnly cookie `auth_token` first,
+ * then falls back to the Authorization: Bearer header for
+ * API clients / mobile apps.
  */
 const authMiddleware = (req, res, next) => {
   try {
-    // Get token from header
-    const authHeader = req.headers.authorization;
-    
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    // 1. Prefer the HttpOnly cookie
+    let token = req.cookies?.auth_token;
+
+    // 2. Fall back to Authorization header (API clients, mobile)
+    if (!token) {
+      const authHeader = req.headers.authorization;
+      if (authHeader && authHeader.startsWith('Bearer ')) {
+        token = authHeader.substring(7);
+      }
+    }
+
+    if (!token) {
       logger.security('Authentication attempt without token', {
         ip: req.ip,
         userAgent: req.get('User-Agent'),
         path: req.path
       });
-      
       return res.status(401).json({
         success: false,
         error: 'No token provided',
         code: 'NO_TOKEN'
       });
     }
-    
-    const token = authHeader.substring(7); // Remove 'Bearer ' prefix
-    
-    // Verify token
+
     const decoded = verifyToken(token);
-    
-    // Attach user info to request
+
     req.user = {
       userId: decoded.userId,
       email: decoded.email,
@@ -39,7 +42,7 @@ const authMiddleware = (req, res, next) => {
       iat: decoded.iat,
       exp: decoded.exp
     };
-    
+
     logger.auth('Authentication successful', {
       userId: decoded.userId,
       email: decoded.email,
@@ -47,7 +50,7 @@ const authMiddleware = (req, res, next) => {
       ip: req.ip,
       path: req.path
     });
-    
+
     next();
   } catch (error) {
     logger.security('Authentication failed', {
@@ -56,50 +59,36 @@ const authMiddleware = (req, res, next) => {
       userAgent: req.get('User-Agent'),
       path: req.path
     });
-    
+
     if (error.message === 'Token expired') {
-      return res.status(401).json({
-        success: false,
-        error: 'Token expired',
-        code: 'TOKEN_EXPIRED'
-      });
+      return res.status(401).json({ success: false, error: 'Token expired', code: 'TOKEN_EXPIRED' });
     }
-    
     if (error.message === 'Invalid token') {
-      return res.status(401).json({
-        success: false,
-        error: 'Invalid token',
-        code: 'INVALID_TOKEN'
-      });
+      return res.status(401).json({ success: false, error: 'Invalid token', code: 'INVALID_TOKEN' });
     }
-    
-    return res.status(401).json({
-      success: false,
-      error: 'Authentication failed',
-      code: 'AUTH_FAILED'
-    });
+    return res.status(401).json({ success: false, error: 'Authentication failed', code: 'AUTH_FAILED' });
   }
 };
 
 /**
  * Optional authentication middleware - doesn't fail if no token provided
- * @param {Object} req - Express request object
- * @param {Object} res - Express response object
- * @param {Function} next - Express next function
  */
 const optionalAuthMiddleware = (req, res, next) => {
   try {
-    const authHeader = req.headers.authorization;
-    
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      // No token provided, continue without authentication
+    let token = req.cookies?.auth_token;
+    if (!token) {
+      const authHeader = req.headers.authorization;
+      if (authHeader && authHeader.startsWith('Bearer ')) {
+        token = authHeader.substring(7);
+      }
+    }
+
+    if (!token) {
       req.user = null;
       return next();
     }
-    
-    const token = authHeader.substring(7);
+
     const decoded = verifyToken(token);
-    
     req.user = {
       userId: decoded.userId,
       email: decoded.email,
@@ -107,21 +96,16 @@ const optionalAuthMiddleware = (req, res, next) => {
       iat: decoded.iat,
       exp: decoded.exp
     };
-    
+
     logger.auth('Optional authentication successful', {
       userId: decoded.userId,
       email: decoded.email,
       role: decoded.role
     });
-    
+
     next();
   } catch (error) {
-    // Token provided but invalid, continue without authentication
-    logger.security('Optional authentication failed', {
-      error: error.message,
-      ip: req.ip
-    });
-    
+    logger.security('Optional authentication failed', { error: error.message, ip: req.ip });
     req.user = null;
     next();
   }
